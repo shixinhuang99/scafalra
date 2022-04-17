@@ -1,28 +1,37 @@
 {
-  "name": "scaffold-cli",
+  "name": "@zerowong/scaffold-cli",
   "version": "0.0.1",
   "description": "scaffold commannd line tool",
   "author": "zerowong <wongzero@foxmail.com>",
   "license": "MIT",
   "type": "commonjs",
-  "bin": {
-    "scaffold-cli": "bin/index.js"
-  },
+  "bin": "bin/index.js",
   "files": [
     "bin"
   ],
+  "engines": {
+    "node": ">=16"
+  },
   "publishConfig": {
     "access": "public"
   },
+  "keywords": [
+    "scaffold",
+    "cli"
+  ],
   "scripts": {
     "up:sdks": "yarn dlx @yarnpkg/sdks vscode",
     "up:yarn": "yarn set version latest",
     "up:deps": "yarn upgrade-interactive",
-    "start": "ts-node ./src/index.ts",
+    "scaffold-cli": "ts-node ./src/index.ts",
     "build": "tsc"
   },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "mri": "^1.2.0"
+  },
   "devDependencies": {
-    "@types/node": "^17.0.23",
+    "@types/node": "^17.0.24",
     "@typescript-eslint/eslint-plugin": "^5.19.0",
     "@typescript-eslint/parser": "^5.19.0",
     "eslint": "^8.13.0",

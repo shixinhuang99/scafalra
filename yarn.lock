@@ -118,10 +118,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^17.0.23":
-  version: 17.0.23
-  resolution: "@types/node@npm:17.0.23"
-  checksum: a3517554737cbb042e76c30d0e5482192ac4d9bea0eeb086e2622d9cabf460a0eb52a696b99fcd18e7fcc93c96db6cc7ae507f6608f256ef0b5c1d8c87a5a470
+"@types/node@npm:^17.0.24":
+  version: 17.0.24
+  resolution: "@types/node@npm:17.0.24"
+  checksum: 9e7c4f863601b2430b4c2429a89935f22eba692956f5013c90a4c7fb0e1401ed8add8c4307453c5d6b8b985384500f8c3f644427ab88632640cc396159af479a
   languageName: node
   linkType: hard
 
@@ -242,6 +242,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@zerowong/scaffold-cli@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "@zerowong/scaffold-cli@workspace:."
+  dependencies:
+    "@types/node": ^17.0.24
+    "@typescript-eslint/eslint-plugin": ^5.19.0
+    "@typescript-eslint/parser": ^5.19.0
+    chalk: ^4.1.2
+    eslint: ^8.13.0
+    mri: ^1.2.0
+    prettier: ^2.6.2
+    ts-node: ^10.7.0
+    typescript: ^4.6.3
+  bin:
+    scaffold-cli: bin/index.js
+  languageName: unknown
+  linkType: soft
+
 "acorn-jsx@npm:^5.3.1":
   version: 5.3.2
   resolution: "acorn-jsx@npm:5.3.2"
@@ -349,7 +367,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chalk@npm:^4.0.0":
+"chalk@npm:^4.0.0, chalk@npm:^4.1.2":
   version: 4.1.2
   resolution: "chalk@npm:4.1.2"
   dependencies:
@@ -900,6 +918,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"mri@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "mri@npm:1.2.0"
+  checksum: 83f515abbcff60150873e424894a2f65d68037e5a7fcde8a9e2b285ee9c13ac581b63cfc1e6826c4732de3aeb84902f7c1e16b7aff46cd3f897a0f757a894e85
+  languageName: node
+  linkType: hard
+
 "ms@npm:2.1.2":
   version: 2.1.2
   resolution: "ms@npm:2.1.2"
@@ -1044,20 +1069,6 @@ __metadata:
   checksum: cb4f97ad25a75ebc11a8ef4e33bb962f8af8516bb2001082ceabd8902e15b98f4b84b4f8a9b222e5d57fc3bd1379c483886ed4619367a7680dad65316993021d
   languageName: node
   linkType: hard
-
-"scaffold-cli@workspace:.":
-  version: 0.0.0-use.local
-  resolution: "scaffold-cli@workspace:."
-  dependencies:
-    "@types/node": ^17.0.23
-    "@typescript-eslint/eslint-plugin": ^5.19.0
-    "@typescript-eslint/parser": ^5.19.0
-    eslint: ^8.13.0
-    prettier: ^2.6.2
-    ts-node: ^10.7.0
-    typescript: ^4.6.3
-  languageName: unknown
-  linkType: soft
 
 "semver@npm:^7.3.5":
   version: 7.3.7
