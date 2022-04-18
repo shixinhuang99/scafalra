@@ -4,3 +4,4 @@ node_modules
 .pnp.loader.mjs
 
 /bin
+/dist

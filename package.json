@@ -5,12 +5,13 @@
   "author": "zerowong <wongzero@foxmail.com>",
   "license": "MIT",
   "type": "commonjs",
-  "bin": "dist/bin.js",
+  "bin": "bin/index.js",
   "exports": {
     ".": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "engines": {
     "node": ">=16"
