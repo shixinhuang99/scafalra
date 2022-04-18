@@ -5,9 +5,12 @@
   "author": "zerowong <wongzero@foxmail.com>",
   "license": "MIT",
   "type": "commonjs",
-  "bin": "bin/index.js",
+  "bin": "dist/bin.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "files": [
-    "bin"
+    "dist"
   ],
   "engines": {
     "node": ">=16"
@@ -17,13 +20,14 @@
   },
   "keywords": [
     "scaffold",
-    "cli"
+    "cli",
+    "template"
   ],
   "scripts": {
     "up:sdks": "yarn dlx @yarnpkg/sdks vscode",
     "up:yarn": "yarn set version latest",
     "up:deps": "yarn upgrade-interactive",
-    "scaffold-cli": "ts-node ./src/index.ts",
+    "scaffold-cli": "ts-node ./src/bin.ts",
     "build": "tsc"
   },
   "dependencies": {

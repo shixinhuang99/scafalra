@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import os from 'node:os'
 import path from 'node:path'
 import fs from 'node:fs/promises'
@@ -28,7 +27,7 @@ const log = {
     console.error(`${chalk.red('scaffold-cli')}: ${msg}`)
   },
   usage(msg: string) {
-    console.log(`${chalk.blue('usage')}: ${msg}`)
+    console.log(`${chalk.cyan('usage')}: ${msg}`)
   },
   grid(msgs: [string, string][], space = 4) {
     let max = 0
@@ -100,11 +99,11 @@ class ScaffoldCli {
 
   private addProject(name: string, absPath: string) {
     this.config.projects[name] = absPath
-    this.changes.push([name, absPath])
+    this.changes.push([`${chalk.green('+')} ${name}`, absPath])
   }
 
   private removeProject(name: string) {
-    this.changes.push([name, this.config.projects[name]])
+    this.changes.push([`${chalk.red('-')} ${name}`, this.config.projects[name]])
     delete this.config.projects[name]
   }
 
@@ -156,7 +155,11 @@ class ScaffoldCli {
    * @todo purge
    */
   private list() {
-    log.grid(Object.entries(this.config.projects))
+    log.grid(
+      Object.entries(this.config.projects).map((item) => {
+        return [chalk.green(item[0]), item[1]]
+      })
+    )
   }
 
   private async add(paths: string[], depth = 0) {
@@ -223,9 +226,9 @@ class ScaffoldCli {
     }
   }
 
-  async main() {
+  async main(argv?: string[]) {
     await this.readConfig()
-    const argv = mri(process.argv.slice(2), {
+    const _argv = mri(argv ?? process.argv.slice(2), {
       alias: {
         d: 'depth',
         h: 'help',
@@ -237,14 +240,14 @@ class ScaffoldCli {
       },
     })
 
-    if (!argv) {
+    if (!_argv) {
       return
     }
 
     const {
       _: [action = '', ...args],
       ...flags
-    } = argv
+    } = _argv
 
     const flagArr = Object.keys(flags)
     const firstFlag = flagArr[0]?.[0]
@@ -280,6 +283,4 @@ class ScaffoldCli {
   }
 }
 
-const cli = new ScaffoldCli()
-
-cli.main()
+export default ScaffoldCli
