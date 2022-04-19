@@ -4,14 +4,4 @@ node_modules
 *.local
 /*.log
 
-# yarn berry
-.yarn/*
-# !.yarn/cache
-# !.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
-
 /dist
-/playground
