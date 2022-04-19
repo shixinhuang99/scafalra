@@ -11,7 +11,7 @@
     "removeComments": true,
     "listEmittedFiles": true
   },
-  "include": ["src"],
+  "include": ["src", "tsup.config.ts"],
   "ts-node": {
     "transpileOnly": true
   }
