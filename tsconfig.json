@@ -7,13 +7,7 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "removeComments": true,
-    "listEmittedFiles": true
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src"],
-  "exclude": ["tsup.config.ts"],
-  "ts-node": {
-    "transpileOnly": true
-  }
+  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts"]
 }

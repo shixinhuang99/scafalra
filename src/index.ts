@@ -27,7 +27,7 @@ const log = {
     console.error(`${chalk.red('scaffold-cli')}: ${msg}`)
   },
   usage(msg: string) {
-    console.log(`${chalk.cyan('usage')}: ${msg}`)
+    console.error(`${chalk.cyan('usage')}: ${msg}`)
   },
   grid(msgs: [string, string][], space = 4) {
     let max = 0
@@ -52,34 +52,26 @@ function rmrf(target: string) {
 // fsPromises.cp is experimental
 async function cp(source: string, target: string) {
   const ignore = ['.git', '.DS_Store', 'node_modules']
-  try {
-    const sourceDir = await fs.opendir(source)
-    await fs.mkdir(target)
-    for await (const dirent of sourceDir) {
-      if (ignore.includes(dirent.name)) {
-        continue
-      }
-      const s = path.join(source, dirent.name)
-      const t = path.join(target, dirent.name)
-      if (dirent.isDirectory()) {
-        await cp(s, t)
-      } else if (dirent.isFile()) {
-        await fs.copyFile(s, t)
-      }
+  const sourceDir = await fs.opendir(source)
+  await fs.mkdir(target)
+  for await (const dirent of sourceDir) {
+    if (ignore.includes(dirent.name)) {
+      continue
     }
-  } catch (error) {
-    if (isEEXIST(error)) {
-      log.error(
-        `Directory '${error.path}' already exists. Overwrite the directory with '--overwrite'?`
-      )
-    }
-    if (isENOENT(error)) {
-      log.error(`Can't find directory '${error.path}'.`)
+    const s = path.join(source, dirent.name)
+    const t = path.join(target, dirent.name)
+    if (dirent.isDirectory()) {
+      await cp(s, t)
+    } else if (dirent.isFile()) {
+      await fs.copyFile(s, t)
     }
   }
 }
 
-const configPath = path.join(os.homedir() ?? os.tmpdir(), '.scaffold_cli.json')
+const base = os.homedir() ?? os.tmpdir()
+const configFile =
+  process.env.NODE_ENV === 'test' ? '.scaffold-cli-test.json' : '.scaffold-cli.json'
+const configPath = path.join(base, configFile)
 const cwd = process.cwd()
 
 class ScaffoldCli {
@@ -87,24 +79,14 @@ class ScaffoldCli {
   private config: {
     projects: Record<string, string>
   }
-  private changes: [string, string][]
+  private changes: Record<string, string>
 
   constructor() {
     this.version = '0.0.1'
     this.config = {
       projects: {},
     }
-    this.changes = []
-  }
-
-  private addProject(name: string, absPath: string) {
-    this.config.projects[name] = absPath
-    this.changes.push([`${chalk.green('+')} ${name}`, absPath])
-  }
-
-  private removeProject(name: string) {
-    this.changes.push([`${chalk.red('-')} ${name}`, this.config.projects[name]])
-    delete this.config.projects[name]
+    this.changes = {}
   }
 
   private async readConfig() {
@@ -121,6 +103,20 @@ class ScaffoldCli {
   private async writeConfig() {
     const content = JSON.stringify(this.config, null, 2)
     await fs.writeFile(configPath, content)
+  }
+
+  private addProject(name: string, absPath: string) {
+    this.config.projects[name] = absPath
+    this.changes[`${chalk.green('+')} ${name}`] = absPath
+  }
+
+  private removeProject(name: string) {
+    this.changes[`${chalk.red('-')} ${name}`] = this.config.projects[name]
+    delete this.config.projects[name]
+  }
+
+  private logChanges() {
+    log.grid(Object.entries(this.changes))
   }
 
   private none(flag?: string) {
@@ -191,7 +187,7 @@ class ScaffoldCli {
     }
     await this.writeConfig()
     console.log('New projects:\n')
-    log.grid(this.changes)
+    this.logChanges()
   }
 
   private async remove(names: string[]) {
@@ -199,11 +195,14 @@ class ScaffoldCli {
       return log.usage('scaffold-cli remove <name ...>')
     }
     for (const name of names) {
+      if (!(name in this.config.projects)) {
+        return log.error(`No such project: '${name}'.`)
+      }
       this.removeProject(name)
     }
     await this.writeConfig()
     console.log('Removed projects:\n')
-    log.grid(this.changes)
+    this.logChanges()
   }
 
   private async create(name?: string, directory?: string, overwrite = false) {
@@ -215,14 +214,22 @@ class ScaffoldCli {
     if (!source) {
       return log.error(`Can't find project '${name}'.`)
     }
+    if (target === source) {
+      return log.error(`Source path and target paths cannot be the same.`)
+    }
     if (overwrite) {
       await rmrf(target)
     }
-    await cp(source, target)
-    console.log(`Project created.`)
-    if (target !== cwd) {
-      console.log('\nNow run:\n')
-      console.log(`  cd ${path.relative(cwd, target)}\n`)
+    try {
+      await cp(source, target)
+      console.log(`Project created in '${target}'.`)
+    } catch (error) {
+      if (isEEXIST(error)) {
+        log.error(`Directory '${error.path}' already exists.`)
+      }
+      if (isENOENT(error)) {
+        log.error(`Can't find directory '${error.path}'.`)
+      }
     }
   }
 
