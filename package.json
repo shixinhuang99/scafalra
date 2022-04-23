@@ -4,6 +4,12 @@
   "description": "scaffold commannd line tool",
   "author": "zerowong <wongzero@foxmail.com>",
   "license": "MIT",
+  "homepage": "https://github.com/zerowong/scaffold-cli",
+  "bugs": "https://github.com/zerowong/scaffold-cli/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zerowong/scaffold-cli.git"
+  },
   "type": "commonjs",
   "bin": "bin/index.js",
   "exports": {
@@ -25,7 +31,7 @@
     "template"
   ],
   "scripts": {
-    "dev": "NODE_ENV=test esno ./src/bin.ts",
+    "start": "NODE_ENV=test esno ./src/bin.ts",
     "build": "tsup",
     "test": "vitest --run",
     "test:w": "vitest",
