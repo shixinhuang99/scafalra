@@ -28,7 +28,7 @@ scaffold-cli -v
 
 ---
 
-### `scaffold-cli list [-p|--purge]`
+### `scaffold-cli list [-p|--prune]`
 
 List all projects.
 

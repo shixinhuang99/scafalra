@@ -68,6 +68,13 @@ async function cp(source: string, target: string) {
   }
 }
 
+function hasInvalidFlag(allows: string[], input: string[]) {
+  if (input.length === 0) {
+    return false
+  }
+  return allows.some((item) => !input.includes(item))
+}
+
 const base = os.homedir() ?? os.tmpdir()
 const configFile =
   process.env.NODE_ENV === 'test' ? '.scaffold-cli-test.json' : '.scaffold-cli.json'
@@ -147,10 +154,20 @@ class ScaffoldCli {
     }
   }
 
-  /**
-   * @todo purge
-   */
-  private list() {
+  private async list(prune = false) {
+    if (typeof prune !== 'boolean') {
+      return
+    }
+    const entries = Object.entries(this.config.projects)
+    if (prune) {
+      for (const [name, value] of entries) {
+        try {
+          await fs.access(value)
+        } catch (error) {
+          delete this.config.projects[name]
+        }
+      }
+    }
     log.grid(
       Object.entries(this.config.projects).map((item) => {
         return [chalk.green(item[0]), item[1]]
@@ -241,6 +258,7 @@ class ScaffoldCli {
         h: 'help',
         v: 'version',
         o: 'overwrite',
+        p: 'prune',
       },
       unknown(flag) {
         log.error(`'${flag}' is not a valid flag. See 'scaffold-cli --help'.`)
@@ -265,7 +283,10 @@ class ScaffoldCli {
         break
       }
       case 'list': {
-        this.list()
+        if (hasInvalidFlag(['p', 'prune'], flagArr)) {
+          return log.usage('scaffold-cli list [-p|--prune]')
+        }
+        this.list(flags.p)
         break
       }
       case 'add': {

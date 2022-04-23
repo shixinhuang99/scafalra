@@ -101,43 +101,9 @@ function rmrf(target: string) {
  * │   ├── 2.txt
  * │   └── node_modules
  * ├── 1
- * │   ├── .DS_Store
- * │   ├── .git
- * │   ├── 0
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 0.txt
- * │   ├── 1
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 1.txt
- * │   ├── 2
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 2.txt
- * │   └── node_modules
+ * │   ...
  * ├── 2
- * │   ├── .DS_Store
- * │   ├── .git
- * │   ├── 0
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 0.txt
- * │   ├── 1
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 1.txt
- * │   ├── 2
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 2.txt
- * │   └── node_modules
+ * │   ...
  * └── is-a-file.txt
  */
 
@@ -220,8 +186,17 @@ describe('list', () => {
     const { stdout } = await run('list')
     expect(stdout).toBe(log.grid([['foo', toTestPath(constants.notExists)]]))
   })
-})
 
+  test('prune', async () => {
+    const { stdout } = await run('list', ['--prune'])
+    expect(stdout).toBe('')
+  })
+
+  test('invalid flag', async () => {
+    const { stderr } = await run('list', ['--version'])
+    expect(stderr).toBe(log.usage('scaffold-cli list [-p|--prune]'))
+  })
+})
 describe('add', () => {
   beforeEach(() => {
     writeConfig()
