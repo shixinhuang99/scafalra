@@ -1,6 +1,6 @@
 {
   "name": "@zerowong/scaffold-cli",
-  "version": "0.0.1",
+  "version": "0.1.1",
   "description": "scaffold commannd line tool",
   "author": "zerowong <wongzero@foxmail.com>",
   "license": "MIT",
