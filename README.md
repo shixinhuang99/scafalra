@@ -64,7 +64,7 @@ scaffold list
 Clear the path of items that no longer exist and list them.
 
 ```bash
-scaffold list --purge
+scaffold list --prune
 ```
 
 ### `scaffold add <path ...> [-d|--depth <0|1>]`
@@ -105,7 +105,7 @@ Copy the templates folder to the specified path.
 scaffold create foo ./path/to/bar
 ```
 
-The specified path can be overwritten with `-overwrite` if it already exists.
+The specified path can be overwritten with `--overwrite` if it already exists.
 
 > note: try not to use it unless you are aware of the risks.
 

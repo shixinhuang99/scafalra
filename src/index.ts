@@ -140,13 +140,16 @@ class ScaffoldCli {
       )
       console.log('\nAvailable commands are as follows:\n')
       log.grid([
-        ['list', 'List all projects.'],
+        ['list [-p|--prune]', 'List all projects.'],
         [
           'add <path ...> [-d|--depth <0|1>]',
           'Add projects with path of a local folder.',
         ],
-        ['remove <name ...>', 'Remove projects.'],
-        ['create <name> [<directory>] [-o|--overwrite]', 'Create a project from list.'],
+        ['remove <name ...>', 'Remove projects from list.'],
+        [
+          'create <name> [<directory>] [-o|--overwrite]',
+          'Create a project by copying the templates folder.',
+        ],
       ])
     }
     if (flag === 'v') {
