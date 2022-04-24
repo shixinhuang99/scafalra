@@ -11,7 +11,9 @@
     "url": "https://github.com/zerowong/scaffold-cli.git"
   },
   "type": "commonjs",
-  "bin": "bin/index.js",
+  "bin": {
+    "scaffold": "bin/index.js"
+  },
   "exports": {
     ".": "./dist/index.js"
   },

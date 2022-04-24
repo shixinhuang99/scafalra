@@ -24,7 +24,7 @@ function isEEXIST(err: unknown): err is SystemError {
 
 const log = {
   error(msg: string) {
-    console.error(`${chalk.red('scaffold-cli')}: ${msg}`)
+    console.error(`${chalk.red('scaffold')}: ${msg}`)
   },
   usage(msg: string) {
     console.error(`${chalk.cyan('usage')}: ${msg}`)
@@ -128,12 +128,12 @@ class ScaffoldCli {
 
   private none(flag?: string) {
     if (!flag) {
-      return log.usage('scaffold-cli [-h|--help] [-v|--version]')
+      return log.usage('scaffold [-h|--help] [-v|--version]')
     }
     if (flag === 'h') {
       log.grid(
         [
-          ['scaffold-cli', '[-h|--help] [-v|--version]'],
+          ['scaffold', '[-h|--help] [-v|--version]'],
           ['', '<command> [<flags>]'],
         ],
         1
@@ -177,7 +177,7 @@ class ScaffoldCli {
 
   private async add(paths: string[], depth = 0) {
     if (paths.length === 0 || typeof depth !== 'number' || depth === -1) {
-      return log.usage('scaffold-cli add <path ...> [-d|--depth <0|1>]')
+      return log.usage('scaffold add <path ...> [-d|--depth <0|1>]')
     }
     for (const item of paths) {
       const absPath = path.isAbsolute(item) ? item : path.resolve(cwd, item)
@@ -209,7 +209,7 @@ class ScaffoldCli {
 
   private async remove(names: string[]) {
     if (names.length === 0) {
-      return log.usage('scaffold-cli remove <name ...>')
+      return log.usage('scaffold remove <name ...>')
     }
     for (const name of names) {
       if (!(name in this.config.projects)) {
@@ -224,7 +224,7 @@ class ScaffoldCli {
 
   private async create(name?: string, directory?: string, overwrite = false) {
     if (!name) {
-      return log.usage('scaffold-cli create <name> [<directory>] [-o|--overwrite]')
+      return log.usage('scaffold create <name> [<directory>] [-o|--overwrite]')
     }
     const source = this.config.projects[name]
     const target = path.resolve(cwd, directory ?? name)
@@ -261,7 +261,7 @@ class ScaffoldCli {
         p: 'prune',
       },
       unknown(flag) {
-        log.error(`'${flag}' is not a valid flag. See 'scaffold-cli --help'.`)
+        log.error(`'${flag}' is not a valid flag. See 'scaffold --help'.`)
       },
     })
 
@@ -284,7 +284,7 @@ class ScaffoldCli {
       }
       case 'list': {
         if (hasInvalidFlag(['p', 'prune'], flagArr)) {
-          return log.usage('scaffold-cli list [-p|--prune]')
+          return log.usage('scaffold list [-p|--prune]')
         }
         this.list(flags.p)
         break
@@ -304,7 +304,7 @@ class ScaffoldCli {
         break
       }
       default: {
-        log.error(`'${action}' is not a valid command. See 'scaffold-cli --help'.`)
+        log.error(`'${action}' is not a valid command. See 'scaffold --help'.`)
         break
       }
     }

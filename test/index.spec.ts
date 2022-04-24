@@ -30,7 +30,7 @@ async function run(command: string, args?: string[]) {
 
 const log = {
   error(msg: string) {
-    return `scaffold-cli: ${msg}`
+    return `scaffold: ${msg}`
   },
   usage(msg: string) {
     return `usage: ${msg}`
@@ -64,8 +64,8 @@ function toTestPath(path?: string, source = true) {
 const constants = {
   notExists: 'not-exists',
   isAFile: 'is-a-file.txt',
-  commonUsage: 'scaffold-cli [-h|--help] [-v|--version]',
-  addUsage: 'scaffold-cli add <path ...> [-d|--depth <0|1>]',
+  commonUsage: 'scaffold [-h|--help] [-v|--version]',
+  addUsage: 'scaffold add <path ...> [-d|--depth <0|1>]',
   newProjects: 'New projects:',
   removedProjects: 'Removed projects:',
 }
@@ -140,7 +140,7 @@ describe('none command', () => {
 
   test('invalid flag', async () => {
     const { stderr } = await run('', ['-z'])
-    expect(stderr).toBe(log.error(`'-z' is not a valid flag. See 'scaffold-cli --help'.`))
+    expect(stderr).toBe(log.error(`'-z' is not a valid flag. See 'scaffold --help'.`))
   })
 
   test('version', async () => {
@@ -153,7 +153,7 @@ describe('none command', () => {
     let res = ''
     res += log.grid(
       [
-        ['scaffold-cli', '[-h|--help] [-v|--version]'],
+        ['scaffold', '[-h|--help] [-v|--version]'],
         ['', '<command> [<flags>]'],
       ],
       1
@@ -194,7 +194,7 @@ describe('list', () => {
 
   test('invalid flag', async () => {
     const { stderr } = await run('list', ['--version'])
-    expect(stderr).toBe(log.usage('scaffold-cli list [-p|--prune]'))
+    expect(stderr).toBe(log.usage('scaffold list [-p|--prune]'))
   })
 })
 describe('add', () => {
@@ -323,7 +323,7 @@ describe('remove', () => {
 
   test('no args', async () => {
     const { stderr } = await run('remove')
-    expect(stderr).toBe(log.usage('scaffold-cli remove <name ...>'))
+    expect(stderr).toBe(log.usage('scaffold remove <name ...>'))
   })
 
   test('valid name', async () => {
@@ -386,7 +386,7 @@ describe('create', () => {
   test('no args', async () => {
     const { stderr } = await run('create')
     expect(stderr).toBe(
-      log.usage('scaffold-cli create <name> [<directory>] [-o|--overwrite]')
+      log.usage('scaffold create <name> [<directory>] [-o|--overwrite]')
     )
   })
 
