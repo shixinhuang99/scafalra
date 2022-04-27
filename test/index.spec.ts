@@ -160,10 +160,13 @@ describe('none command', () => {
     )
     res += '\n\nAvailable commands are as follows:\n\n'
     res += log.grid([
-      ['list', 'List all projects.'],
+      ['list [-p|--prune]', 'List all projects.'],
       ['add <path ...> [-d|--depth <0|1>]', 'Add projects with path of a local folder.'],
-      ['remove <name ...>', 'Remove projects.'],
-      ['create <name> [<directory>] [-o|--overwrite]', 'Create a project from list.'],
+      ['remove <name ...>', 'Remove projects from list.'],
+      [
+        'create <name> [<directory>] [-o|--overwrite]',
+        'Create a project by copying the templates folder.',
+      ],
     ])
     expect(stdout).toBe(res)
   })
@@ -190,6 +193,8 @@ describe('list', () => {
   test('prune', async () => {
     const { stdout } = await run('list', ['--prune'])
     expect(stdout).toBe('')
+    const { stdout: stdout2 } = await run('list')
+    expect(stdout2).toBe('')
   })
 
   test('invalid flag', async () => {
@@ -360,13 +365,13 @@ function expectTargetDir(target: string, expectRef: typeof expect) {
     return readdirSync(`${target}/${val}`)
   })
   expectRef(dirs).toHaveLength(6)
-  ;['.git', '.DS_Store', 'node_modules'].forEach((item) => {
+  for (const item of ['.git', '.DS_Store', 'node_modules']) {
     expectRef(dirs).not.toContain(item)
-  })
-  ;['0', '1', '2'].forEach((item) => {
+  }
+  for (const item of ['0', '1', '2']) {
     expectRef(dirs).toContain(item)
     expectRef(dirs).toContain(`${item}.txt`)
-  })
+  }
   allSubDirs.forEach((item) => {
     expectRef(item).toEqual(['0.txt', '1.txt', '2.txt'])
   })
@@ -381,6 +386,10 @@ describe('create', () => {
 
   beforeAll(() => {
     writeConfig({ projects })
+  })
+
+  afterAll(() => {
+    rmrf(targetPath)
   })
 
   test('no args', async () => {

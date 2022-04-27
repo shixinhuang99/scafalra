@@ -170,6 +170,7 @@ class ScaffoldCli {
           delete this.config.projects[name]
         }
       }
+      await this.writeConfig()
     }
     log.grid(
       Object.entries(this.config.projects).map((item) => {
