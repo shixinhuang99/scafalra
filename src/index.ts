@@ -89,7 +89,7 @@ class ScaffoldCli {
   private changes: Record<string, string>
 
   constructor() {
-    this.version = '0.1.3'
+    this.version = '0.1.4'
     this.config = {
       projects: {},
     }
