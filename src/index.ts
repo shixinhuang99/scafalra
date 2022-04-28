@@ -3,79 +3,9 @@ import path from 'node:path'
 import fs from 'node:fs/promises'
 import mri from 'mri'
 import chalk from 'chalk'
+import { error, log, rmrf, cp, hasInvalidFlag } from './utils'
 
-interface SystemError extends Error {
-  code: string
-  syscall: string
-  path: string
-}
-
-function isSystemError(err: unknown): err is SystemError {
-  return err instanceof Error && 'syscall' in err
-}
-
-function isENOENT(err: unknown): err is SystemError {
-  return isSystemError(err) && err.code === 'ENOENT'
-}
-
-function isEEXIST(err: unknown): err is SystemError {
-  return isSystemError(err) && err.code === 'EEXIST'
-}
-
-const log = {
-  error(msg: string) {
-    console.error(`${chalk.red('scaffold')}: ${msg}`)
-  },
-  usage(msg: string) {
-    console.error(`${chalk.cyan('usage')}: ${msg}`)
-  },
-  grid(msgs: [string, string][], space = 4) {
-    let max = 0
-    for (let i = 0, l = msgs.length; i < l; i++) {
-      max = Math.max(msgs[i][0].length, max)
-    }
-    let res = ''
-    for (let i = 0, l = msgs.length; i < l; i++) {
-      const left = msgs[i][0]
-      res += `${left}${' '.repeat(max - left.length + space)}${msgs[i][1]}${
-        i === l - 1 ? '' : '\n'
-      }`
-    }
-    console.log(res)
-  },
-}
-
-function rmrf(target: string) {
-  return fs.rm(target, { force: true, recursive: true })
-}
-
-// fsPromises.cp is experimental
-async function cp(source: string, target: string) {
-  const ignore = ['.git', '.DS_Store', 'node_modules']
-  const sourceDir = await fs.opendir(source)
-  await fs.mkdir(target)
-  for await (const dirent of sourceDir) {
-    if (ignore.includes(dirent.name)) {
-      continue
-    }
-    const s = path.join(source, dirent.name)
-    const t = path.join(target, dirent.name)
-    if (dirent.isDirectory()) {
-      await cp(s, t)
-    } else if (dirent.isFile()) {
-      await fs.copyFile(s, t)
-    }
-  }
-}
-
-function hasInvalidFlag(allows: string[], input: string[]) {
-  if (input.length === 0) {
-    return false
-  }
-  return allows.some((item) => !input.includes(item))
-}
-
-const base = os.homedir() ?? os.tmpdir()
+const base = os.homedir()
 const configFile =
   process.env.NODE_ENV === 'test' ? '.scaffold-cli-test.json' : '.scaffold-cli.json'
 const configPath = path.join(base, configFile)
@@ -100,8 +30,8 @@ class ScaffoldCli {
     try {
       const content = await fs.readFile(configPath, { encoding: 'utf8' })
       this.config = JSON.parse(content)
-    } catch (error) {
-      if (isENOENT(error)) {
+    } catch (e) {
+      if (error.isENOENT(e)) {
         await this.writeConfig()
       }
     }
@@ -200,9 +130,9 @@ class ScaffoldCli {
             }
           }
         }
-      } catch (error) {
-        if (isENOENT(error)) {
-          return log.error(`Can't find directory '${error.path}'.`)
+      } catch (e) {
+        if (error.isENOENT(e)) {
+          return log.error(`Can't find directory '${e.path}'.`)
         }
       }
     }
@@ -244,19 +174,19 @@ class ScaffoldCli {
     try {
       await cp(source, target)
       console.log(`Project created in '${target}'.`)
-    } catch (error) {
-      if (isEEXIST(error)) {
-        log.error(`Directory '${error.path}' already exists.`)
+    } catch (e) {
+      if (error.isEEXIST(e)) {
+        log.error(`Directory '${e.path}' already exists.`)
       }
-      if (isENOENT(error)) {
-        log.error(`Can't find directory '${error.path}'.`)
+      if (error.isENOENT(e)) {
+        log.error(`Can't find directory '${e.path}'.`)
       }
     }
   }
 
-  async main(argv?: string[]) {
+  async main() {
     await this.readConfig()
-    const _argv = mri(argv ?? process.argv.slice(2), {
+    const _argv = mri(process.argv.slice(2), {
       alias: {
         d: 'depth',
         h: 'help',

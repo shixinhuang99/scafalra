@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync } from 'node:fs'
-import { exec } from 'node:child_process'
-import { homedir, tmpdir } from 'node:os'
+import { execFile } from 'node:child_process'
+import { homedir } from 'node:os'
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'vitest'
 
 const cwd = process.cwd()
@@ -11,15 +11,11 @@ function joinCwd(path: string) {
 
 const cliPath = joinCwd('bin/index.js')
 const pkg = JSON.parse(readFileSync(joinCwd('package.json'), { encoding: 'utf8' }))
-const configPath = join(homedir() ?? tmpdir(), '.scaffold-cli-test.json')
+const configPath = join(homedir(), '.scaffold-cli-test.json')
 
-async function run(command: string, args?: string[]) {
+async function run(command: string, args: string[] = []) {
   return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-    let commandStr = `node ${cliPath} ${command}`
-    if (args && args.length > 0) {
-      commandStr += ` ${args.join(' ')}`
-    }
-    exec(commandStr, (err, stdout, stderr) => {
+    execFile('node', [cliPath, command, ...args], (err, stdout, stderr) => {
       if (err) {
         return reject(err)
       }
@@ -127,9 +123,17 @@ beforeAll(() => {
   }
 })
 
-afterAll(() => {
+function cleanup() {
   rmrf(toTestPath())
+  rmrf(toTestPath(undefined, false))
   rmSync(configPath)
+}
+
+afterAll(cleanup)
+
+process.addListener('uncaughtException', (err) => {
+  cleanup()
+  throw err
 })
 
 describe('none command', () => {
@@ -213,17 +217,17 @@ describe('add', () => {
   })
 
   test('depth not in valid range', async () => {
-    const { stderr } = await run('add', ['', '--depth', '999'])
+    const { stderr } = await run('add', ['--depth', '999'])
     expect(stderr).toBe(log.usage(constants.addUsage))
   })
 
   test('depth is not a number', async () => {
-    const { stderr } = await run('add', ['', '--depth', 'a'])
+    const { stderr } = await run('add', ['--depth', 'a'])
     expect(stderr).toBe(log.usage(constants.addUsage))
   })
 
   test('first flag is not depth', async () => {
-    const { stderr } = await run('add', ['', '--help'])
+    const { stderr } = await run('add', ['--help'])
     expect(stderr).toBe(log.usage(constants.addUsage))
   })
 
