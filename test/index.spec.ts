@@ -10,7 +10,7 @@ function joinCwd(path: string) {
 }
 
 const cliPath = joinCwd('bin/index.js')
-const pkg = JSON.parse(readFileSync(joinCwd('package.json'), { encoding: 'utf8' }))
+const pkg = JSON.parse(readFileSync(joinCwd('package.json'), { encoding: 'utf-8' }))
 const configPath = join(homedir(), '.scaffold-cli-test.json')
 
 async function run(command: string, args: string[] = []) {

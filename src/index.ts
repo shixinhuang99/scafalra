@@ -12,14 +12,12 @@ const configPath = path.join(base, configFile)
 const cwd = process.cwd()
 
 class ScaffoldCli {
-  private version: string
   private config: {
     projects: Record<string, string>
   }
   private changes: Record<string, string>
 
   constructor() {
-    this.version = '0.1.4'
     this.config = {
       projects: {},
     }
@@ -28,7 +26,7 @@ class ScaffoldCli {
 
   private async readConfig() {
     try {
-      const content = await fs.readFile(configPath, { encoding: 'utf8' })
+      const content = await fs.readFile(configPath, { encoding: 'utf-8' })
       this.config = JSON.parse(content)
     } catch (e) {
       if (error.isENOENT(e)) {
@@ -56,7 +54,7 @@ class ScaffoldCli {
     log.grid(Object.entries(this.changes))
   }
 
-  private none(flag?: string) {
+  private async none(flag?: string) {
     if (!flag) {
       return log.usage('scaffold [-h|--help] [-v|--version]')
     }
@@ -83,7 +81,11 @@ class ScaffoldCli {
       ])
     }
     if (flag === 'v') {
-      console.log(this.version)
+      const raw = await fs.readFile(path.join(__dirname, '../package.json'), {
+        encoding: 'utf-8',
+      })
+      const pkg = JSON.parse(raw)
+      console.log(pkg.version)
     }
   }
 
