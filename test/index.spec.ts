@@ -2,7 +2,17 @@ import { join } from 'node:path'
 import { readFileSync, writeFileSync, mkdirSync, rmSync, readdirSync } from 'node:fs'
 import { execFile } from 'node:child_process'
 import { homedir } from 'node:os'
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'vitest'
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from 'vitest'
+import type { Project } from '../src'
+import { fetchHeadHash } from '../src/utils'
 
 const cwd = process.cwd()
 function joinCwd(path: string) {
@@ -10,8 +20,9 @@ function joinCwd(path: string) {
 }
 
 const cliPath = joinCwd('bin/index.js')
-const pkg = JSON.parse(readFileSync(joinCwd('package.json'), { encoding: 'utf-8' }))
-const configPath = join(homedir(), '.scaffold-cli-test.json')
+const configDir = join(homedir(), '.scaffold-cli-test')
+const storeFile = join(configDir, 'store.json')
+const cacheDir = join(configDir, 'cache')
 
 async function run(command: string, args: string[] = []) {
   return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
@@ -64,47 +75,45 @@ const constants = {
   addUsage: 'scaffold add <path ...> [-d|--depth <0|1>]',
   newProjects: 'New projects:',
   removedProjects: 'Removed projects:',
+  testGitHubRepo: 'https://github.com/zerowong/scaffold-cli.git',
+  timeout: 10000,
 }
 
-function writeConfig(obj: { projects: Record<string, string> } = { projects: {} }) {
-  writeFileSync(configPath, JSON.stringify(obj))
+function save(store: Record<string, Project> = {}) {
+  writeFileSync(storeFile, JSON.stringify(store))
 }
 
 function rmrf(target: string) {
   return rmSync(target, { force: true, recursive: true })
 }
 
-/**
- * .
- * ├── .ignore-dir
- * ├── 0
- * │   ├── .DS_Store
- * │   ├── .git
- * │   ├── 0
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 0.txt
- * │   ├── 1
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 1.txt
- * │   ├── 2
- * │   │   ├── 0.txt
- * │   │   ├── 1.txt
- * │   │   └── 2.txt
- * │   ├── 2.txt
- * │   └── node_modules
- * ├── 1
- * │   ...
- * ├── 2
- * │   ...
- * └── is-a-file.txt
- */
-
-beforeAll(() => {
-  writeConfig()
+// .
+// ├── .ignore-dir
+// ├── 0
+// │   ├── .DS_Store
+// │   ├── .git
+// │   ├── 0
+// │   │   ├── 0.txt
+// │   │   ├── 1.txt
+// │   │   └── 2.txt
+// │   ├── 0.txt
+// │   ├── 1
+// │   │   ├── 0.txt
+// │   │   ├── 1.txt
+// │   │   └── 2.txt
+// │   ├── 1.txt
+// │   ├── 2
+// │   │   ├── 0.txt
+// │   │   ├── 1.txt
+// │   │   └── 2.txt
+// │   ├── 2.txt
+// │   └── node_modules
+// ├── 1
+// │   ...
+// ├── 2
+// │   ...
+// └── is-a-file.txt
+function genTestDir() {
   mkdirSync(toTestPath())
   mkdirSync(toTestPath('.ignore-dir'))
   writeFileSync(toTestPath(constants.isAFile), '')
@@ -121,17 +130,23 @@ beforeAll(() => {
       }
     }
   }
-})
+}
 
 function cleanup() {
   rmrf(toTestPath())
   rmrf(toTestPath(undefined, false))
-  rmSync(configPath)
+  rmrf(configDir)
 }
+
+beforeAll(() => {
+  mkdirSync(configDir)
+  save()
+  genTestDir()
+})
 
 afterAll(cleanup)
 
-process.addListener('uncaughtException', (err) => {
+process.on('uncaughtException', (err) => {
   cleanup()
   throw err
 })
@@ -149,6 +164,9 @@ describe('none command', () => {
 
   test('version', async () => {
     const { stdout } = await run('-v')
+    const pkg = JSON.parse(
+      readFileSync(join(__dirname, '../package.json'), { encoding: 'utf-8' })
+    )
     expect(stdout).toBe(pkg.version)
   })
 
@@ -178,15 +196,11 @@ describe('none command', () => {
 
 describe('list', () => {
   beforeAll(() => {
-    writeConfig({
-      projects: {
-        foo: toTestPath(constants.notExists),
-      },
-    })
+    save({ foo: { path: toTestPath(constants.notExists) } })
   })
 
   afterAll(() => {
-    writeConfig()
+    save()
   })
 
   test('no flag', async () => {
@@ -206,11 +220,8 @@ describe('list', () => {
     expect(stderr).toBe(log.usage('scaffold list [-p|--prune]'))
   })
 })
-describe('add', () => {
-  beforeEach(() => {
-    writeConfig()
-  })
 
+describe('add local directory', () => {
   test('no args', async () => {
     const { stderr } = await run('add')
     expect(stderr).toBe(log.usage(constants.addUsage))
@@ -314,20 +325,78 @@ describe('add', () => {
   test('multiple path and depth is 1, but one of them is invalid', async () => {
     const invalidPath = 'invalid'
     const paths = ['0', '1', invalidPath].map((val) => toTestPath(val))
+    // @todo not pass --depth 1
     const { stderr, stdout } = await run('add', [...paths])
     expect(stderr).toBe(log.error(`Can't find directory '${toTestPath(invalidPath)}'.`))
     expect(stdout).toBe('')
   })
 })
 
+describe('add GitHub repository', () => {
+  beforeEach(() => {
+    mkdirSync(cacheDir)
+  })
+
+  afterEach(() => {
+    rmrf(cacheDir)
+  })
+
+  test('invalid url', async () => {
+    const { stdout, stderr } = await run('add', [
+      'https://github.com/zerowong/scaffold-cli',
+    ])
+    expect(stderr).toBe(log.error('Invalid GitHub url'))
+    expect(stdout).toBe('')
+  })
+
+  test(
+    'valid url',
+    async () => {
+      const { stdout } = await run('add', [constants.testGitHubRepo])
+      const dirs = readdirSync(cacheDir, { withFileTypes: true })
+      expect(dirs).toHaveLength(1)
+      expect(dirs[0].isDirectory()).toBeTruthy()
+      expect(stdout).toBe(
+        `${constants.newProjects}\n\n${log.grid([
+          ['+ scaffold-cli', join(cacheDir, dirs[0].name)],
+        ])}`
+      )
+    },
+    constants.timeout
+  )
+
+  test(
+    'depth is 1',
+    async () => {
+      const { stdout } = await run('add', [constants.testGitHubRepo, '--depth', '1'])
+      const dirs = readdirSync(cacheDir, { withFileTypes: true })
+      expect(dirs).toHaveLength(1)
+      expect(dirs[0].isDirectory()).toBeTruthy()
+      expect(stdout).toBe(
+        `${constants.newProjects}\n\n${log.grid([
+          ['+ test', join(cacheDir, dirs[0].name, 'test')],
+          ['+ bin', join(cacheDir, dirs[0].name, 'bin')],
+          ['+ scripts', join(cacheDir, dirs[0].name, 'scripts')],
+          ['+ src', join(cacheDir, dirs[0].name, 'src')],
+        ])}`
+      )
+    },
+    constants.timeout
+  )
+
+  test.todo('multiple github repo')
+  test.todo('multiple github repo and depth is 1')
+  test.todo('multiple github repo but one of them throw the error')
+})
+
 describe('remove', () => {
-  const projects = {
-    foo: '/path/to/foo',
-    bar: '/path/to/bar',
+  const store = {
+    foo: { path: '/path/to/foo' },
+    bar: { path: '/path/to/bar' },
   }
 
   beforeEach(() => {
-    writeConfig({ projects })
+    save(store)
   })
 
   test('no args', async () => {
@@ -337,7 +406,7 @@ describe('remove', () => {
 
   test('valid name', async () => {
     const { stdout } = await run('remove', ['foo'])
-    const list = log.grid([['- foo', projects.foo]])
+    const list = log.grid([['- foo', store.foo.path]])
     expect(stdout).toBe(`${constants.removedProjects}\n\n${list}`)
   })
 
@@ -350,8 +419,8 @@ describe('remove', () => {
   test('multiple name', async () => {
     const { stdout } = await run('remove', ['foo', 'bar'])
     const list = log.grid([
-      ['- foo', projects.foo],
-      ['- bar', projects.bar],
+      ['- foo', store.foo.path],
+      ['- bar', store.bar.path],
     ])
     expect(stdout).toBe(`${constants.removedProjects}\n\n${list}`)
   })
@@ -363,33 +432,33 @@ describe('remove', () => {
   })
 })
 
-function expectTargetDir(target: string, expectRef: typeof expect) {
-  const dirs = readdirSync(target)
-  const allSubDirs = ['0', '1', '2'].map((val) => {
-    return readdirSync(`${target}/${val}`)
-  })
-  expectRef(dirs).toHaveLength(6)
-  for (const item of ['.git', '.DS_Store', 'node_modules']) {
-    expectRef(dirs).not.toContain(item)
-  }
-  for (const item of ['0', '1', '2']) {
-    expectRef(dirs).toContain(item)
-    expectRef(dirs).toContain(`${item}.txt`)
-  }
-  allSubDirs.forEach((item) => {
-    expectRef(item).toEqual(['0.txt', '1.txt', '2.txt'])
-  })
-}
-
-describe('create', () => {
-  const projects = {
-    [testSourceDir]: toTestPath('0'),
-    foo: toTestPath(constants.notExists),
+describe('create from local dir', () => {
+  const store = {
+    [testSourceDir]: { path: toTestPath('0') },
+    foo: { path: toTestPath(constants.notExists) },
   }
   const targetPath = toTestPath(undefined, false)
 
+  const expectTargetDir = (target: string) => {
+    const dirs = readdirSync(target)
+    const allSubDirs = ['0', '1', '2'].map((val) => {
+      return readdirSync(`${target}/${val}`)
+    })
+    expect(dirs).toHaveLength(6)
+    for (const item of ['.git', '.DS_Store', 'node_modules']) {
+      expect(dirs).not.toContain(item)
+    }
+    for (const item of ['0', '1', '2']) {
+      expect(dirs).toContain(item)
+      expect(dirs).toContain(`${item}.txt`)
+    }
+    allSubDirs.forEach((item) => {
+      expect(item).toEqual(['0.txt', '1.txt', '2.txt'])
+    })
+  }
+
   beforeAll(() => {
-    writeConfig({ projects })
+    save(store)
   })
 
   afterAll(() => {
@@ -411,7 +480,7 @@ describe('create', () => {
 
   test('project is exists but the real path is not exists', async () => {
     const { stderr, stdout } = await run('create', ['foo'])
-    expect(stderr).toBe(log.error(`Can't find directory '${projects.foo}'.`))
+    expect(stderr).toBe(log.error(`Can't find directory '${store.foo.path}'.`))
     expect(stdout).toBe('')
   })
 
@@ -427,7 +496,7 @@ describe('create', () => {
   test('create successfully', async () => {
     const { stdout } = await run('create', [testSourceDir, testTargetDir])
     expect(stdout).toBe(`Project created in '${targetPath}'.`)
-    expectTargetDir(targetPath, expect)
+    expectTargetDir(targetPath)
     rmrf(targetPath)
   })
 
@@ -443,7 +512,88 @@ describe('create', () => {
     mkdirSync(targetPath)
     const { stdout } = await run('create', [testSourceDir, `./${testTargetDir}`, '-o'])
     expect(stdout).toBe(`Project created in '${targetPath}'.`)
-    expectTargetDir(targetPath, expect)
+    expectTargetDir(targetPath)
     rmrf(targetPath)
   })
+})
+
+describe('create from GitHub repository', () => {
+  const targetPath = toTestPath(undefined, false)
+
+  beforeAll(async () => {
+    const lastestHash = await fetchHeadHash(constants.testGitHubRepo)
+    if (!lastestHash) {
+      throw new Error('could not find hash')
+    }
+    mkdirSync(cacheDir)
+    const foo = join(cacheDir, 'foo')
+    mkdirSync(foo)
+    writeFileSync(join(foo, 'foo.txt'), '')
+    save({
+      foo: {
+        path: foo,
+        remote: constants.testGitHubRepo,
+        hash: lastestHash,
+      },
+      bar: {
+        path: join(cacheDir, 'scaffold-cli'),
+        remote: constants.testGitHubRepo,
+        hash: '83db959639ebc2f212eca5dc01bbdf9375b21419',
+      },
+      baz: {
+        path: join(cacheDir, 'scaffold-cli', 'bin'),
+        remote: constants.testGitHubRepo,
+        hash: '83db959639ebc2f212eca5dc01bbdf9375b21419',
+      },
+    })
+  })
+
+  beforeEach(() => {
+    mkdirSync(targetPath)
+  })
+
+  afterEach(() => {
+    rmrf(targetPath)
+  })
+
+  test(
+    'use local cache',
+    async () => {
+      const target = join(targetPath, 'foo')
+      const { stdout } = await run('create', ['foo', target])
+      expect(stdout).toBe(`Project created in '${target}'.`)
+      const files = readdirSync(target)
+      expect(files).toHaveLength(1)
+      expect(files[0]).toBe('foo.txt')
+    },
+    constants.timeout
+  )
+
+  test(
+    'update cache',
+    async () => {
+      const target = join(targetPath, 'bar')
+      const { stdout } = await run('create', ['bar', target])
+      expect(stdout).toBe(
+        `info: the cache needs to be updated, downloading...\nProject created in '${target}'.`
+      )
+      const files = readdirSync(target)
+      expect(files.length).toBeGreaterThan(1)
+    },
+    constants.timeout
+  )
+
+  test(
+    'update cache for subdir',
+    async () => {
+      const target = join(targetPath, 'baz')
+      const { stdout } = await run('create', ['baz', target])
+      expect(stdout).toBe(
+        `info: the cache needs to be updated, downloading...\nProject created in '${target}'.`
+      )
+      const files = readdirSync(target)
+      expect(files).toEqual(['index.js'])
+    },
+    constants.timeout
+  )
 })

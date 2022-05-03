@@ -37,6 +37,14 @@ When we want to create a new project based on one of these templates, we can use
 Project created in '/.../new-awesome-project'.
 ```
 
+Since `v0.2.5`, the `add` command supports adding GitHub repositories
+
+```bash
+scaffold add https://github.com/zerowong/scaffold-cli.git
+```
+
+The above example will download and extract the archive of the last commit of `scaffold-cli` to the cache directory, then add its local path to the list.
+
 ## Usage
 
 ### `scaffold [-h|--help] [-v|--version]`
@@ -81,6 +89,21 @@ The depth defaults to 0, which means that the `add` command treats this folder a
 scaffold add ./path/to/projects --depth 1
 ```
 
+Add projects with url of GitHub repository.
+
+> _note: Using this feature requires that `git` has been installed, because `git ls-remote` is used internally._
+
+```bash
+scaffold add https://github.com/user/repo.git
+```
+
+HTTPS proxy
+
+```bash
+export https_proxy=your_proxy
+scaffold add https://github.com/user/repo.git
+```
+
 ### `scaffold remove <name ...>`
 
 Remove projects from list.
@@ -111,6 +134,12 @@ The specified path can be overwritten with `--overwrite` if it already exists.
 
 ```bash
 scaffold create foo ./path/to/bar --overwrite
+```
+
+If the project references a GitHub repository, it will check its latest commit hash when it is created, and if the hash changes, it will be re-downloaded and cached
+
+```bash
+scaffold create remote-repo
 ```
 
 ## Todo
