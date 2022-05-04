@@ -38,7 +38,8 @@
     "test": "vitest --run",
     "test:w": "vitest",
     "test:b": "npm run build && vitest --run",
-    "test:c": "vitest --run --coverage"
+    "test:c": "vitest --run --coverage",
+    "play": "esno ./playground.ts"
   },
   "dependencies": {
     "chalk": "^4.1.2",

@@ -1,20 +1,19 @@
 import os from 'node:os'
 import path from 'node:path'
 import fsp from 'node:fs/promises'
-import mri from 'mri'
 import chalk from 'chalk'
 import {
   error,
   log,
   rmrf,
   cp,
-  hasInvalidFlag,
   exists,
   parse,
   fetchHeadHash,
   joinGithubArchiveUrl,
   download,
   unzip,
+  argsParser,
 } from './utils'
 
 export interface Project {
@@ -77,11 +76,8 @@ export default class ScaffoldCli {
     )
   }
 
-  private async none(flag?: string) {
-    if (!flag) {
-      return log.usage('scaffold [-h|--help] [-v|--version]')
-    }
-    if (flag === 'h') {
+  private async none(flags: { h?: boolean; v?: boolean }) {
+    if (flags.h || Object.keys(flags).length === 0) {
       log.grid(
         [
           ['scaffold', '[-h|--help] [-v|--version]'],
@@ -103,7 +99,7 @@ export default class ScaffoldCli {
         ],
       ])
     }
-    if (flag === 'v') {
+    if (flags.v) {
       const raw = await fsp.readFile(path.join(__dirname, '../package.json'), {
         encoding: 'utf8',
       })
@@ -112,10 +108,7 @@ export default class ScaffoldCli {
     }
   }
 
-  private async list(prune = false) {
-    if (typeof prune !== 'boolean') {
-      return
-    }
+  private async list(prune: boolean) {
     const entries = Object.entries(this.store)
     if (prune) {
       for (const [name, proj] of entries) {
@@ -133,9 +126,6 @@ export default class ScaffoldCli {
   }
 
   private async add(paths: string[], depth = 0) {
-    if (paths.length === 0 || typeof depth !== 'number' || depth === -1) {
-      return log.usage('scaffold add <path ...> [-d|--depth <0|1>]')
-    }
     for (const src of paths) {
       const repo = parse(src)
       if (repo) {
@@ -190,9 +180,6 @@ export default class ScaffoldCli {
   }
 
   private async remove(names: string[]) {
-    if (names.length === 0) {
-      return log.usage('scaffold remove <name ...>')
-    }
     for (const name of names) {
       if (!(name in this.store)) {
         return log.error(`No such project: '${name}'.`)
@@ -204,10 +191,7 @@ export default class ScaffoldCli {
     this.logChanges()
   }
 
-  private async create(name?: string, directory?: string, overwrite = false) {
-    if (!name) {
-      return log.usage('scaffold create <name> [<directory>] [-o|--overwrite]')
-    }
+  private async create(name: string, directory?: string, overwrite = false) {
     const proj = this.store[name]
     if (!proj) {
       return log.error(`Can't find project '${name}'.`)
@@ -262,55 +246,48 @@ export default class ScaffoldCli {
 
   async main() {
     await this.init()
-    const _argv = mri(process.argv.slice(2), {
-      alias: {
-        d: 'depth',
-        h: 'help',
-        v: 'version',
-        o: 'overwrite',
-        p: 'prune',
-      },
-      unknown(flag) {
-        log.error(`'${flag}' is not a valid flag. See 'scaffold --help'.`)
-      },
-    })
+    const argv = argsParser()
 
-    if (!_argv) {
+    if (!argv) {
       return
     }
 
-    const {
-      _: [action = '', ...args],
-      ...flags
-    } = _argv
-
-    const flagArr = Object.keys(flags)
-    const firstFlag = flagArr[0]?.[0]
+    const { action, args, flags, checker } = argv
 
     switch (action) {
       case '': {
-        this.none(firstFlag)
+        if (checker(['v', 'h'])) {
+          return log.usage('scaffold [-h|--help] [-v|--version]')
+        }
+        this.none(flags)
         break
       }
       case 'list': {
-        if (hasInvalidFlag(['p', 'prune'], flagArr)) {
+        if (checker(['p'])) {
           return log.usage('scaffold list [-p|--prune]')
         }
         this.list(flags.p)
         break
       }
       case 'add': {
-        const depth = firstFlag ? (firstFlag === 'd' ? flags[firstFlag] : -1) : 0
-        this.add(args, depth)
+        if (args.length === 0 || checker({ flag: 'd', options: [0, 1] })) {
+          return log.usage('scaffold add <path ...> [-d|--depth <0|1>]')
+        }
+        this.add(args, flags.d)
         break
       }
       case 'remove': {
+        if (args.length === 0) {
+          return log.usage('scaffold remove <name ...>')
+        }
         this.remove(args)
         break
       }
       case 'create': {
-        const overwrite = firstFlag === 'o'
-        this.create(args[0], args[1], overwrite)
+        if (args.length < 1 || checker(['o'])) {
+          return log.usage('scaffold create <name> [<directory>] [-o|--overwrite]')
+        }
+        this.create(args[0], args[1], flags.o)
         break
       }
       default: {

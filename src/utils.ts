@@ -6,6 +6,7 @@ import fs from 'node:fs'
 import chalk from 'chalk'
 import createHttpsProxyAgent from 'https-proxy-agent'
 import StreamZip from 'node-stream-zip'
+import mri from 'mri'
 
 interface SystemError extends Error {
   code: string
@@ -70,13 +71,6 @@ export async function cp(source: string, target: string) {
       await fsp.copyFile(s, t)
     }
   }
-}
-
-export function hasInvalidFlag(allows: string[], flags: string[]) {
-  if (flags.length === 0) {
-    return false
-  }
-  return allows.some((item) => !flags.includes(item))
 }
 
 export async function exists(target: string) {
@@ -170,4 +164,47 @@ export async function unzip(src: string) {
   await rmrf(unzipedDir)
   await fsp.rename(path.join(dir, name), unzipedDir)
   return unzipedDir
+}
+
+export type Validate = string[] | { flag: string; options: number[] }
+
+export function argsParser() {
+  const mriArgv = mri(process.argv.slice(2), {
+    alias: {
+      d: 'depth',
+      h: 'help',
+      v: 'version',
+      o: 'overwrite',
+      p: 'prune',
+    },
+    unknown(flag) {
+      log.error(`'${flag}' is not a valid flag. See 'scaffold --help'.`)
+    },
+  })
+
+  if (!mriArgv) {
+    return null
+  }
+
+  const {
+    _: [action = '', ...args],
+    ...flags
+  } = mriArgv
+
+  /**
+   * @returns `true` when no pass
+   */
+  const checker = (validate: Validate) => {
+    if (Array.isArray(validate)) {
+      const requires = validate.filter(
+        (flag) => flags[flag] !== undefined && typeof flags[flag] === 'boolean'
+      )
+      return !(requires.length === 0 || requires.length === 1)
+    }
+    const { flag, options } = validate
+    const value = flags[flag]
+    return value !== undefined && options.indexOf(value) === -1
+  }
+
+  return { action, args, flags, checker }
 }

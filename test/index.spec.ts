@@ -71,7 +71,6 @@ function toTestPath(path?: string, source = true) {
 const constants = {
   notExists: 'not-exists',
   isAFile: 'is-a-file.txt',
-  commonUsage: 'scaffold [-h|--help] [-v|--version]',
   addUsage: 'scaffold add <path ...> [-d|--depth <0|1>]',
   newProjects: 'New projects:',
   removedProjects: 'Removed projects:',
@@ -152,9 +151,28 @@ process.on('uncaughtException', (err) => {
 })
 
 describe('none command', () => {
+  const help =
+    log.grid(
+      [
+        ['scaffold', '[-h|--help] [-v|--version]'],
+        ['', '<command> [<flags>]'],
+      ],
+      1
+    ) +
+    '\n\nAvailable commands are as follows:\n\n' +
+    log.grid([
+      ['list [-p|--prune]', 'List all projects.'],
+      ['add <path ...> [-d|--depth <0|1>]', 'Add projects with path of a local folder.'],
+      ['remove <name ...>', 'Remove projects from list.'],
+      [
+        'create <name> [<directory>] [-o|--overwrite]',
+        'Create a project by copying the templates folder.',
+      ],
+    ])
+
   test('none', async () => {
-    const { stderr } = await run('')
-    expect(stderr).toBe(log.usage(constants.commonUsage))
+    const { stdout } = await run('')
+    expect(stdout).toBe(help)
   })
 
   test('invalid flag', async () => {
@@ -172,25 +190,7 @@ describe('none command', () => {
 
   test('help', async () => {
     const { stdout } = await run('-h')
-    let res = ''
-    res += log.grid(
-      [
-        ['scaffold', '[-h|--help] [-v|--version]'],
-        ['', '<command> [<flags>]'],
-      ],
-      1
-    )
-    res += '\n\nAvailable commands are as follows:\n\n'
-    res += log.grid([
-      ['list [-p|--prune]', 'List all projects.'],
-      ['add <path ...> [-d|--depth <0|1>]', 'Add projects with path of a local folder.'],
-      ['remove <name ...>', 'Remove projects from list.'],
-      [
-        'create <name> [<directory>] [-o|--overwrite]',
-        'Create a project by copying the templates folder.',
-      ],
-    ])
-    expect(stdout).toBe(res)
+    expect(stdout).toBe(help)
   })
 })
 
@@ -213,11 +213,6 @@ describe('list', () => {
     expect(stdout).toBe('')
     const { stdout: stdout2 } = await run('list')
     expect(stdout2).toBe('')
-  })
-
-  test('invalid flag', async () => {
-    const { stderr } = await run('list', ['--version'])
-    expect(stderr).toBe(log.usage('scaffold list [-p|--prune]'))
   })
 })
 
