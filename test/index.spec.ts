@@ -11,7 +11,7 @@ import {
   beforeEach,
   afterEach,
 } from 'vitest'
-import type { Project } from '../src'
+import type { Project } from '../src/cli'
 import { fetchHeadHash } from '../src/utils'
 
 const cwd = process.cwd()
