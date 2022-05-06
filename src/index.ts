@@ -136,6 +136,7 @@ export default class ScaffoldCli {
         const url = joinGithubArchiveUrl(repo.url, hash)
         const archiveFile = path.join(this.cacheDir, `${repo.name}-${hash}.zip`)
         try {
+          log.write(log.info('Downloading...', true))
           await download(url, archiveFile, { proxy: process.env.https_proxy })
           const unzipedDir = await unzip(archiveFile)
           if (depth === 0) {
@@ -175,7 +176,7 @@ export default class ScaffoldCli {
       }
     }
     await this.save()
-    console.log('New projects:\n')
+    log.clear()
     this.logChanges()
   }
 
@@ -187,7 +188,6 @@ export default class ScaffoldCli {
       this.removeProject(name)
     }
     await this.save()
-    console.log('Removed projects:\n')
     this.logChanges()
   }
 
@@ -199,17 +199,11 @@ export default class ScaffoldCli {
     if (proj.remote) {
       const newHash = await fetchHeadHash(proj.remote)
       if (!newHash) {
-        console.log(
-          `${chalk.yellow(
-            'warn'
-          )}: could not find commit hash of HEAD, Local cache will be used.`
-        )
+        log.warn('Could not find commit hash of HEAD, Local cache will be used.')
       } else {
         const repo = parse(proj.remote)
         if (newHash !== proj.hash && repo) {
-          console.log(
-            `${chalk.blue('info')}: the cache needs to be updated, downloading...`
-          )
+          log.write(log.info('The cache needs to be updated, downloading...', true))
           const url = joinGithubArchiveUrl(repo.url, newHash)
           const archiveFile = path.join(this.cacheDir, `${repo.name}-${newHash}.zip`)
           await download(url, archiveFile, { proxy: process.env.https_proxy })
@@ -233,7 +227,8 @@ export default class ScaffoldCli {
     }
     try {
       await cp(source, target)
-      console.log(`Project created in '${target}'.`)
+      log.clear()
+      log.info(`Project created in '${target}'.`)
     } catch (e) {
       if (error.isEEXIST(e)) {
         log.error(`Directory '${e.path}' already exists.`)

@@ -8,6 +8,8 @@ import createHttpsProxyAgent from 'https-proxy-agent'
 import StreamZip from 'node-stream-zip'
 import mri from 'mri'
 
+const isTTY = process.stdout.isTTY
+
 interface SystemError extends Error {
   code: string
   syscall: string
@@ -27,26 +29,51 @@ export const error = {
   },
 }
 
+function info(msg: string): void
+function info(msg: string, noLog: true): string
+function info(msg: string, noLog = false) {
+  const res = `${chalk.bold.cyan('INFO')}: ${msg}`
+  if (noLog) {
+    return res
+  }
+  console.log(res)
+}
+
 export const log = {
   error(msg: string) {
-    console.error(`${chalk.red('scaffold')}: ${msg}`)
+    console.error(`${chalk.bold.red('ERROR')}: ${msg}`)
   },
   usage(msg: string) {
-    console.error(`${chalk.cyan('usage')}: ${msg}`)
+    console.error(`${chalk.bold.cyan('USAGE')}: ${msg}`)
   },
+  warn(msg: string) {
+    console.log(`${chalk.bold.yellow('WARN')}: ${msg}`)
+  },
+  info,
   grid(msgs: [string, string][], space = 4) {
-    let max = 0
-    for (let i = 0, l = msgs.length; i < l; i++) {
-      max = Math.max(msgs[i][0].length, max)
-    }
-    let res = ''
-    for (let i = 0, l = msgs.length; i < l; i++) {
-      const left = msgs[i][0]
-      res += `${left}${' '.repeat(max - left.length + space)}${msgs[i][1]}${
-        i === l - 1 ? '' : '\n'
-      }`
-    }
+    const max = msgs.reduce((prev, curr) => {
+      return Math.max(curr[0].length, prev)
+    }, 0)
+    const res = msgs.reduce((perv, curr, i) => {
+      return (
+        perv +
+        `${curr[0]}${' '.repeat(max - curr[0].length + space)}${curr[1]}${
+          i === msgs.length - 1 ? '' : '\n'
+        }`
+      )
+    }, '')
     console.log(res)
+  },
+  write(msg: string) {
+    if (isTTY) {
+      process.stdout.write(msg)
+    }
+  },
+  clear() {
+    if (isTTY) {
+      process.stdout.clearLine(0)
+      process.stdout.cursorTo(0)
+    }
   },
 }
 
@@ -125,19 +152,15 @@ export function download(url: string, dest: string, options: { proxy?: string } 
     https
       .get(url, { agent }, (res) => {
         const { statusCode, statusMessage } = res
-        if (statusCode && statusCode < 300 && statusCode >= 200) {
+        if (!statusCode) {
+          return reject('No response.')
+        }
+        if (statusCode < 300 && statusCode >= 200) {
           res.pipe(fs.createWriteStream(dest)).on('finish', resolve).on('error', reject)
-        } else if (
-          statusCode &&
-          statusCode < 400 &&
-          statusCode >= 300 &&
-          res.headers.location
-        ) {
-          res.resume()
+        } else if (statusCode < 400 && statusCode >= 300 && res.headers.location) {
           download(res.headers.location, dest, { proxy }).then(resolve, reject)
         } else {
-          res.resume()
-          reject(new Error(`${statusCode}: ${statusMessage}`))
+          reject(`${statusCode}: ${statusMessage}.`)
         }
       })
       .on('error', reject)
@@ -196,14 +219,14 @@ export function argsParser() {
    */
   const checker = (validate: Validate) => {
     if (Array.isArray(validate)) {
-      const requires = validate.filter(
+      const res = validate.filter(
         (flag) => flags[flag] !== undefined && typeof flags[flag] === 'boolean'
       )
-      return !(requires.length === 0 || requires.length === 1)
+      return !(res.length === 0 || res.length === 1)
     }
     const { flag, options } = validate
     const value = flags[flag]
-    return value !== undefined && options.indexOf(value) === -1
+    return !!value && options.indexOf(value) === -1
   }
 
   return { action, args, flags, checker }
