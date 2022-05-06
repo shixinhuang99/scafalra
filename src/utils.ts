@@ -231,3 +231,10 @@ export function argsParser() {
 
   return { action, args, flags, checker }
 }
+
+export function isURL(arg: string) {
+  if (/^(?:https?:\/\/)?(?:[\da-z.-]+)\.(?:[a-z.]{2,6})(?:[/\w .-]*)*\/?$/.test(arg)) {
+    return true
+  }
+  return false
+}

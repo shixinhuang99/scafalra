@@ -14,6 +14,7 @@ import {
   download,
   unzip,
   argsParser,
+  isURL,
 } from './utils'
 
 export interface Project {
@@ -127,8 +128,11 @@ export default class ScaffoldCli {
 
   private async add(paths: string[], depth = 0) {
     for (const src of paths) {
-      const repo = parse(src)
-      if (repo) {
+      if (isURL(src)) {
+        const repo = parse(src)
+        if (!repo) {
+          return log.error('Invalid GitHub url')
+        }
         const hash = await fetchHeadHash(src)
         if (!hash) {
           return log.error(`Could not find commit hash of HEAD from ${chalk.green(src)}.`)
@@ -145,9 +149,6 @@ export default class ScaffoldCli {
           return
         }
       } else {
-        if (src.startsWith('https://')) {
-          return log.error('Invalid GitHub url')
-        }
         const absPath = path.isAbsolute(src) ? src : path.resolve(cwd, src)
         try {
           if (depth === 0) {
