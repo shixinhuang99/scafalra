@@ -23,9 +23,9 @@ projects
 
 We can then use `scaffold add ./projects --depth 1` to add them all to the list.
 
-```
-New projects:
+outputs:
 
+```
 + nodejs    /.../projects/nodejs
 + vue       /.../projects/vue
 + react     /.../projects/react
@@ -33,14 +33,20 @@ New projects:
 
 When we want to create a new project based on one of these templates, we can use `scaffold create react ./new-awesome-project` to quickly copy the template.
 
+outputs:
+
 ```
-Project created in '/.../new-awesome-project'.
+INFO: Project created in '/.../new-awesome-project'.
 ```
 
-Since `v0.2.5`, the `add` command supports adding GitHub repositories
+Since `v0.2.5`, the `add` command supports adding GitHub repositories.
 
-```bash
-scaffold add https://github.com/zerowong/scaffold-cli.git
+For example: `scaffold add https://github.com/zerowong/scaffold-cli.git`
+
+outputs:
+
+```
++ scaffold-cli    /.../.scaffold-cli/cache/scaffold-cli
 ```
 
 The above example will download and extract the archive of the last commit of `scaffold-cli` to the cache directory, then add its local path to the list.
