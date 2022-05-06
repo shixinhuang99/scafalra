@@ -1,6 +1,6 @@
 {
   "name": "@zerowong/scaffold-cli",
-  "version": "0.1.5",
+  "version": "0.2.5",
   "description": "scaffold commannd line tool",
   "author": "zerowong <wongzero@foxmail.com>",
   "license": "MIT",
@@ -15,7 +15,7 @@
     "scaffold": "bin/index.js"
   },
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/cli.js"
   },
   "files": [
     "dist",

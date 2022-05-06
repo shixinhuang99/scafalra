@@ -147,7 +147,3 @@ If the project references a GitHub repository, it will check its latest commit h
 ```bash
 scaffold create remote-repo
 ```
-
-## Todo
-
-- [ ] support github repo
