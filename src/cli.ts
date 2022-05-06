@@ -135,18 +135,14 @@ export default class ScaffoldCli {
         }
         const url = joinGithubArchiveUrl(repo.url, hash)
         const archiveFile = path.join(this.cacheDir, `${repo.name}-${hash}.zip`)
-        try {
-          log.write(log.info('Downloading...', true))
-          await download(url, archiveFile, { proxy: process.env.https_proxy })
-          const unzipedDir = await unzip(archiveFile)
-          if (depth === 0) {
-            this.addProject(repo.name, { path: unzipedDir, remote: src, hash })
-          } else if (depth === 1) {
-            await this.add([unzipedDir], 1)
-            return
-          }
-        } catch (err) {
-          return console.error(err)
+        log.write(log.info('Downloading...', true))
+        await download(url, archiveFile, { proxy: process.env.https_proxy })
+        const unzipedDir = await unzip(archiveFile)
+        if (depth === 0) {
+          this.addProject(repo.name, { path: unzipedDir, remote: src, hash })
+        } else if (depth === 1) {
+          await this.add([unzipedDir], 1)
+          return
         }
       } else {
         if (src.startsWith('https://')) {
@@ -168,10 +164,11 @@ export default class ScaffoldCli {
               }
             }
           }
-        } catch (e) {
-          if (error.isENOENT(e)) {
-            return log.error(`Can't find directory '${e.path}'.`)
+        } catch (err) {
+          if (error.isENOENT(err)) {
+            return log.error(`Can't find directory '${err.path}'.`)
           }
+          throw err
         }
       }
     }
@@ -229,13 +226,14 @@ export default class ScaffoldCli {
       await cp(source, target)
       log.clear()
       log.info(`Project created in '${target}'.`)
-    } catch (e) {
-      if (error.isEEXIST(e)) {
-        log.error(`Directory '${e.path}' already exists.`)
+    } catch (err) {
+      if (error.isEEXIST(err)) {
+        return log.error(`Directory '${err.path}' already exists.`)
       }
-      if (error.isENOENT(e)) {
-        log.error(`Can't find directory '${e.path}'.`)
+      if (error.isENOENT(err)) {
+        return log.error(`Can't find directory '${err.path}'.`)
       }
+      throw err
     }
   }
 
