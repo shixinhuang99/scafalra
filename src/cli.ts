@@ -3,7 +3,7 @@ import path from 'node:path'
 import fsp from 'node:fs/promises'
 import chalk from 'chalk'
 import {
-  error,
+  exception,
   log,
   rmrf,
   cp,
@@ -15,6 +15,8 @@ import {
   unzip,
   argsParser,
   isURL,
+  type Result,
+  Key,
 } from './utils'
 
 export interface Project {
@@ -24,6 +26,7 @@ export interface Project {
 }
 
 const cwd = process.cwd()
+const key = new Key()
 
 export default class ScaffoldCli {
   private configDir: string
@@ -60,8 +63,9 @@ export default class ScaffoldCli {
   }
 
   private addProject(name: string, proj: Project) {
-    this.store[name] = proj
-    this.changes[`${chalk.green('+')} ${name}`] = proj
+    const realName = name in this.store ? `${name}-${key.gen(name)}` : name
+    this.store[realName] = proj
+    this.changes[`${chalk.green('+')} ${realName}`] = proj
   }
 
   private removeProject(name: string) {
@@ -126,56 +130,91 @@ export default class ScaffoldCli {
     )
   }
 
-  private async add(paths: string[], depth = 0) {
-    for (const src of paths) {
-      if (isURL(src)) {
-        const repo = parse(src)
-        if (!repo) {
-          return log.error('Invalid GitHub url')
-        }
-        const hash = await fetchHeadHash(src)
-        if (!hash) {
-          return log.error(`Could not find commit hash of HEAD from ${chalk.green(src)}.`)
-        }
-        const url = joinGithubArchiveUrl(repo.url, hash)
-        const archiveFile = path.join(this.cacheDir, `${repo.name}-${hash}.zip`)
-        log.write(log.info('Downloading...', true))
-        await download(url, archiveFile, { proxy: process.env.https_proxy })
-        const unzipedDir = await unzip(archiveFile)
-        if (depth === 0) {
-          this.addProject(repo.name, { path: unzipedDir, remote: src, hash })
-        } else if (depth === 1) {
-          await this.add([unzipedDir], 1)
-          return
-        }
-      } else {
-        const absPath = path.isAbsolute(src) ? src : path.resolve(cwd, src)
-        try {
-          if (depth === 0) {
-            const target = await fsp.stat(absPath)
-            if (!target.isDirectory()) {
-              return log.error(`'${absPath}' is not a directory.`)
-            }
-            this.addProject(path.basename(absPath), { path: absPath })
-          } else if (depth === 1) {
-            const dir = await fsp.opendir(absPath)
-            for await (const dirent of dir) {
-              if (dirent.isDirectory() && dirent.name[0] !== '.') {
-                this.addProject(dirent.name, { path: path.join(absPath, dirent.name) })
-              }
-            }
-          }
-        } catch (err) {
-          if (error.isENOENT(err)) {
-            return log.error(`Can't find directory '${err.path}'.`)
-          }
-          throw err
+  private async addLocal(src: string, depth = 0) {
+    const absPath = path.isAbsolute(src) ? src : path.resolve(cwd, src)
+    if (depth === 0) {
+      const target = await fsp.stat(absPath)
+      if (!target.isDirectory()) {
+        throw new Error(`'${absPath}' is not a directory.`)
+      }
+      this.addProject(path.basename(absPath), { path: absPath })
+    } else if (depth === 1) {
+      const dir = await fsp.readdir(absPath, { withFileTypes: true })
+      for (const dirent of dir) {
+        if (dirent.isDirectory() && dirent.name[0] !== '.') {
+          this.addProject(dirent.name, { path: path.join(absPath, dirent.name) })
         }
       }
     }
+  }
+
+  private async addRemote(src: string, depth = 0) {
+    const repo = parse(src)
+    if (!repo) {
+      throw new Error('Invalid GitHub url')
+    }
+    const hash = await fetchHeadHash(src)
+    if (!hash) {
+      throw new Error(`Could not find commit hash of HEAD from ${chalk.green(src)}.`)
+    }
+    const url = joinGithubArchiveUrl(repo.url, hash)
+    const archiveFile = path.join(this.cacheDir, `${repo.name}-${hash}.zip`)
+    await download(url, archiveFile, { proxy: process.env.https_proxy })
+    const unzipedDir = await unzip(archiveFile)
+    if (depth === 0) {
+      this.addProject(repo.name, { path: unzipedDir, remote: src, hash })
+    } else if (depth === 1) {
+      const dir = await fsp.readdir(unzipedDir, { withFileTypes: true })
+      for (const dirent of dir) {
+        if (dirent.isDirectory() && dirent.name[0] !== '.') {
+          this.addProject(dirent.name, {
+            path: path.join(unzipedDir, dirent.name),
+            hash,
+            remote: src,
+          })
+        }
+      }
+    }
+  }
+
+  private async add(paths: string[], depth = 0) {
+    const { locals, remotes } = paths.reduce<{ locals: string[]; remotes: string[] }>(
+      (prev, curr) => {
+        if (isURL(curr)) {
+          prev.remotes.push(curr)
+        } else {
+          prev.locals.push(curr)
+        }
+        return prev
+      },
+      { locals: [], remotes: [] }
+    )
+    const result: Result = { success: 0, failed: [] }
+    const promiseResult: PromiseSettledResult<void>[] = []
+    promiseResult.push(
+      ...(await Promise.allSettled(locals.map((src) => this.addLocal(src, depth))))
+    )
+    if (remotes.length > 0) {
+      log.write('Downloading...')
+      promiseResult.push(
+        ...(await Promise.allSettled(remotes.map((src) => this.addRemote(src, depth))))
+      )
+      log.clear()
+    }
+    promiseResult.forEach((res) => {
+      if (res.status === 'fulfilled') {
+        result.success += 1
+      } else {
+        if (exception.isENOENT(res.reason)) {
+          result.failed.push(`Can't find directory '${res.reason.path}'.`)
+        } else {
+          result.failed.push(res.reason.message)
+        }
+      }
+    })
     await this.save()
-    log.clear()
     this.logChanges()
+    log.result(result)
   }
 
   private async remove(names: string[]) {
@@ -201,7 +240,7 @@ export default class ScaffoldCli {
       } else {
         const repo = parse(proj.remote)
         if (newHash !== proj.hash && repo) {
-          log.write(log.info('The cache needs to be updated, downloading...', true))
+          log.write('The cache needs to be updated, downloading...')
           const url = joinGithubArchiveUrl(repo.url, newHash)
           const archiveFile = path.join(this.cacheDir, `${repo.name}-${newHash}.zip`)
           await download(url, archiveFile, { proxy: process.env.https_proxy })
@@ -228,10 +267,10 @@ export default class ScaffoldCli {
       log.clear()
       log.info(`Project created in '${target}'.`)
     } catch (err) {
-      if (error.isEEXIST(err)) {
+      if (exception.isEEXIST(err)) {
         return log.error(`Directory '${err.path}' already exists.`)
       }
-      if (error.isENOENT(err)) {
+      if (exception.isENOENT(err)) {
         return log.error(`Can't find directory '${err.path}'.`)
       }
       throw err

@@ -51,6 +51,8 @@ outputs:
 
 The above example will download and extract the archive of the last commit of `scaffold-cli` to the cache directory, then add its local path to the list.
 
+This is much quicker than using `git clone`, because it not downloading the entire git history.
+
 ## Usage
 
 ### `scaffold [-h|--help] [-v|--version]`

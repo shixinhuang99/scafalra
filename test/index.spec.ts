@@ -23,41 +23,49 @@ const cliPath = joinCwd('bin/index.js')
 const configDir = join(homedir(), '.scaffold-cli-test')
 const storeFile = join(configDir, 'store.json')
 const cacheDir = join(configDir, 'cache')
+const joinCacheDir = (...paths: string[]) => join(cacheDir, ...paths)
 
 async function run(command: string, args: string[] = []) {
-  return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-    execFile('node', [cliPath, command, ...args], (err, stdout, stderr) => {
+  return new Promise<{ stdout: string }>((resolve, reject) => {
+    execFile('node', [cliPath, command, ...args], (err, stdout) => {
       if (err) {
         return reject(err)
       }
-      return resolve({ stdout: stdout.trimEnd(), stderr: stderr.trimEnd() })
+      return resolve({ stdout: stdout.trimEnd() })
     })
   })
 }
 
 const log = {
+  info(msg: string) {
+    return `INFO: ${msg}`
+  },
   error(msg: string) {
     return `ERROR: ${msg}`
   },
   usage(msg: string) {
     return `USAGE: ${msg}`
   },
-  info(msg: string) {
-    return `INFO: ${msg}`
-  },
   grid(msgs: [string, string][], space = 4) {
-    let max = 0
-    for (let i = 0, l = msgs.length; i < l; i++) {
-      max = Math.max(msgs[i][0].length, max)
-    }
-    let res = ''
-    for (let i = 0, l = msgs.length; i < l; i++) {
-      const left = msgs[i][0]
-      res += `${left}${' '.repeat(max - left.length + space)}${msgs[i][1]}${
-        i === l - 1 ? '' : '\n'
-      }`
-    }
+    const max = msgs.reduce((prev, curr) => {
+      return Math.max(curr[0].length, prev)
+    }, 0)
+    const res = msgs.reduce((perv, curr, i) => {
+      return (
+        perv +
+        `${curr[0]}${' '.repeat(max - curr[0].length + space)}${curr[1]}${
+          i === msgs.length - 1 ? '' : '\n'
+        }`
+      )
+    }, '')
     return res
+  },
+  result(success: number, failed: string[]) {
+    const str = failed.reduce(
+      (prev, curr) => `${prev}\nERROR: ${curr}`,
+      `INFO: ${success} success, ${failed.length} fail.`
+    )
+    return str
   },
 }
 
@@ -76,11 +84,21 @@ const constants = {
   isAFile: 'is-a-file.txt',
   addUsage: 'scaffold add <path ...> [-d|--depth <0|1>]',
   testGitHubRepo: 'https://github.com/zerowong/scaffold-cli.git',
+  testGitHubRepo2: 'https://github.com/zerowong/zerowong.github.io.git',
   timeout: 10000,
 }
 
-function save(store: Record<string, Project> = {}) {
+interface Store {
+  [key: string]: Project
+}
+
+function save(store: Store = {}) {
   writeFileSync(storeFile, JSON.stringify(store))
+}
+
+function getStore() {
+  const raw = readFileSync(storeFile, { encoding: 'utf8' })
+  return JSON.parse(raw) as Store
 }
 
 function rmrf(target: string) {
@@ -138,19 +156,19 @@ function cleanup() {
   rmrf(configDir)
 }
 
-beforeAll(() => {
+let lastestHash: string | null = null
+
+beforeAll(async () => {
   rmrf(configDir)
   mkdirSync(configDir)
   save()
   genTestDir()
-})
+  lastestHash = await fetchHeadHash(constants.testGitHubRepo)
+}, constants.timeout)
 
 afterAll(cleanup)
 
-process.on('uncaughtException', (err) => {
-  cleanup()
-  throw err
-})
+process.on('uncaughtExceptionMonitor', cleanup)
 
 describe('none command', () => {
   const help =
@@ -178,8 +196,8 @@ describe('none command', () => {
   })
 
   test('invalid flag', async () => {
-    const { stderr } = await run('', ['-z'])
-    expect(stderr).toBe(log.error(`'-z' is not a valid flag. See 'scaffold --help'.`))
+    const { stdout } = await run('', ['-z'])
+    expect(stdout).toBe(log.error(`'-z' is not a valid flag. See 'scaffold --help'.`))
   })
 
   test('version', async () => {
@@ -219,117 +237,181 @@ describe('list', () => {
 })
 
 describe('add local directory', () => {
+  beforeEach(() => {
+    save()
+  })
+
+  afterAll(() => {
+    save()
+  })
+
   test('no args', async () => {
-    const { stderr } = await run('add')
-    expect(stderr).toBe(log.usage(constants.addUsage))
+    const { stdout } = await run('add')
+    expect(stdout).toBe(log.usage(constants.addUsage))
   })
 
   test('depth not in valid range', async () => {
-    const { stderr } = await run('add', ['--depth', '999'])
-    expect(stderr).toBe(log.usage(constants.addUsage))
+    const { stdout } = await run('add', ['--depth', '999'])
+    expect(stdout).toBe(log.usage(constants.addUsage))
   })
 
   test('depth is not a number', async () => {
-    const { stderr } = await run('add', ['--depth', 'a'])
-    expect(stderr).toBe(log.usage(constants.addUsage))
+    const { stdout } = await run('add', ['--depth', 'a'])
+    expect(stdout).toBe(log.usage(constants.addUsage))
   })
 
   test('first flag is not depth', async () => {
-    const { stderr } = await run('add', ['--help'])
-    expect(stderr).toBe(log.usage(constants.addUsage))
+    const { stdout } = await run('add', ['--help'])
+    expect(stdout).toBe(log.usage(constants.addUsage))
   })
 
   test('depth is 0 and path does not point to a folder', async () => {
     const path = toTestPath(constants.isAFile)
-    const { stderr, stdout } = await run('add', [path])
-    expect(stderr).toBe(log.error(`'${path}' is not a directory.`))
-    expect(stdout).toBe('')
+    const { stdout } = await run('add', [path])
+    expect(getStore()).toEqual({})
+    expect(stdout).toBe(log.result(0, [`'${path}' is not a directory.`]))
   })
 
   test('path is not exists', async () => {
     const path = toTestPath(constants.notExists)
-    const { stderr, stdout } = await run('add', [path])
-    expect(stderr).toBe(log.error(`Can't find directory '${path}'.`))
-    expect(stdout).toBe('')
+    const { stdout } = await run('add', [path])
+    expect(getStore()).toEqual({})
+    expect(stdout).toBe(log.result(0, [`Can't find directory '${path}'.`]))
   })
 
   test('absolute path is valid', async () => {
     const path = toTestPath('0')
     const { stdout } = await run('add', [path])
-    expect(stdout).toBe(log.grid([['+ 0', path]]))
+    expect(getStore()).toEqual({ '0': { path } })
+    expect(stdout).toBe(`${log.grid([['+ 0', path]])}\n${log.result(1, [])}`)
   })
 
   test('relative path is valid', async () => {
     const path = `./${testSourceDir}/0`
     const { stdout } = await run('add', [path])
-    expect(stdout).toBe(log.grid([['+ 0', toTestPath('0')]]))
+    expect(getStore()).toEqual({ '0': { path: toTestPath('0') } })
+    expect(stdout).toBe(`${log.grid([['+ 0', toTestPath('0')]])}\n${log.result(1, [])}`)
   })
 
   test('absolute path is valid and depth is 1', async () => {
     const path = toTestPath()
     const { stdout } = await run('add', [path, '--depth', '1'])
+    const obj: Store = {}
     const list = log.grid(
       ['0', '1', '2'].map((val) => {
-        return [`+ ${val}`, toTestPath(val)]
+        const t = toTestPath(val)
+        obj[val] = { path: t }
+        return [`+ ${val}`, t]
       })
     )
-    expect(stdout).toBe(list)
+    expect(getStore()).toEqual(obj)
+    expect(stdout).toBe(`${list}\n${log.result(1, [])}`)
   })
 
   test('relative path is valid and depth is 1', async () => {
     const path = `./${testSourceDir}`
     const { stdout } = await run('add', [path, '--depth', '1'])
+    const obj: Store = {}
     const list = log.grid(
       ['0', '1', '2'].map((val) => {
-        return [`+ ${val}`, toTestPath(val)]
+        const t = toTestPath(val)
+        obj[val] = { path: t }
+        return [`+ ${val}`, t]
       })
     )
-    expect(stdout).toBe(list)
+    expect(getStore()).toEqual(obj)
+    expect(stdout).toBe(`${list}\n${log.result(1, [])}`)
   })
 
   test('multiple path and depth is 0', async () => {
     const paths = ['0', '1', '2'].map((val) => toTestPath(val))
     const { stdout } = await run('add', [...paths])
-    const list = log.grid(
-      ['0', '1', '2'].map((val) => {
-        return [`+ ${val}`, toTestPath(val)]
-      })
-    )
-    expect(stdout).toBe(list)
+    const store = getStore()
+    const obj = ['0', '1', '2'].reduce<Store>((prev, curr) => {
+      prev[curr] = { path: toTestPath(curr) }
+      return prev
+    }, {})
+    expect(store).toEqual(obj)
+    expect(stdout.split('\n').at(-1)).toBe(log.result(3, []))
   })
 
   test('multiple path and depth is 0, but one of them is invalid', async () => {
     const invalidPath = 'invalid'
     const paths = ['0', '1', invalidPath].map((val) => toTestPath(val))
-    const { stderr, stdout } = await run('add', [...paths])
-    expect(stderr).toBe(log.error(`Can't find directory '${toTestPath(invalidPath)}'.`))
-    expect(stdout).toBe('')
+    const { stdout } = await run('add', [...paths])
+    const store = getStore()
+    const obj = ['0', '1'].reduce<Store>((prev, curr) => {
+      prev[curr] = { path: toTestPath(curr) }
+      return prev
+    }, {})
+    expect(store).toEqual(obj)
+    expect(stdout.split('\n').slice(-2).join('\n')).toBe(
+      log.result(2, [`Can't find directory '${toTestPath(invalidPath)}'.`])
+    )
   })
 
   test('multiple path and depth is 1', async () => {
     const paths = ['0', '1', '2'].map((val) => toTestPath(val))
     const { stdout } = await run('add', [...paths, '--depth', '1'])
-    const list = log.grid(
-      ['node_modules', '0', '1', '2'].map((val) => {
-        return [`+ ${val}`, toTestPath(`2/${val}`)]
-      })
-    )
-    expect(stdout).toBe(list)
+    const store = getStore()
+    const storeKeys = Object.keys(store)
+    const keys = [
+      '0',
+      '1',
+      '2',
+      'node_modules',
+      '0-1',
+      '1-1',
+      '2-1',
+      'node_modules-1',
+      '0-2',
+      '1-2',
+      '2-2',
+      'node_modules-2',
+    ]
+    expect(storeKeys.length).toBe(keys.length)
+    expect(storeKeys.every((val) => keys.indexOf(val) !== -1)).toBeTruthy()
+    expect(stdout.split('\n').at(-1)).toBe(log.result(3, []))
   })
 
   test('multiple path and depth is 1, but one of them is invalid', async () => {
     const invalidPath = 'invalid'
     const paths = ['0', '1', invalidPath].map((val) => toTestPath(val))
-    // @todo not pass --depth 1
-    const { stderr, stdout } = await run('add', [...paths])
-    expect(stderr).toBe(log.error(`Can't find directory '${toTestPath(invalidPath)}'.`))
-    expect(stdout).toBe('')
+    const { stdout } = await run('add', [...paths, '--depth', '1'])
+    const store = getStore()
+    const names = ['0', '1', '2', 'node_modules', '0-1', '1-1', '2-1', 'node_modules-1']
+    expect(Object.keys(store).every((val) => names.indexOf(val) !== -1)).toBeTruthy()
+    expect(stdout.split('\n').slice(-2).join('\n')).toBe(
+      log.result(2, [`Can't find directory '${toTestPath(invalidPath)}'.`])
+    )
   })
 })
 
 describe('add GitHub repository', () => {
+  const baseProj = {
+    hash: '',
+    remote: constants.testGitHubRepo,
+  }
+
+  const baseProj2 = {
+    hash: '26e5548e008df18ecd4aa02fe69b1afef476c06a',
+    remote: constants.testGitHubRepo2,
+  }
+
+  beforeAll(() => {
+    if (!lastestHash) {
+      throw new Error('no hash')
+    }
+    baseProj.hash = lastestHash
+  })
+
+  afterAll(() => {
+    save()
+  })
+
   beforeEach(() => {
     mkdirSync(cacheDir)
+    save()
   })
 
   afterEach(() => {
@@ -337,11 +419,8 @@ describe('add GitHub repository', () => {
   })
 
   test('invalid url', async () => {
-    const { stdout, stderr } = await run('add', [
-      'https://github.com/zerowong/scaffold-cli',
-    ])
-    expect(stderr).toBe(log.error('Invalid GitHub url'))
-    expect(stdout).toBe('')
+    const { stdout } = await run('add', ['https://github.com/zerowong/scaffold-cli'])
+    expect(stdout).toBe(log.result(0, ['Invalid GitHub url']))
   })
 
   test(
@@ -351,7 +430,10 @@ describe('add GitHub repository', () => {
       const dirs = readdirSync(cacheDir, { withFileTypes: true })
       expect(dirs).toHaveLength(1)
       expect(dirs[0].isDirectory()).toBeTruthy()
-      expect(stdout).toBe(log.grid([['+ scaffold-cli', join(cacheDir, dirs[0].name)]]))
+      expect(getStore()).toEqual({
+        'scaffold-cli': { path: joinCacheDir(dirs[0].name), ...baseProj },
+      })
+      expect(stdout.split('\n').at(-1)).toBe(log.result(1, []))
     },
     constants.timeout
   )
@@ -363,21 +445,78 @@ describe('add GitHub repository', () => {
       const dirs = readdirSync(cacheDir, { withFileTypes: true })
       expect(dirs).toHaveLength(1)
       expect(dirs[0].isDirectory()).toBeTruthy()
-      expect(stdout).toBe(
-        log.grid([
-          ['+ test', join(cacheDir, dirs[0].name, 'test')],
-          ['+ bin', join(cacheDir, dirs[0].name, 'bin')],
-          ['+ scripts', join(cacheDir, dirs[0].name, 'scripts')],
-          ['+ src', join(cacheDir, dirs[0].name, 'src')],
-        ])
-      )
+      const projName = dirs[0].name
+      expect(getStore()).toEqual({
+        'bin': { path: joinCacheDir(projName, 'bin'), ...baseProj },
+        'scripts': { path: joinCacheDir(projName, 'scripts'), ...baseProj },
+        'src': { path: joinCacheDir(projName, 'src'), ...baseProj },
+        'test': { path: joinCacheDir(projName, 'test'), ...baseProj },
+      })
+      expect(stdout.split('\n').at(-1)).toBe(log.result(1, []))
     },
     constants.timeout
   )
 
-  test.todo('multiple github repo')
-  test.todo('multiple github repo and depth is 1')
-  test.todo('multiple github repo but one of them throw the error')
+  test(
+    'multiple github repo',
+    async () => {
+      const { stdout } = await run('add', [
+        constants.testGitHubRepo,
+        constants.testGitHubRepo2,
+      ])
+      const dirs = readdirSync(cacheDir, { withFileTypes: true })
+      expect(dirs).toHaveLength(2)
+      expect(dirs.every((t) => t.isDirectory())).toBeTruthy()
+      expect(getStore()).toEqual({
+        'scaffold-cli': { path: joinCacheDir(dirs[0].name), ...baseProj },
+        'zerowong.github.io': { path: joinCacheDir(dirs[1].name), ...baseProj2 },
+      })
+      expect(stdout.split('\n').at(-1)).toBe(log.result(2, []))
+    },
+    constants.timeout
+  )
+
+  test(
+    'multiple github repo and depth is 1',
+    async () => {
+      const { stdout } = await run('add', [
+        constants.testGitHubRepo,
+        constants.testGitHubRepo2,
+        '--depth',
+        '1',
+      ])
+      const dirs = readdirSync(cacheDir, { withFileTypes: true })
+      expect(dirs).toHaveLength(2)
+      expect(dirs.every((t) => t.isDirectory())).toBeTruthy()
+      const store = getStore()
+      const storeKeys = Object.keys(store)
+      const keys = ['bin', 'scripts', 'src', 'test', 'public', 'src-1']
+      expect(storeKeys.length).toBe(keys.length)
+      expect(storeKeys.every((val) => keys.indexOf(val) !== -1)).toBeTruthy()
+      expect(stdout.split('\n').at(-1)).toBe(log.result(2, []))
+    },
+    constants.timeout
+  )
+
+  test(
+    'multiple github repo but one of them failed',
+    async () => {
+      const { stdout } = await run('add', [
+        constants.testGitHubRepo,
+        'https://github.com/zerowong/scaffold-cli',
+      ])
+      const dirs = readdirSync(cacheDir, { withFileTypes: true })
+      expect(dirs).toHaveLength(1)
+      expect(dirs[0].isDirectory).toBeTruthy()
+      expect(getStore()).toEqual({
+        'scaffold-cli': { path: joinCacheDir(dirs[0].name), ...baseProj },
+      })
+      expect(stdout.split('\n').slice(-2).join('\n')).toBe(
+        log.result(1, ['Invalid GitHub url'])
+      )
+    },
+    constants.timeout
+  )
 })
 
 describe('remove', () => {
@@ -391,8 +530,8 @@ describe('remove', () => {
   })
 
   test('no args', async () => {
-    const { stderr } = await run('remove')
-    expect(stderr).toBe(log.usage('scaffold remove <name ...>'))
+    const { stdout } = await run('remove')
+    expect(stdout).toBe(log.usage('scaffold remove <name ...>'))
   })
 
   test('valid name', async () => {
@@ -402,9 +541,8 @@ describe('remove', () => {
   })
 
   test('invalid name', async () => {
-    const { stderr, stdout } = await run('remove', ['baz'])
-    expect(stderr).toBe(log.error(`No such project: 'baz'.`))
-    expect(stdout).toBe('')
+    const { stdout } = await run('remove', ['baz'])
+    expect(stdout).toBe(log.error(`No such project: 'baz'.`))
   })
 
   test('multiple name', async () => {
@@ -417,9 +555,8 @@ describe('remove', () => {
   })
 
   test('multiple name but one of them is not exists', async () => {
-    const { stderr, stdout } = await run('remove', ['foo', 'bar', 'baz'])
-    expect(stderr).toBe(log.error(`No such project: 'baz'.`))
-    expect(stdout).toBe('')
+    const { stdout } = await run('remove', ['foo', 'bar', 'baz'])
+    expect(stdout).toBe(log.error(`No such project: 'baz'.`))
   })
 })
 
@@ -457,31 +594,25 @@ describe('create from local dir', () => {
   })
 
   test('no args', async () => {
-    const { stderr } = await run('create')
-    expect(stderr).toBe(
+    const { stdout } = await run('create')
+    expect(stdout).toBe(
       log.usage('scaffold create <name> [<directory>] [-o|--overwrite]')
     )
   })
 
   test('project is not exists', async () => {
-    const { stderr, stdout } = await run('create', ['not-exists'])
-    expect(stderr).toBe(log.error(`Can't find project 'not-exists'.`))
-    expect(stdout).toBe('')
+    const { stdout } = await run('create', ['not-exists'])
+    expect(stdout).toBe(log.error(`Can't find project 'not-exists'.`))
   })
 
   test('project is exists but the real path is not exists', async () => {
-    const { stderr, stdout } = await run('create', ['foo'])
-    expect(stderr).toBe(log.error(`Can't find directory '${store.foo.path}'.`))
-    expect(stdout).toBe('')
+    const { stdout } = await run('create', ['foo'])
+    expect(stdout).toBe(log.error(`Can't find directory '${store.foo.path}'.`))
   })
 
   test('source equal target', async () => {
-    const { stderr, stdout } = await run('create', [
-      testSourceDir,
-      `./${testSourceDir}/0`,
-    ])
-    expect(stderr).toBe(log.error('Source path and target paths cannot be the same.'))
-    expect(stdout).toBe('')
+    const { stdout } = await run('create', [testSourceDir, `./${testSourceDir}/0`])
+    expect(stdout).toBe(log.error('Source path and target paths cannot be the same.'))
   })
 
   test('create successfully', async () => {
@@ -493,10 +624,9 @@ describe('create from local dir', () => {
 
   test('target is exists', async () => {
     mkdirSync(targetPath)
-    const { stderr, stdout } = await run('create', [testSourceDir, `./${testTargetDir}`])
+    const { stdout } = await run('create', [testSourceDir, `./${testTargetDir}`])
     rmrf(targetPath)
-    expect(stderr).toBe(log.error(`Directory '${targetPath}' already exists.`))
-    expect(stdout).toBe('')
+    expect(stdout).toBe(log.error(`Directory '${targetPath}' already exists.`))
   })
 
   test('target is exists and has overwirte flag', async () => {
@@ -512,9 +642,8 @@ describe('create from GitHub repository', () => {
   const targetPath = toTestPath(undefined, false)
 
   beforeAll(async () => {
-    const lastestHash = await fetchHeadHash(constants.testGitHubRepo)
     if (!lastestHash) {
-      throw new Error('could not find hash')
+      throw new Error('no hash')
     }
     mkdirSync(cacheDir)
     const foo = join(cacheDir, 'foo')

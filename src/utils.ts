@@ -8,19 +8,24 @@ import createHttpsProxyAgent from 'https-proxy-agent'
 import StreamZip from 'node-stream-zip'
 import mri from 'mri'
 
-const isTTY = process.stdout.isTTY
-
 interface SystemError extends Error {
   code: string
   syscall: string
   path: string
 }
 
+export interface Result {
+  success: number
+  failed: string[]
+}
+
+const isTTY = process.stdout.isTTY
+
 function isSystemError(err: unknown): err is SystemError {
   return err instanceof Error && 'syscall' in err
 }
 
-export const error = {
+export const exception = {
   isENOENT(err: unknown): err is SystemError {
     return isSystemError(err) && err.code === 'ENOENT'
   },
@@ -29,27 +34,19 @@ export const error = {
   },
 }
 
-function info(msg: string): void
-function info(msg: string, noLog: true): string
-function info(msg: string, noLog = false) {
-  const res = `${chalk.bold.cyan('INFO')}: ${msg}`
-  if (noLog) {
-    return res
-  }
-  console.log(res)
-}
-
 export const log = {
+  info(msg: string) {
+    console.log(`${chalk.bold.cyan('INFO')}: ${msg}`)
+  },
   error(msg: string) {
-    console.error(`${chalk.bold.red('ERROR')}: ${msg}`)
+    console.log(`${chalk.bold.red('ERROR')}: ${msg}`)
   },
   usage(msg: string) {
-    console.error(`${chalk.bold.cyan('USAGE')}: ${msg}`)
+    console.log(`${chalk.bold.cyan('USAGE')}: ${msg}`)
   },
   warn(msg: string) {
     console.log(`${chalk.bold.yellow('WARN')}: ${msg}`)
   },
-  info,
   grid(msgs: [string, string][], space = 4) {
     const max = msgs.reduce((prev, curr) => {
       return Math.max(curr[0].length, prev)
@@ -62,6 +59,9 @@ export const log = {
         }`
       )
     }, '')
+    if (!res) {
+      return
+    }
     console.log(res)
   },
   write(msg: string) {
@@ -75,6 +75,15 @@ export const log = {
       process.stdout.cursorTo(0)
     }
   },
+  result(res: Result) {
+    const str = res.failed.reduce(
+      (prev, curr) => `${prev}\n${chalk.bold.red('ERROR')}: ${curr}`,
+      `${chalk.bold.cyan('INFO')}: ${chalk.green(res.success)} success, ${chalk.red(
+        res.failed.length
+      )} fail.`
+    )
+    console.log(str)
+  },
 }
 
 export function rmrf(target: string) {
@@ -84,9 +93,9 @@ export function rmrf(target: string) {
 // fsPromises.cp is experimental
 export async function cp(source: string, target: string) {
   const ignore = ['.git', '.DS_Store', 'node_modules']
-  const sourceDir = await fsp.opendir(source)
+  const sourceDir = await fsp.readdir(source, { withFileTypes: true })
   await fsp.mkdir(target)
-  for await (const dirent of sourceDir) {
+  for (const dirent of sourceDir) {
     if (ignore.includes(dirent.name)) {
       continue
     }
@@ -170,7 +179,7 @@ export function download(url: string, dest: string, options: { proxy?: string } 
 /**
  * in-place unzip and rename
  * @param src archive zip file that name must be with hash
- * @returns path of unziped dir
+ * @returns the full directory path path of unziped dir
  */
 export async function unzip(src: string) {
   const { dir, name } = path.parse(src)
@@ -237,4 +246,19 @@ export function isURL(arg: string) {
     return true
   }
   return false
+}
+
+export class Key {
+  private value: Record<string, number>
+
+  constructor() {
+    this.value = {}
+  }
+
+  gen(name: string) {
+    if (!(name in this.value)) {
+      this.value[name] = 1
+    }
+    return this.value[name]++
+  }
 }
