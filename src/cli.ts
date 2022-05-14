@@ -18,6 +18,7 @@ import {
   type Result,
   Key,
   hasOwn,
+  uniq,
 } from './utils'
 
 export interface Project {
@@ -286,14 +287,14 @@ export default class ScaffoldCli {
         if (args.length === 0 || checker({ flag: 'd', options: [0, 1] })) {
           return log.usage('scaffold add <path ...> [-d|--depth <0|1>]')
         }
-        this.add(args, flags.d)
+        this.add(uniq(args), flags.d)
         break
       }
       case 'remove': {
         if (args.length === 0) {
           return log.usage('scaffold remove <name ...>')
         }
-        this.remove(args)
+        this.remove(uniq(args))
         break
       }
       case 'create': {

@@ -251,3 +251,7 @@ export class Key {
 export function hasOwn(obj: object, key: string) {
   return Object.prototype.hasOwnProperty.call(obj, key)
 }
+
+export function uniq(arr: string[]) {
+  return Array.from(new Set(arr))
+}
