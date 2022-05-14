@@ -15,10 +15,10 @@ import {
   unzip,
   argsParser,
   isURL,
-  type Result,
   Key,
   hasOwn,
   uniq,
+  logTaskResult,
 } from './utils'
 
 export interface Project {
@@ -61,7 +61,14 @@ export default class ScaffoldCli {
     this.changes[`${chalk.green('+')} ${realName}`] = proj
   }
 
-  private removeProject(name: string) {
+  private async removeProject(name: string) {
+    const proj = this.store[name]
+    if (!proj) {
+      throw new Error(`No such project: '${name}'.`)
+    }
+    if (proj.remote) {
+      await rmrf(proj.path)
+    }
     this.changes[`${chalk.red('-')} ${name}`] = this.store[name]
     delete this.store[name]
   }
@@ -176,43 +183,31 @@ export default class ScaffoldCli {
       },
       { locals: [], remotes: [] }
     )
-    const result: Result = { success: 0, failed: [] }
-    const promiseResult: PromiseSettledResult<void>[] = []
-    promiseResult.push(
+    const result: PromiseSettledResult<void>[] = []
+    result.push(
       ...(await Promise.allSettled(locals.map((src) => this.addLocal(src, depth))))
     )
     if (remotes.length > 0) {
       log.write('Downloading...')
-      promiseResult.push(
+      result.push(
         ...(await Promise.allSettled(remotes.map((src) => this.addRemote(src, depth))))
       )
       log.clear()
     }
-    promiseResult.forEach((res) => {
-      if (res.status === 'fulfilled') {
-        result.success += 1
-      } else {
-        if (exception.isENOENT(res.reason)) {
-          result.failed.push(`Can't find directory '${res.reason.path}'.`)
-        } else {
-          result.failed.push(res.reason.message)
-        }
-      }
-    })
     await this.save()
     this.logChanges()
-    log.result(result)
+    logTaskResult(result)
   }
 
   private async remove(names: string[]) {
-    for (const name of names) {
-      if (!hasOwn(this.store, name)) {
-        return log.error(`No such project: '${name}'.`)
-      }
-      this.removeProject(name)
-    }
+    const result = await Promise.allSettled(
+      names.map((name) => {
+        return this.removeProject(name)
+      })
+    )
     await this.save()
     this.logChanges()
+    logTaskResult(result)
   }
 
   private async create(name: string, directory?: string, overwrite = false) {
@@ -266,7 +261,13 @@ export default class ScaffoldCli {
 
   async main() {
     await this.init()
-    const { action, args, flags, checker } = argsParser()
+    const argv = argsParser()
+
+    if (!argv) {
+      return
+    }
+
+    const { action, args, flags, checker } = argv
 
     switch (action) {
       case '': {

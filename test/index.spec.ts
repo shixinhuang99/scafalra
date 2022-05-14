@@ -159,7 +159,7 @@ function cleanup() {
 let lastestHash: string | null = null
 
 beforeAll(async () => {
-  rmrf(configDir)
+  cleanup()
   mkdirSync(configDir)
   save()
   genTestDir()
@@ -167,8 +167,6 @@ beforeAll(async () => {
 }, constants.timeout)
 
 afterAll(cleanup)
-
-process.on('uncaughtExceptionMonitor', cleanup)
 
 describe('none command', () => {
   const help =
@@ -537,12 +535,12 @@ describe('remove', () => {
   test('valid name', async () => {
     const { stdout } = await run('remove', ['foo'])
     const list = log.grid([['- foo', store.foo.path]])
-    expect(stdout).toBe(list)
+    expect(stdout).toBe(`${list}\n${log.result(1, [])}`)
   })
 
   test('invalid name', async () => {
     const { stdout } = await run('remove', ['baz'])
-    expect(stdout).toBe(log.error(`No such project: 'baz'.`))
+    expect(stdout).toBe(log.result(0, ["No such project: 'baz'."]))
   })
 
   test('multiple name', async () => {
@@ -551,12 +549,29 @@ describe('remove', () => {
       ['- foo', store.foo.path],
       ['- bar', store.bar.path],
     ])
-    expect(stdout).toBe(list)
+    expect(stdout).toBe(`${list}\n${log.result(2, [])}`)
   })
 
   test('multiple name but one of them is not exists', async () => {
     const { stdout } = await run('remove', ['foo', 'bar', 'baz'])
-    expect(stdout).toBe(log.error(`No such project: 'baz'.`))
+    const list = log.grid([
+      ['- foo', store.foo.path],
+      ['- bar', store.bar.path],
+    ])
+    expect(stdout).toBe(`${list}\n${log.result(2, ["No such project: 'baz'."])}`)
+  })
+
+  test('remove remote project', async () => {
+    mkdirSync(cacheDir)
+    const remoteProjPath = joinCacheDir('remote')
+    mkdirSync(remoteProjPath)
+    save({ remote: { path: remoteProjPath, remote: '_', hash: '' } })
+    const { stdout } = await run('remove', ['remote'])
+    const list = log.grid([['- remote', remoteProjPath]])
+    expect(stdout).toBe(`${list}\n${log.result(1, [])}`)
+    const dirs = readdirSync(cacheDir)
+    expect(dirs).toHaveLength(0)
+    rmrf(cacheDir)
   })
 })
 

@@ -207,7 +207,7 @@ export function argsParser() {
   })
 
   if (!mriArgv) {
-    throw new Error('Arguments parsed faild.')
+    return
   }
 
   const {
@@ -254,4 +254,20 @@ export function hasOwn(obj: object, key: string) {
 
 export function uniq(arr: string[]) {
   return Array.from(new Set(arr))
+}
+
+export function logTaskResult(taskResult: PromiseSettledResult<void>[]) {
+  const result: Result = { success: 0, failed: [] }
+  taskResult.forEach((res) => {
+    if (res.status === 'fulfilled') {
+      result.success += 1
+    } else {
+      if (exception.isENOENT(res.reason)) {
+        result.failed.push(`Can't find directory '${res.reason.path}'.`)
+      } else {
+        result.failed.push(res.reason.message)
+      }
+    }
+  })
+  log.result(result)
 }
