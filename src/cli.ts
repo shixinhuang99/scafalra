@@ -10,13 +10,14 @@ import {
   exists,
   parse,
   fetchHeadHash,
-  joinGithubArchiveUrl,
+  joinArchiveUrl,
   download,
   unzip,
   argsParser,
   isURL,
   type Result,
   Key,
+  hasOwn,
 } from './utils'
 
 export interface Project {
@@ -29,23 +30,14 @@ const cwd = process.cwd()
 const key = new Key()
 
 export default class ScaffoldCli {
-  private configDir: string
-  private storeFile: string
-  private cacheDir: string
-  private store: Record<string, Project>
-  private changes: Record<string, Project>
-
-  constructor() {
-    const isTest = process.env.NODE_ENV === 'test'
-    this.configDir = path.join(
-      os.homedir(),
-      isTest ? '.scaffold-cli-test' : '.scaffold-cli'
-    )
-    this.storeFile = path.join(this.configDir, 'store.json')
-    this.cacheDir = path.join(this.configDir, 'cache')
-    this.store = {}
-    this.changes = {}
-  }
+  private configDir = path.join(
+    os.homedir(),
+    process.env.NODE_ENV === 'test' ? '.scaffold-cli-test' : '.scaffold-cli'
+  )
+  private storeFile = path.join(this.configDir, 'store.json')
+  private cacheDir = path.join(this.configDir, 'cache')
+  private store: Record<string, Project> = {}
+  private changes: Record<string, Project> = {}
 
   private async init() {
     if (await exists(this.configDir)) {
@@ -63,7 +55,7 @@ export default class ScaffoldCli {
   }
 
   private addProject(name: string, proj: Project) {
-    const realName = name in this.store ? `${name}-${key.gen(name)}` : name
+    const realName = hasOwn(this.store, name) ? `${name}-${key.gen(name)}` : name
     this.store[realName] = proj
     this.changes[`${chalk.green('+')} ${realName}`] = proj
   }
@@ -150,14 +142,8 @@ export default class ScaffoldCli {
 
   private async addRemote(src: string, depth = 0) {
     const repo = parse(src)
-    if (!repo) {
-      throw new Error('Invalid GitHub url')
-    }
     const hash = await fetchHeadHash(src)
-    if (!hash) {
-      throw new Error(`Could not find commit hash of HEAD from ${chalk.green(src)}.`)
-    }
-    const url = joinGithubArchiveUrl(repo.url, hash)
+    const url = joinArchiveUrl(hash, repo)
     const archiveFile = path.join(this.cacheDir, `${repo.name}-${hash}.zip`)
     await download(url, archiveFile, { proxy: process.env.https_proxy })
     const unzipedDir = await unzip(archiveFile)
@@ -219,7 +205,7 @@ export default class ScaffoldCli {
 
   private async remove(names: string[]) {
     for (const name of names) {
-      if (!(name in this.store)) {
+      if (!hasOwn(this.store, name)) {
         return log.error(`No such project: '${name}'.`)
       }
       this.removeProject(name)
@@ -234,23 +220,24 @@ export default class ScaffoldCli {
       return log.error(`Can't find project '${name}'.`)
     }
     if (proj.remote) {
-      const newHash = await fetchHeadHash(proj.remote)
+      const newHash = await fetchHeadHash(proj.remote).catch(() => null)
       if (!newHash) {
         log.warn('Could not find commit hash of HEAD, Local cache will be used.')
       } else {
         const repo = parse(proj.remote)
-        if (newHash !== proj.hash && repo) {
+        if (newHash !== proj.hash) {
           log.write('The cache needs to be updated, downloading...')
-          const url = joinGithubArchiveUrl(repo.url, newHash)
+          const url = joinArchiveUrl(newHash, repo)
           const archiveFile = path.join(this.cacheDir, `${repo.name}-${newHash}.zip`)
           await download(url, archiveFile, { proxy: process.env.https_proxy })
-          await unzip(archiveFile)
+          const unzipedDir = await unzip(archiveFile)
           this.addProject(name, {
-            path: proj.path,
+            path: unzipedDir,
             remote: proj.remote,
             hash: newHash,
           })
           await this.save()
+          log.clear()
         }
       }
     }
@@ -264,7 +251,6 @@ export default class ScaffoldCli {
     }
     try {
       await cp(source, target)
-      log.clear()
       log.info(`Project created in '${target}'.`)
     } catch (err) {
       if (exception.isEEXIST(err)) {
@@ -279,13 +265,7 @@ export default class ScaffoldCli {
 
   async main() {
     await this.init()
-    const argv = argsParser()
-
-    if (!argv) {
-      return
-    }
-
-    const { action, args, flags, checker } = argv
+    const { action, args, flags, checker } = argsParser()
 
     switch (action) {
       case '': {

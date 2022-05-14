@@ -22,7 +22,7 @@ export interface Result {
 const isTTY = process.stdout.isTTY
 
 function isSystemError(err: unknown): err is SystemError {
-  return err instanceof Error && 'syscall' in err
+  return err instanceof Error && hasOwn(err, 'syscall')
 }
 
 export const exception = {
@@ -51,14 +51,13 @@ export const log = {
     const max = msgs.reduce((prev, curr) => {
       return Math.max(curr[0].length, prev)
     }, 0)
-    const res = msgs.reduce((perv, curr, i) => {
-      return (
-        perv +
-        `${curr[0]}${' '.repeat(max - curr[0].length + space)}${curr[1]}${
+    const res = msgs.reduce(
+      (prev, curr, i) =>
+        `${prev}${curr[0].padEnd(max + space)}${curr[1]}${
           i === msgs.length - 1 ? '' : '\n'
-        }`
-      )
-    }, '')
+        }`,
+      ''
+    )
     if (!res) {
       return
     }
@@ -119,24 +118,21 @@ export async function exists(target: string) {
 }
 
 export function parse(src: string) {
-  const regexp = /^https:\/\/github.com\/([^/\s]+)\/([^/\s]+)\.git$/
+  const regexp = /^https:\/\/github.com\/(?<user>[^/\s]+)\/(?<name>[^/\s]+)\.git$/
   const match = src.match(regexp)
-  if (!match) {
-    return null
+  if (!match || !match.groups) {
+    throw new Error('Invalid GitHub url')
   }
-  const user = match[1]
-  const name = match[2]
-  const url = `https://github.com/${user}/${name}`
-  return { user, name, url }
+  return { user: match.groups.user, name: match.groups.name }
 }
 
 async function git(args: string[]) {
-  return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-    child_process.execFile('git', args, (err, stdout, stderr) => {
+  return new Promise<{ stdout: string }>((resolve, reject) => {
+    child_process.execFile('git', args, (err, stdout) => {
       if (err) {
         return reject(err)
       }
-      return resolve({ stdout: stdout.trimEnd(), stderr: stderr.trimEnd() })
+      return resolve({ stdout })
     })
   })
 }
@@ -147,11 +143,11 @@ export async function fetchHeadHash(src: string) {
   if (blank !== -1) {
     return stdout.slice(0, blank)
   }
-  return null
+  throw new Error(`Could not find commit hash of HEAD from ${chalk.green(src)}.`)
 }
 
-export function joinGithubArchiveUrl(url: string, hash: string) {
-  return path.join(url, 'archive', `${hash}.zip`)
+export function joinArchiveUrl(hash: string, repo: { user: string; name: string }) {
+  return `https://github.com/${repo.user}/${repo.name}/archive/${hash}.zip`
 }
 
 export function download(url: string, dest: string, options: { proxy?: string } = {}) {
@@ -162,14 +158,14 @@ export function download(url: string, dest: string, options: { proxy?: string } 
       .get(url, { agent }, (res) => {
         const { statusCode, statusMessage } = res
         if (!statusCode) {
-          return reject('No response.')
+          return reject(new Error('No response.'))
         }
         if (statusCode < 300 && statusCode >= 200) {
           res.pipe(fs.createWriteStream(dest)).on('finish', resolve).on('error', reject)
         } else if (statusCode < 400 && statusCode >= 300 && res.headers.location) {
           download(res.headers.location, dest, { proxy }).then(resolve, reject)
         } else {
-          reject(`${statusCode}: ${statusMessage}.`)
+          reject(new Error(`${statusCode}: ${statusMessage}.`))
         }
       })
       .on('error', reject)
@@ -188,14 +184,10 @@ export async function unzip(src: string) {
   await zip.close()
   await fsp.rm(src)
   const index = name.lastIndexOf('-')
-  if (index === -1) {
-    throw new Error('Cannot remove hash.')
-  }
-  const nameWithoutHash = name.slice(0, index)
-  const unzipedDir = path.join(dir, nameWithoutHash)
-  await rmrf(unzipedDir)
-  await fsp.rename(path.join(dir, name), unzipedDir)
-  return unzipedDir
+  const newPath = index === -1 ? src : path.join(dir, name.slice(0, index))
+  await rmrf(newPath)
+  await fsp.rename(path.join(dir, name), newPath)
+  return newPath
 }
 
 export type Validate = string[] | { flag: string; options: number[] }
@@ -215,7 +207,7 @@ export function argsParser() {
   })
 
   if (!mriArgv) {
-    return null
+    throw new Error('Arguments parsed faild.')
   }
 
   const {
@@ -242,23 +234,20 @@ export function argsParser() {
 }
 
 export function isURL(arg: string) {
-  if (/^(?:https?:\/\/)?(?:[\da-z.-]+)\.(?:[a-z.]{2,6})(?:[/\w .-]*)*\/?$/.test(arg)) {
-    return true
-  }
-  return false
+  return /^(?:https?:\/\/)?(?:[\da-z.-]+)\.(?:[a-z.]{2,6})(?:[/\w .-]*)*\/?$/.test(arg)
 }
 
 export class Key {
-  private value: Record<string, number>
-
-  constructor() {
-    this.value = {}
-  }
+  private value: Record<string, number> = {}
 
   gen(name: string) {
-    if (!(name in this.value)) {
+    if (!hasOwn(this.value, name)) {
       this.value[name] = 1
     }
     return this.value[name]++
   }
+}
+
+export function hasOwn(obj: object, key: string) {
+  return Object.prototype.hasOwnProperty.call(obj, key)
 }

@@ -30,7 +30,8 @@
   "keywords": [
     "scaffold",
     "cli",
-    "template"
+    "template",
+    "scaffold-cli"
   ],
   "scripts": {
     "start": "NODE_ENV=test esno ./src/bin.ts",
