@@ -192,7 +192,7 @@ export async function unzip(src: string) {
 
 export type Validate = string[] | { flag: string; options: number[] }
 
-export function argsParser() {
+export function argvParser() {
   const mriArgv = mri(process.argv.slice(2), {
     alias: {
       d: 'depth',

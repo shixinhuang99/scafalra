@@ -13,7 +13,7 @@ import {
   joinArchiveUrl,
   download,
   unzip,
-  argsParser,
+  argvParser,
   isURL,
   Key,
   hasOwn,
@@ -102,6 +102,7 @@ export default class ScaffoldCli {
           'create <name> [<directory>] [-o|--overwrite]',
           'Create a project by copying the templates folder.',
         ],
+        ['mv <oldName> <newName>', 'Rename a project.'],
       ])
     }
     if (flags.v) {
@@ -116,11 +117,13 @@ export default class ScaffoldCli {
   private async list(prune: boolean) {
     const entries = Object.entries(this.store)
     if (prune) {
-      for (const [name, proj] of entries) {
-        if (!(await exists(proj.path))) {
-          delete this.store[name]
-        }
-      }
+      await Promise.all(
+        entries.map(async ([name, proj]) => {
+          if (!(await exists(proj.path))) {
+            delete this.store[name]
+          }
+        })
+      )
       await this.save()
     }
     log.grid(
@@ -259,9 +262,21 @@ export default class ScaffoldCli {
     }
   }
 
+  private async mv(oldName: string, newName: string) {
+    if (!hasOwn(this.store, oldName) || oldName === newName) {
+      return
+    }
+    if (hasOwn(this.store, newName)) {
+      return log.error(`'${newName}' already exists.`)
+    }
+    this.store[newName] = this.store[oldName]
+    delete this.store[oldName]
+    await this.save()
+  }
+
   async main() {
     await this.init()
-    const argv = argsParser()
+    const argv = argvParser()
 
     if (!argv) {
       return
@@ -303,6 +318,13 @@ export default class ScaffoldCli {
           return log.usage('scaffold create <name> [<directory>] [-o|--overwrite]')
         }
         this.create(args[0], args[1], flags.o)
+        break
+      }
+      case 'mv': {
+        if (args.length !== 2) {
+          return log.usage('scaffold mv <oldName> <newName>')
+        }
+        this.mv(args[0], args[1])
         break
       }
       default: {

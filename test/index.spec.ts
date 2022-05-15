@@ -186,6 +186,7 @@ describe('none command', () => {
         'create <name> [<directory>] [-o|--overwrite]',
         'Create a project by copying the templates folder.',
       ],
+      ['mv <oldName> <newName>', 'Rename a project.'],
     ])
 
   test('none', async () => {
@@ -527,6 +528,10 @@ describe('remove', () => {
     save(store)
   })
 
+  afterAll(() => {
+    save()
+  })
+
   test('no args', async () => {
     const { stdout } = await run('remove')
     expect(stdout).toBe(log.usage('scaffold remove <name ...>'))
@@ -727,4 +732,40 @@ describe('create from GitHub repository', () => {
     },
     constants.timeout
   )
+})
+
+describe('mv', () => {
+  beforeAll(() => {
+    save({ foo: { path: '_' }, bar: { path: '_' } })
+  })
+
+  afterAll(() => {
+    save()
+  })
+
+  test('invalid or missing arguments', async () => {
+    const { stdout } = await run('mv', ['foo'])
+    expect(stdout).toBe(log.usage('scaffold mv <oldName> <newName>'))
+  })
+
+  test('project not exists', async () => {
+    const { stdout } = await run('mv', ['baz', 'bar'])
+    expect(stdout).toBe('')
+  })
+
+  test('the new name is the same as the old name', async () => {
+    const { stdout } = await run('mv', ['foo', 'foo'])
+    expect(stdout).toBe('')
+  })
+
+  test('new name exists', async () => {
+    const { stdout } = await run('mv', ['foo', 'bar'])
+    expect(stdout).toBe(log.error("'bar' already exists."))
+  })
+
+  test('rename successfully', async () => {
+    const { stdout } = await run('mv', ['foo', 'baz'])
+    expect(stdout).toBe('')
+    expect(getStore()).toEqual({ bar: { path: '_' }, baz: { path: '_' } })
+  })
 })

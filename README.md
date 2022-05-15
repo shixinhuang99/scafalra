@@ -149,3 +149,11 @@ If the project references a GitHub repository, it will check its latest commit h
 ```bash
 scaffold create remote-repo
 ```
+
+### `scaffold mv <oldName> <newName>`
+
+Rename a project.
+
+```bash
+scaffold mv foo bar
+```
