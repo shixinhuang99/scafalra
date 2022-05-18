@@ -10,15 +10,13 @@ import {
   exists,
   parse,
   fetchHeadHash,
-  joinArchiveUrl,
-  download,
-  unzip,
   argvParser,
   isURL,
   Key,
   hasOwn,
   uniq,
-  logTaskResult,
+  type Repo,
+  fetchRepo,
 } from './utils'
 
 export interface Project {
@@ -32,7 +30,7 @@ const key = new Key()
 
 export default class ScaffoldCli {
   private configDir = path.join(
-    os.homedir(),
+    os.homedir() ?? os.tmpdir(),
     process.env.NODE_ENV === 'test' ? '.scaffold-cli-test' : '.scaffold-cli'
   )
   private storeFile = path.join(this.configDir, 'store.json')
@@ -81,6 +79,10 @@ export default class ScaffoldCli {
     )
   }
 
+  private cacheRepo(repo: Repo, hash: string) {
+    return fetchRepo(this.cacheDir, repo, hash)
+  }
+
   private async none(flags: { h?: boolean; v?: boolean }) {
     if (flags.h || Object.keys(flags).length === 0) {
       log.grid(
@@ -115,10 +117,9 @@ export default class ScaffoldCli {
   }
 
   private async list(prune: boolean) {
-    const entries = Object.entries(this.store)
     if (prune) {
       await Promise.all(
-        entries.map(async ([name, proj]) => {
+        Object.entries(this.store).map(async ([name, proj]) => {
           if (!(await exists(proj.path))) {
             delete this.store[name]
           }
@@ -136,8 +137,7 @@ export default class ScaffoldCli {
   private async addLocal(src: string, depth = 0) {
     const absPath = path.isAbsolute(src) ? src : path.resolve(cwd, src)
     if (depth === 0) {
-      const target = await fsp.stat(absPath)
-      if (!target.isDirectory()) {
+      if (!(await fsp.stat(absPath)).isDirectory()) {
         throw new Error(`'${absPath}' is not a directory.`)
       }
       this.addProject(path.basename(absPath), { path: absPath })
@@ -154,18 +154,15 @@ export default class ScaffoldCli {
   private async addRemote(src: string, depth = 0) {
     const repo = parse(src)
     const hash = await fetchHeadHash(src)
-    const url = joinArchiveUrl(hash, repo)
-    const archiveFile = path.join(this.cacheDir, `${repo.name}-${hash}.zip`)
-    await download(url, archiveFile, { proxy: process.env.https_proxy })
-    const unzipedDir = await unzip(archiveFile)
+    const repoDir = await this.cacheRepo(repo, hash)
     if (depth === 0) {
-      this.addProject(repo.name, { path: unzipedDir, remote: src, hash })
+      this.addProject(repo.name, { path: repoDir, remote: src, hash })
     } else if (depth === 1) {
-      const dir = await fsp.readdir(unzipedDir, { withFileTypes: true })
+      const dir = await fsp.readdir(repoDir, { withFileTypes: true })
       for (const dirent of dir) {
         if (dirent.isDirectory() && dirent.name[0] !== '.') {
           this.addProject(dirent.name, {
-            path: path.join(unzipedDir, dirent.name),
+            path: path.join(repoDir, dirent.name),
             hash,
             remote: src,
           })
@@ -199,7 +196,7 @@ export default class ScaffoldCli {
     }
     await this.save()
     this.logChanges()
-    logTaskResult(result)
+    log.result(result)
   }
 
   private async remove(names: string[]) {
@@ -210,28 +207,44 @@ export default class ScaffoldCli {
     )
     await this.save()
     this.logChanges()
-    logTaskResult(result)
+    log.result(result)
   }
 
-  private async create(name: string, directory?: string, overwrite = false) {
-    const proj = this.store[name]
-    if (!proj) {
-      return log.error(`Can't find project '${name}'.`)
+  private async create(src: string, directory?: string, overwrite = false) {
+    if (isURL(src)) {
+      log.write('Downloading...')
+      const hash = await fetchHeadHash(src)
+      const fullPath = await fetchRepo(
+        directory ? path.resolve(cwd, directory) : cwd,
+        parse(src),
+        hash
+      )
+      log.clear()
+      return log.info(`Project created in '${fullPath}'.`)
     }
-    if (proj.remote) {
-      const newHash = await fetchHeadHash(proj.remote).catch(() => null)
-      if (!newHash) {
-        log.warn('Could not find commit hash of HEAD, Local cache will be used.')
-      } else {
-        const repo = parse(proj.remote)
-        if (newHash !== proj.hash) {
+    let source = ''
+    const proj = this.store[src]
+    if (!proj) {
+      const absPath = path.isAbsolute(src) ? src : path.resolve(cwd, src)
+      try {
+        if (!(await fsp.stat(absPath)).isDirectory()) {
+          return log.error(`'${absPath}' is not a directory.`)
+        }
+        source = absPath
+      } catch (err) {
+        if (exception.isENOENT(err)) {
+          return log.error(`Can't find directory '${err.path}'.`)
+        }
+        throw err
+      }
+    } else {
+      if (proj.remote) {
+        const newHash = await fetchHeadHash(proj.remote).catch(() => null)
+        if (newHash && newHash !== proj.hash) {
           log.write('The cache needs to be updated, downloading...')
-          const url = joinArchiveUrl(newHash, repo)
-          const archiveFile = path.join(this.cacheDir, `${repo.name}-${newHash}.zip`)
-          await download(url, archiveFile, { proxy: process.env.https_proxy })
-          const unzipedDir = await unzip(archiveFile)
-          this.addProject(name, {
-            path: unzipedDir,
+          await this.cacheRepo(parse(proj.remote), newHash)
+          this.addProject(src, {
+            path: proj.path,
             remote: proj.remote,
             hash: newHash,
           })
@@ -239,9 +252,12 @@ export default class ScaffoldCli {
           log.clear()
         }
       }
+      source = proj.path
     }
-    const source = proj.path
-    const target = path.resolve(cwd, directory ?? name)
+    if (!source) {
+      return log.error('Unknonw source.')
+    }
+    const target = path.resolve(cwd, directory ?? src)
     if (target === source) {
       return log.error(`Source path and target paths cannot be the same.`)
     }

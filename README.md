@@ -31,15 +31,7 @@ outputs:
 + react     /.../projects/react
 ```
 
-When we want to create a new project based on one of these templates, we can use `scaffold create react ./new-awesome-project` to quickly copy the template.
-
-outputs:
-
-```
-INFO: Project created in '/.../new-awesome-project'.
-```
-
-Since `v0.2.5`, the `add` command supports adding GitHub repositories.
+In addition to local paths, the `add` command also supports adding GitHub repositories.
 
 For example: `scaffold add https://github.com/zerowong/scaffold-cli.git`
 
@@ -52,6 +44,20 @@ outputs:
 The above example will download and extract the archive of the last commit of `scaffold-cli` to the cache directory, then add its local path to the list.
 
 This is much quicker than using `git clone`, because it not downloading the entire git history.
+
+When we want to create a new project based on one of these templates, we can use `scaffold create react ./new-awesome-project` to quickly copy the template.
+
+outputs:
+
+```
+INFO: Project created in '/.../new-awesome-project'.
+```
+
+The `create` command also supports one-time creation of projects from local paths or GitHub URL, which is useful when using tools like `npx` or `dlx`
+
+```bash
+npx scaffold create https://github.com/zerowong/scaffold-cli.git /path/to/somewhere
+```
 
 ## Usage
 
@@ -83,7 +89,7 @@ Clear the path of items that no longer exist and list them.
 scaffold list --prune
 ```
 
-### `scaffold add <path ...> [-d|--depth <0|1>]`
+### `scaffold add <path|url ...> [-d|--depth <0|1>]`
 
 Add projects with path of a local folder.
 
@@ -120,17 +126,17 @@ Remove projects from list.
 scaffold remove foo bar baz...
 ```
 
-### `scaffold create <name> [<directory>] [-o|--overwrite]`
+### `scaffold create <name|path|url> [<directory>] [-o|--overwrite]`
 
-Copy the templates folder to the current working directory.
+Create a project to the current working directory.
 
-> note: `DS_Store`, `node_modules`and`.git` folders will be ignored when copying the project
+> note: The `DS_Store`, `node_modules` and `.git` folders will be ignored when creating projects from the local path or project list.
 
 ```bash
 scaffold create foo
 ```
 
-Copy the templates folder to the specified path.
+Create a project to the specified path.
 
 ```bash
 scaffold create foo ./path/to/bar

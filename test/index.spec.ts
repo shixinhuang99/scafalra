@@ -587,11 +587,8 @@ describe('create from local dir', () => {
   }
   const targetPath = toTestPath(undefined, false)
 
-  const expectTargetDir = (target: string) => {
-    const dirs = readdirSync(target)
-    const allSubDirs = ['0', '1', '2'].map((val) => {
-      return readdirSync(`${target}/${val}`)
-    })
+  const expectTargetDir = () => {
+    const dirs = readdirSync(targetPath)
     expect(dirs).toHaveLength(6)
     for (const item of ['.git', '.DS_Store', 'node_modules']) {
       expect(dirs).not.toContain(item)
@@ -600,6 +597,9 @@ describe('create from local dir', () => {
       expect(dirs).toContain(item)
       expect(dirs).toContain(`${item}.txt`)
     }
+    const allSubDirs = ['0', '1', '2'].map((val) => {
+      return readdirSync(`${targetPath}/${val}`)
+    })
     allSubDirs.forEach((item) => {
       expect(item).toEqual(['0.txt', '1.txt', '2.txt'])
     })
@@ -609,7 +609,7 @@ describe('create from local dir', () => {
     save(store)
   })
 
-  afterAll(() => {
+  afterEach(() => {
     rmrf(targetPath)
   })
 
@@ -622,7 +622,9 @@ describe('create from local dir', () => {
 
   test('project is not exists', async () => {
     const { stdout } = await run('create', ['not-exists'])
-    expect(stdout).toBe(log.error(`Can't find project 'not-exists'.`))
+    expect(stdout).toBe(
+      log.error(`Can't find directory '${joinCwd(constants.notExists)}'.`)
+    )
   })
 
   test('project is exists but the real path is not exists', async () => {
@@ -638,14 +640,12 @@ describe('create from local dir', () => {
   test('create successfully', async () => {
     const { stdout } = await run('create', [testSourceDir, testTargetDir])
     expect(stdout).toBe(log.info(`Project created in '${targetPath}'.`))
-    expectTargetDir(targetPath)
-    rmrf(targetPath)
+    expectTargetDir()
   })
 
   test('target is exists', async () => {
     mkdirSync(targetPath)
     const { stdout } = await run('create', [testSourceDir, `./${testTargetDir}`])
-    rmrf(targetPath)
     expect(stdout).toBe(log.error(`Directory '${targetPath}' already exists.`))
   })
 
@@ -653,8 +653,14 @@ describe('create from local dir', () => {
     mkdirSync(targetPath)
     const { stdout } = await run('create', [testSourceDir, `./${testTargetDir}`, '-o'])
     expect(stdout).toBe(log.info(`Project created in '${targetPath}'.`))
-    expectTargetDir(targetPath)
-    rmrf(targetPath)
+    expectTargetDir()
+  })
+
+  test('create a project directly from the local path', async () => {
+    save()
+    const { stdout } = await run('create', [`${testSourceDir}/0`, testTargetDir])
+    expect(stdout).toBe(log.info(`Project created in '${targetPath}'.`))
+    expectTargetDir()
   })
 })
 
@@ -716,7 +722,7 @@ describe('create from GitHub repository', () => {
       const { stdout } = await run('create', ['bar', target])
       expect(stdout).toBe(log.info(`Project created in '${target}'.`))
       const files = readdirSync(target)
-      expect(files.length).toBeGreaterThan(1)
+      expect(files).toHaveLength(16)
     },
     constants.timeout
   )
@@ -729,6 +735,18 @@ describe('create from GitHub repository', () => {
       expect(stdout).toBe(log.info(`Project created in '${target}'.`))
       const files = readdirSync(target)
       expect(files).toEqual(['index.js'])
+    },
+    constants.timeout
+  )
+
+  test(
+    'create a project directly from a GitHub URL',
+    async () => {
+      const target = toTestPath('scaffold-cli', false)
+      const { stdout } = await run('create', [constants.testGitHubRepo, targetPath])
+      expect(stdout).toBe(log.info(`Project created in '${target}'.`))
+      const files = readdirSync(target)
+      expect(files).toHaveLength(16)
     },
     constants.timeout
   )

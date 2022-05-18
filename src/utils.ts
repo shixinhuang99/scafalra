@@ -14,9 +14,9 @@ interface SystemError extends Error {
   path: string
 }
 
-export interface Result {
-  success: number
-  failed: string[]
+export interface Repo {
+  user: string
+  name: string
 }
 
 const isTTY = process.stdout.isTTY
@@ -74,11 +74,23 @@ export const log = {
       process.stdout.cursorTo(0)
     }
   },
-  result(res: Result) {
-    const str = res.failed.reduce(
+  result(taskResult: PromiseSettledResult<void>[]) {
+    const result = { success: 0, failed: [] as string[] }
+    taskResult.forEach((res) => {
+      if (res.status === 'fulfilled') {
+        result.success += 1
+      } else {
+        if (exception.isENOENT(res.reason)) {
+          result.failed.push(`Can't find directory '${res.reason.path}'.`)
+        } else {
+          result.failed.push(res.reason.message)
+        }
+      }
+    })
+    const str = result.failed.reduce(
       (prev, curr) => `${prev}\n${chalk.bold.red('ERROR')}: ${curr}`,
-      `${chalk.bold.cyan('INFO')}: ${chalk.green(res.success)} success, ${chalk.red(
-        res.failed.length
+      `${chalk.bold.cyan('INFO')}: ${chalk.green(result.success)} success, ${chalk.red(
+        result.failed.length
       )} fail.`
     )
     console.log(str)
@@ -117,7 +129,7 @@ export async function exists(target: string) {
   return true
 }
 
-export function parse(src: string) {
+export function parse(src: string): Repo {
   const regexp = /^https:\/\/github.com\/(?<user>[^/\s]+)\/(?<name>[^/\s]+)\.git$/
   const match = src.match(regexp)
   if (!match || !match.groups) {
@@ -146,11 +158,15 @@ export async function fetchHeadHash(src: string) {
   throw new Error(`Could not find commit hash of HEAD from ${chalk.green(src)}.`)
 }
 
-export function joinArchiveUrl(hash: string, repo: { user: string; name: string }) {
+export function joinArchiveUrl(hash: string, repo: Repo) {
   return `https://github.com/${repo.user}/${repo.name}/archive/${hash}.zip`
 }
 
-export function download(url: string, dest: string, options: { proxy?: string } = {}) {
+export function download(
+  url: string,
+  dest: string,
+  options = { proxy: process.env.https_proxy }
+) {
   const { proxy } = options
   const agent = proxy ? createHttpsProxyAgent(proxy) : undefined
   return new Promise<void>((resolve, reject) => {
@@ -174,20 +190,20 @@ export function download(url: string, dest: string, options: { proxy?: string } 
 
 /**
  * in-place unzip and rename
- * @param src archive zip file that name must be with hash
+ * @param file archive zip file that name must be with hash
  * @returns the full directory path path of unziped dir
  */
-export async function unzip(src: string) {
-  const { dir, name } = path.parse(src)
-  const zip = new StreamZip.async({ file: src })
+export async function unzip(file: string) {
+  const { dir, name } = path.parse(file)
+  const zip = new StreamZip.async({ file })
   await zip.extract(null, dir)
   await zip.close()
-  await fsp.rm(src)
+  await fsp.rm(file)
   const index = name.lastIndexOf('-')
-  const newPath = index === -1 ? src : path.join(dir, name.slice(0, index))
-  await rmrf(newPath)
-  await fsp.rename(path.join(dir, name), newPath)
-  return newPath
+  const fullPath = index === -1 ? file : path.join(dir, name.slice(0, index))
+  await rmrf(fullPath)
+  await fsp.rename(path.join(dir, name), fullPath)
+  return fullPath
 }
 
 export type Validate = string[] | { flag: string; options: number[] }
@@ -256,18 +272,10 @@ export function uniq(arr: string[]) {
   return Array.from(new Set(arr))
 }
 
-export function logTaskResult(taskResult: PromiseSettledResult<void>[]) {
-  const result: Result = { success: 0, failed: [] }
-  taskResult.forEach((res) => {
-    if (res.status === 'fulfilled') {
-      result.success += 1
-    } else {
-      if (exception.isENOENT(res.reason)) {
-        result.failed.push(`Can't find directory '${res.reason.path}'.`)
-      } else {
-        result.failed.push(res.reason.message)
-      }
-    }
-  })
-  log.result(result)
+export async function fetchRepo(parentDir: string, repo: Repo, hash: string) {
+  const url = joinArchiveUrl(hash, repo)
+  const file = path.join(parentDir, `${repo.name}-${hash}.zip`)
+  await download(url, file)
+  const fullPath = await unzip(file)
+  return fullPath
 }
