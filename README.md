@@ -1,6 +1,6 @@
 # Scaffold Cli - scaffold commannd line tool
 
-This command line tool manages the paths to the project template folders and copies them to specific paths when needed using simple commands.
+`scaffold-cli` is a command line tool for managing and creating scaffold projects via local paths or GitHub URLs.
 
 > _note: require Node 16 or above_
 
@@ -45,7 +45,7 @@ The above example will download and extract the archive of the last commit of `s
 
 This is much quicker than using `git clone`, because it not downloading the entire git history.
 
-When we want to create a new project based on one of these templates, we can use `scaffold create react ./new-awesome-project` to quickly copy the template.
+When we want to create a new project based on one of these templates, we can use `scaffold create projectName ./new-awesome-project` to quickly copy the template.
 
 outputs:
 
@@ -53,7 +53,7 @@ outputs:
 INFO: Project created in '/.../new-awesome-project'.
 ```
 
-The `create` command also supports one-time creation of projects from local paths or GitHub URL, which is useful when using tools like `npx` or `dlx`
+The `create` command also supports one-time creation of projects from local paths or GitHub URL, which is useful when using tools like `npx` or `dlx`.
 
 ```bash
 npx scaffold create https://github.com/zerowong/scaffold-cli.git /path/to/somewhere

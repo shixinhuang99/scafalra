@@ -250,7 +250,7 @@ export function argvParser() {
 }
 
 export function isURL(arg: string) {
-  return /^(?:https?:\/\/)?(?:[\da-z.-]+)\.(?:[a-z.]{2,6})(?:[/\w .-]*)*\/?$/.test(arg)
+  return /^(?:https?:\/\/)(?:[\S])+$/.test(arg)
 }
 
 export class Key {

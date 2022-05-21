@@ -82,7 +82,7 @@ function toTestPath(path?: string, source = true) {
 const constants = {
   notExists: 'not-exists',
   isAFile: 'is-a-file.txt',
-  addUsage: 'scaffold add <path ...> [-d|--depth <0|1>]',
+  addUsage: 'scaffold add <path|url ...> [-d|--depth <0|1>]',
   testGitHubRepo: 'https://github.com/zerowong/scaffold-cli.git',
   testGitHubRepo2: 'https://github.com/zerowong/zerowong.github.io.git',
   timeout: 10000,
@@ -180,10 +180,10 @@ describe('none command', () => {
     '\n\nAvailable commands are as follows:\n\n' +
     log.grid([
       ['list [-p|--prune]', 'List all projects.'],
-      ['add <path ...> [-d|--depth <0|1>]', 'Add projects with path of a local folder.'],
+      ['add <path|url ...> [-d|--depth <0|1>]', 'Add projects with path of a local folder.'],
       ['remove <name ...>', 'Remove projects from list.'],
       [
-        'create <name> [<directory>] [-o|--overwrite]',
+        'create <name|path|url> [<directory>] [-o|--overwrite]',
         'Create a project by copying the templates folder.',
       ],
       ['mv <oldName> <newName>', 'Rename a project.'],
@@ -616,7 +616,7 @@ describe('create from local dir', () => {
   test('no args', async () => {
     const { stdout } = await run('create')
     expect(stdout).toBe(
-      log.usage('scaffold create <name> [<directory>] [-o|--overwrite]')
+      log.usage('scaffold create <name|path|url> [<directory>] [-o|--overwrite]')
     )
   })
 

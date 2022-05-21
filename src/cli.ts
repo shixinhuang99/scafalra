@@ -96,12 +96,12 @@ export default class ScaffoldCli {
       log.grid([
         ['list [-p|--prune]', 'List all projects.'],
         [
-          'add <path ...> [-d|--depth <0|1>]',
+          'add <path|url ...> [-d|--depth <0|1>]',
           'Add projects with path of a local folder.',
         ],
         ['remove <name ...>', 'Remove projects from list.'],
         [
-          'create <name> [<directory>] [-o|--overwrite]',
+          'create <name|path|url> [<directory>] [-o|--overwrite]',
           'Create a project by copying the templates folder.',
         ],
         ['mv <oldName> <newName>', 'Rename a project.'],
@@ -317,7 +317,7 @@ export default class ScaffoldCli {
       }
       case 'add': {
         if (args.length === 0 || checker({ flag: 'd', options: [0, 1] })) {
-          return log.usage('scaffold add <path ...> [-d|--depth <0|1>]')
+          return log.usage('scaffold add <path|url ...> [-d|--depth <0|1>]')
         }
         this.add(uniq(args), flags.d)
         break
@@ -331,7 +331,7 @@ export default class ScaffoldCli {
       }
       case 'create': {
         if (args.length < 1 || checker(['o'])) {
-          return log.usage('scaffold create <name> [<directory>] [-o|--overwrite]')
+          return log.usage('scaffold create <name|path|url> [<directory>] [-o|--overwrite]')
         }
         this.create(args[0], args[1], flags.o)
         break
