@@ -12,7 +12,7 @@ import {
   afterEach,
 } from 'vitest'
 import type { Project } from '../src/cli'
-import { fetchHeadHash } from '../src/utils'
+import { parse } from '../src/utils'
 
 const cwd = process.cwd()
 function joinCwd(path: string) {
@@ -85,7 +85,8 @@ const constants = {
   addUsage: 'scaffold add <path|url ...> [-d|--depth <0|1>]',
   testGitHubRepo: 'https://github.com/zerowong/scaffold-cli.git',
   testGitHubRepo2: 'https://github.com/zerowong/zerowong.github.io.git',
-  timeout: 10000,
+  timeout: 20000,
+  debugTimeout: 3600000,
 }
 
 interface Store {
@@ -163,7 +164,7 @@ beforeAll(async () => {
   mkdirSync(configDir)
   save()
   genTestDir()
-  lastestHash = await fetchHeadHash(constants.testGitHubRepo)
+  lastestHash = (await parse(constants.testGitHubRepo)).hash
 }, constants.timeout)
 
 afterAll(cleanup)
@@ -180,7 +181,10 @@ describe('none command', () => {
     '\n\nAvailable commands are as follows:\n\n' +
     log.grid([
       ['list [-p|--prune]', 'List all projects.'],
-      ['add <path|url ...> [-d|--depth <0|1>]', 'Add projects with path of a local folder.'],
+      [
+        'add <path|url ...> [-d|--depth <0|1>]',
+        'Add projects with path of a local folder.',
+      ],
       ['remove <name ...>', 'Remove projects from list.'],
       [
         'create <name|path|url> [<directory>] [-o|--overwrite]',
@@ -667,7 +671,7 @@ describe('create from local dir', () => {
 describe('create from GitHub repository', () => {
   const targetPath = toTestPath(undefined, false)
 
-  beforeAll(async () => {
+  beforeAll(() => {
     if (!lastestHash) {
       throw new Error('no hash')
     }
@@ -744,6 +748,34 @@ describe('create from GitHub repository', () => {
     async () => {
       const target = toTestPath('scaffold-cli', false)
       const { stdout } = await run('create', [constants.testGitHubRepo, targetPath])
+      expect(stdout).toBe(log.info(`Project created in '${target}'.`))
+      const files = readdirSync(target)
+      expect(files).toHaveLength(16)
+    },
+    constants.timeout
+  )
+
+  test(
+    'create a project directly from a GitHub URL but dest already exists',
+    async () => {
+      const target = toTestPath('scaffold-cli', false)
+      mkdirSync(target)
+      const { stdout } = await run('create', [constants.testGitHubRepo, targetPath])
+      expect(stdout).toBe(log.error(`Directory '${target}' already exists.`))
+    },
+    constants.timeout
+  )
+
+  test(
+    'create a project directly from a GitHub URL with overwirte',
+    async () => {
+      const target = toTestPath('scaffold-cli', false)
+      mkdirSync(target)
+      const { stdout } = await run('create', [
+        constants.testGitHubRepo,
+        targetPath,
+        '--overwrite',
+      ])
       expect(stdout).toBe(log.info(`Project created in '${target}'.`))
       const files = readdirSync(target)
       expect(files).toHaveLength(16)

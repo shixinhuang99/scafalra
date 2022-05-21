@@ -17,6 +17,7 @@ interface SystemError extends Error {
 export interface Repo {
   user: string
   name: string
+  hash: string
 }
 
 const isTTY = process.stdout.isTTY
@@ -129,40 +130,34 @@ export async function exists(target: string) {
   return true
 }
 
-export function parse(src: string): Repo {
+export async function parse(src: string): Promise<Repo> {
   const regexp = /^https:\/\/github.com\/(?<user>[^/\s]+)\/(?<name>[^/\s]+)\.git$/
   const match = src.match(regexp)
   if (!match || !match.groups) {
     throw new Error('Invalid GitHub url')
   }
-  return { user: match.groups.user, name: match.groups.name }
+  const hash = await fetchHeadHash(src)
+  return { user: match.groups.user, name: match.groups.name, hash }
 }
 
-async function git(args: string[]) {
-  return new Promise<{ stdout: string }>((resolve, reject) => {
-    child_process.execFile('git', args, (err, stdout) => {
+function fetchHeadHash(src: string) {
+  return new Promise<string>((resolve, reject) => {
+    child_process.execFile('git', ['ls-remote', src], (err, stdout) => {
       if (err) {
         return reject(err)
       }
-      return resolve({ stdout })
+      const blank = stdout.indexOf('\t')
+      if (blank === -1) {
+        return reject(
+          new Error(`Could not find commit hash of HEAD from ${chalk.green(src)}.`)
+        )
+      }
+      return resolve(stdout.slice(0, blank))
     })
   })
 }
 
-export async function fetchHeadHash(src: string) {
-  const { stdout } = await git(['ls-remote', src])
-  const blank = stdout.indexOf('\t')
-  if (blank !== -1) {
-    return stdout.slice(0, blank)
-  }
-  throw new Error(`Could not find commit hash of HEAD from ${chalk.green(src)}.`)
-}
-
-export function joinArchiveUrl(hash: string, repo: Repo) {
-  return `https://github.com/${repo.user}/${repo.name}/archive/${hash}.zip`
-}
-
-export function download(
+function download(
   url: string,
   dest: string,
   options = { proxy: process.env.https_proxy }
@@ -193,16 +188,17 @@ export function download(
  * @param file archive zip file that name must be with hash
  * @returns the full directory path path of unziped dir
  */
-export async function unzip(file: string) {
+async function unzip(file: string) {
   const { dir, name } = path.parse(file)
   const zip = new StreamZip.async({ file })
   await zip.extract(null, dir)
   await zip.close()
   await fsp.rm(file)
   const index = name.lastIndexOf('-')
+  const extractPath = path.join(dir, name)
   const fullPath = index === -1 ? file : path.join(dir, name.slice(0, index))
   await rmrf(fullPath)
-  await fsp.rename(path.join(dir, name), fullPath)
+  await fsp.rename(extractPath, fullPath)
   return fullPath
 }
 
@@ -272,9 +268,9 @@ export function uniq(arr: string[]) {
   return Array.from(new Set(arr))
 }
 
-export async function fetchRepo(parentDir: string, repo: Repo, hash: string) {
-  const url = joinArchiveUrl(hash, repo)
-  const file = path.join(parentDir, `${repo.name}-${hash}.zip`)
+export async function fetchRepo(parentDir: string, repo: Repo) {
+  const url = `https://github.com/${repo.user}/${repo.name}/archive/${repo.hash}.zip`
+  const file = path.join(parentDir, `${repo.name}-${repo.hash}.zip`)
   await download(url, file)
   const fullPath = await unzip(file)
   return fullPath

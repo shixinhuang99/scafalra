@@ -9,7 +9,6 @@ import {
   cp,
   exists,
   parse,
-  fetchHeadHash,
   argvParser,
   isURL,
   Key,
@@ -53,8 +52,13 @@ export default class ScaffoldCli {
     await fsp.writeFile(this.storeFile, JSON.stringify(this.store, null, 2))
   }
 
-  private addProject(name: string, proj: Project) {
-    const realName = hasOwn(this.store, name) ? `${name}-${key.gen(name)}` : name
+  private addProject(
+    name: string,
+    proj: Project,
+    options: { replace?: boolean } = { replace: false }
+  ) {
+    const realName =
+      !options.replace && hasOwn(this.store, name) ? `${name}-${key.gen(name)}` : name
     this.store[realName] = proj
     this.changes[`${chalk.green('+')} ${realName}`] = proj
   }
@@ -79,8 +83,8 @@ export default class ScaffoldCli {
     )
   }
 
-  private cacheRepo(repo: Repo, hash: string) {
-    return fetchRepo(this.cacheDir, repo, hash)
+  private cacheRepo(repo: Repo) {
+    return fetchRepo(this.cacheDir, repo)
   }
 
   private async none(flags: { h?: boolean; v?: boolean }) {
@@ -152,19 +156,18 @@ export default class ScaffoldCli {
   }
 
   private async addRemote(src: string, depth = 0) {
-    const repo = parse(src)
-    const hash = await fetchHeadHash(src)
-    const repoDir = await this.cacheRepo(repo, hash)
+    const repo = await parse(src)
+    const repoDir = await this.cacheRepo(repo)
     if (depth === 0) {
-      this.addProject(repo.name, { path: repoDir, remote: src, hash })
+      this.addProject(repo.name, { path: repoDir, remote: src, hash: repo.hash })
     } else if (depth === 1) {
       const dir = await fsp.readdir(repoDir, { withFileTypes: true })
       for (const dirent of dir) {
         if (dirent.isDirectory() && dirent.name[0] !== '.') {
           this.addProject(dirent.name, {
             path: path.join(repoDir, dirent.name),
-            hash,
             remote: src,
+            hash: repo.hash,
           })
         }
       }
@@ -212,15 +215,24 @@ export default class ScaffoldCli {
 
   private async create(src: string, directory?: string, overwrite = false) {
     if (isURL(src)) {
+      const repo = await parse(src)
+      const parentDir = directory ? path.resolve(cwd, directory) : cwd
+      const directoryPath = path.join(parentDir, repo.name)
+      if (!overwrite && (await exists(directoryPath))) {
+        return log.error(`Directory '${directoryPath}' already exists.`)
+      }
       log.write('Downloading...')
-      const hash = await fetchHeadHash(src)
-      const fullPath = await fetchRepo(
-        directory ? path.resolve(cwd, directory) : cwd,
-        parse(src),
-        hash
-      )
-      log.clear()
-      return log.info(`Project created in '${fullPath}'.`)
+      try {
+        const fullPath = await fetchRepo(parentDir, repo)
+        log.clear()
+        return log.info(`Project created in '${fullPath}'.`)
+      } catch (err) {
+        log.clear()
+        if (err instanceof Error) {
+          return log.error(err.message)
+        }
+        throw err
+      }
     }
     let source = ''
     const proj = this.store[src]
@@ -239,15 +251,19 @@ export default class ScaffoldCli {
       }
     } else {
       if (proj.remote) {
-        const newHash = await fetchHeadHash(proj.remote).catch(() => null)
-        if (newHash && newHash !== proj.hash) {
+        const repo = await parse(proj.remote).catch(() => null)
+        if (repo && repo.hash !== proj.hash) {
           log.write('The cache needs to be updated, downloading...')
-          await this.cacheRepo(parse(proj.remote), newHash)
-          this.addProject(src, {
-            path: proj.path,
-            remote: proj.remote,
-            hash: newHash,
-          })
+          await this.cacheRepo(repo)
+          this.addProject(
+            src,
+            {
+              path: proj.path,
+              remote: proj.remote,
+              hash: repo.hash,
+            },
+            { replace: true }
+          )
           await this.save()
           log.clear()
         }
@@ -305,42 +321,44 @@ export default class ScaffoldCli {
         if (checker(['v', 'h'])) {
           return log.usage('scaffold [-h|--help] [-v|--version]')
         }
-        this.none(flags)
+        await this.none(flags)
         break
       }
       case 'list': {
         if (checker(['p'])) {
           return log.usage('scaffold list [-p|--prune]')
         }
-        this.list(flags.p)
+        await this.list(flags.p)
         break
       }
       case 'add': {
         if (args.length === 0 || checker({ flag: 'd', options: [0, 1] })) {
           return log.usage('scaffold add <path|url ...> [-d|--depth <0|1>]')
         }
-        this.add(uniq(args), flags.d)
+        await this.add(uniq(args), flags.d)
         break
       }
       case 'remove': {
         if (args.length === 0) {
           return log.usage('scaffold remove <name ...>')
         }
-        this.remove(uniq(args))
+        await this.remove(uniq(args))
         break
       }
       case 'create': {
         if (args.length < 1 || checker(['o'])) {
-          return log.usage('scaffold create <name|path|url> [<directory>] [-o|--overwrite]')
+          return log.usage(
+            'scaffold create <name|path|url> [<directory>] [-o|--overwrite]'
+          )
         }
-        this.create(args[0], args[1], flags.o)
+        await this.create(args[0], args[1], flags.o)
         break
       }
       case 'mv': {
         if (args.length !== 2) {
           return log.usage('scaffold mv <oldName> <newName>')
         }
-        this.mv(args[0], args[1])
+        await this.mv(args[0], args[1])
         break
       }
       default: {
