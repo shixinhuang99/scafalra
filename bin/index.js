@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-const ScaffoldCli = require('../dist/cli.js').default
+import { ScaffoldCli } from '../dist/cli.js'
 const cli = new ScaffoldCli()
 cli.main()

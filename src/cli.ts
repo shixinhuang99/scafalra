@@ -16,7 +16,7 @@ import {
   uniq,
   type Repo,
   fetchRepo,
-} from './utils'
+} from './utils.js'
 
 export interface Project {
   path: string
@@ -27,7 +27,7 @@ export interface Project {
 const cwd = process.cwd()
 const key = new Key()
 
-export default class ScaffoldCli {
+export class ScaffoldCli {
   private configDir = path.join(
     os.homedir() ?? os.tmpdir(),
     process.env.NODE_ENV === 'test' ? '.scaffold-cli-test' : '.scaffold-cli'
@@ -112,7 +112,7 @@ export default class ScaffoldCli {
       ])
     }
     if (flags.v) {
-      const raw = await fsp.readFile(path.join(__dirname, '../package.json'), {
+      const raw = await fsp.readFile(new URL('../package.json', import.meta.url), {
         encoding: 'utf8',
       })
       const pkg = JSON.parse(raw)

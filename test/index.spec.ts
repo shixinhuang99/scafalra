@@ -11,8 +11,8 @@ import {
   beforeEach,
   afterEach,
 } from 'vitest'
-import type { Project } from '../src/cli'
-import { parse } from '../src/utils'
+import type { Project } from '../src/cli.js'
+import { parse } from '../src/utils.js'
 
 const cwd = process.cwd()
 function joinCwd(path: string) {
@@ -206,7 +206,7 @@ describe('none command', () => {
   test('version', async () => {
     const { stdout } = await run('-v')
     const pkg = JSON.parse(
-      readFileSync(join(__dirname, '../package.json'), { encoding: 'utf-8' })
+      readFileSync(new URL('../package.json', import.meta.url), { encoding: 'utf-8' })
     )
     expect(stdout).toBe(pkg.version)
   })

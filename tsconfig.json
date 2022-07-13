@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2021",
     "lib": ["ES2021"],
-    "module": "CommonJS",
+    "module": "Node16",
     "outDir": "dist",
     "strict": true,
     "esModuleInterop": true,
