@@ -37,7 +37,8 @@
     "test:w": "vitest",
     "test:b": "npm run build && vitest --run",
     "test:c": "vitest --run --coverage",
-    "play": "tsx ./playground.ts"
+    "play": "tsx ./playground.ts",
+    "postversion": "git push && git push --tags"
   },
   "dependencies": {
     "chalk": "^5.0.1",
