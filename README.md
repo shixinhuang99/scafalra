@@ -1,6 +1,6 @@
-# Scaffold Cli - scaffold commannd line tool
+# Scafalra - command-line interface tool for manage scaffolding
 
-`scaffold-cli` is a command line tool for managing and creating scaffold projects via local paths or GitHub URLs.
+`scaffold-cli` is a command-line interface tool for managing and creating scaffold projects via GitHub repository.
 
 > _note: require Node 16 or above_
 

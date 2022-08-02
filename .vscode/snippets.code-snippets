@@ -1,0 +1,20 @@
+{
+  "describe function": {
+    "scope": "typescript",
+    "prefix": "DescribeFn",
+    "body": ["describe('$1', () => {", "  $2", "})"],
+    "description": "describe function"
+  },
+  "test function": {
+    "scope": "typescript",
+    "prefix": "TestFn",
+    "body": ["test('$1', async () => {", "  const stdout = await cli($2)", "})"],
+    "description": "test function"
+  },
+  "expect stdout": {
+    "scope": "typescript",
+    "prefix": "ExpectStdout",
+    "body": ["expect(stdout)$0"],
+    "description": "expect stdout"
+  }
+}

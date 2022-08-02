@@ -1,11 +1,6 @@
-# defaults
 node_modules
 .DS_Store
-*.local
-/*.log
-
 /dist
 /coverage
-/ZHploHewql
-/rDm1eCgGj2
-/playground
+/test/token.ts
+/debug
