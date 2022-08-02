@@ -1,13 +1,13 @@
 {
+  "include": ["src", "test", "vitest.config.ts"],
   "compilerOptions": {
     "target": "ES2021",
     "lib": ["ES2021"],
     "module": "Node16",
     "outDir": "dist",
     "strict": true,
-    "esModuleInterop": true,
+    "esModuleInterop": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src", "test", "tsup.config.ts", "vitest.config.ts", "playground"]
+  }
 }

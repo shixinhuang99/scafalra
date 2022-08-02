@@ -1,62 +1,61 @@
 {
-  "name": "@zerowong/scaffold-cli",
-  "version": "0.4.1",
-  "description": "scaffold commannd line tool",
-  "author": "zerowong <wongzero@foxmail.com>",
+  "name": "scafalra",
+  "version": "0.5.0",
+  "description": "command-line interface tool for manage scaffolding",
+  "author": "shixinhuang99 <shixinhuang99@gmail.com>",
   "license": "MIT",
-  "homepage": "https://github.com/zerowong/scaffold-cli#readme",
-  "bugs": "https://github.com/zerowong/scaffold-cli/issues",
+  "homepage": "https://github.com/shixinhuang99/scafalra#readme",
+  "bugs": "https://github.com/shixinhuang99/scafalra/issues",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zerowong/scaffold-cli.git"
+    "url": "https://github.com/shixinhuang99/scafalra.git"
   },
   "type": "module",
   "bin": {
-    "scaffold": "bin/index.js"
+    "scafalra": "dist/cli.js"
   },
   "files": [
-    "dist",
-    "bin"
+    "dist"
   ],
   "engines": {
-    "node": ">=16"
-  },
-  "publishConfig": {
-    "access": "public"
+    "node": ">=16",
+    "pnpm": ">=7"
   },
   "keywords": [
+    "scafalra",
     "scaffold",
-    "cli",
     "template",
-    "scaffold-cli"
+    "boilerplate",
+    "command-line"
   ],
   "scripts": {
-    "start": "NODE_ENV=test tsx ./src/bin.ts",
-    "build": "tsup",
-    "test": "vitest --run",
-    "test:w": "vitest",
-    "test:b": "npm run build && vitest --run",
-    "test:c": "vitest --run --coverage",
-    "play": "tsx ./playground.ts",
-    "postversion": "git push && git push --tags"
+    "dev": "NODE_ENV=dev tsx ./src/cli.ts",
+    "build": "tsc --project ./tsconfig.build.json",
+    "test": "vitest",
+    "test:cov": "vitest --coverage",
+    "postversion": "git push && git push --tags",
+    "clean": "node ./scripts/clean.js",
+    "typecheck": "tsc --noEmit",
+    "debug": "tsc --project ./tsconfig.debug.json"
   },
   "dependencies": {
+    "cac": "^6.7.14",
     "chalk": "^5.0.1",
     "https-proxy-agent": "^5.0.1",
     "mri": "^1.2.0",
     "node-stream-zip": "^1.15.0"
   },
   "devDependencies": {
-    "@types/node": "^17.0.24",
-    "@typescript-eslint/eslint-plugin": "^5.19.0",
-    "@typescript-eslint/parser": "^5.19.0",
-    "c8": "^7.11.2",
-    "eslint": "^8.13.0",
-    "prettier": "^2.6.2",
-    "tsup": "^5.12.5",
-    "tsx": "^3.8.0",
-    "typescript": "^4.7.4",
-    "vitest": "^0.9.3"
+    "@types/node": "^18.7.1",
+    "@typescript-eslint/eslint-plugin": "^5.33.0",
+    "@typescript-eslint/parser": "^5.33.0",
+    "@vitest/coverage-c8": "^0.24.3",
+    "c8": "^7.12.0",
+    "eslint": "^8.21.0",
+    "prettier": "^2.7.1",
+    "tsx": "^3.9.0",
+    "typescript": "^4.8.2",
+    "vitest": "^0.24.3"
   },
-  "packageManager": "pnpm@7.5.1"
+  "packageManager": "pnpm@7.9.5"
 }
