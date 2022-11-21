@@ -1,6 +1,6 @@
-export type QueryType = 'branch' | 'tag' | 'commit'
+export type QueryType = 'branch' | 'tag' | 'commit';
 
 export interface Query {
-  value: string
-  type: QueryType
+  value: string;
+  type: QueryType;
 }

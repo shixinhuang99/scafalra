@@ -1,14 +1,14 @@
 export class ScafalraError extends Error {
   constructor(message?: string) {
-    super(message)
-    this.name = 'ScafalraError'
+    super(message);
+    this.name = 'ScafalraError';
   }
 
   static itemNotExists(name: string) {
-    return new ScafalraError(`Not found: '${name}'.`)
+    return new ScafalraError(`Not found: '${name}'.`);
   }
 
   static itemExists(name: string) {
-    return new ScafalraError(`'${name}' already exists.`)
+    return new ScafalraError(`'${name}' already exists.`);
   }
 }

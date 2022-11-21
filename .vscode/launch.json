@@ -4,13 +4,13 @@
     {
       "type": "node",
       "request": "launch",
-      "name": "scafalra-debug",
-      "skipFiles": ["<node_internals>/**", "${workspaceFolder}/node_modules/**/*.js"],
-      "program": "${workspaceFolder}/src/cli.ts",
+      "name": "debug",
+      "skipFiles": [ "<node_internals>/**", "${workspaceFolder}/node_modules/**/*.js" ],
+      "program": "${workspaceFolder}/debug/cli.js",
       "preLaunchTask": "npm: debug",
-      "outFiles": ["${workspaceFolder}/debug/**/*.js"],
+      "outFiles": [ "${workspaceFolder}/debug/**/*.js" ],
       "env": { "NODE_ENV": "dev" },
-      "args": []
+      "args": [ ]
     }
   ]
 }

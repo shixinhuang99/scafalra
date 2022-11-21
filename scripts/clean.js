@@ -1,3 +1,14 @@
-import { rm } from 'node:fs/promises'
+import { rm } from 'node:fs/promises';
 
-await rm(new URL('../dist', import.meta.url), { recursive: true, force: true })
+function rmrf(filename) {
+  return rm(new URL(filename, import.meta.url), {
+    recursive: true,
+    force: true,
+  });
+}
+
+await rmrf('../dist');
+
+await rmrf('../debug');
+
+await rmrf('../coverage');

@@ -1,13 +1,13 @@
 {
-  "include": ["src", "test", "vitest.config.ts"],
   "compilerOptions": {
-    "target": "ES2021",
-    "lib": ["ES2021"],
+    "target": "ES2022",
+    "lib": [ "ES2022" ],
     "module": "Node16",
-    "outDir": "dist",
     "strict": true,
-    "esModuleInterop": false,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "exactOptionalPropertyTypes": true,
+    "allowSyntheticDefaultImports": false,
+    "esModuleInterop": false
   }
 }
