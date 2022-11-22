@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import * as fsp from 'node:fs/promises';
 import { type Dirent } from 'node:fs';
-import { scafalraPath, rmrf, printObject } from '../src/utils.js';
+import { scafalraRootDir, rmrf, printObject } from '../src/utils.js';
 import { Logger as BaseLogger, type Usage } from '../src/logger.js';
 import { Store as BaseStore, type ScafalraItem } from '../src/store.js';
 import { UserConfig as BaseUserConfig } from '../src/user-config.js';
@@ -86,7 +86,7 @@ export class Store extends BaseStore {
 }
 
 export class CacheController {
-  private readonly path = join(scafalraPath, 'cache');
+  private readonly path = join(scafalraRootDir, 'cache');
 
   init() {
     return fsp.mkdir(this.path);
