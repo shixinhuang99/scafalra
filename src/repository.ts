@@ -2,7 +2,6 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import * as https from 'node:https';
 import * as fs from 'node:fs';
-import { randomUUID } from 'node:crypto';
 import StreamZip from 'node-stream-zip';
 import { agent, rmrf, cp, randomString } from './utils.js';
 import { ScafalraError } from './error.js';
@@ -73,7 +72,7 @@ export class Repository {
     return tempParentDir;
   }
 
-  private async move(tempParentDir: string, dirName?: string) {
+  private async move(tempParentDir: string, dirName: string) {
     const [extracted] = await fsp.readdir(tempParentDir);
     const sourcePath = this.subdir
       ? path.join(tempParentDir, extracted, this.subdir)
@@ -81,13 +80,13 @@ export class Repository {
     if (!fs.existsSync(sourcePath)) {
       throw new ScafalraError(`No such directory: '${sourcePath}'`);
     }
-    const finalPath = path.join(tempParentDir, '..', dirName ?? randomUUID());
+    const finalPath = path.join(tempParentDir, '..', dirName);
     await cp(sourcePath, finalPath);
     await rmrf(tempParentDir);
     return finalPath;
   }
 
-  async download(parentDir: string, zipballUrl: string, dirName?: string) {
+  async download(parentDir: string, zipballUrl: string, dirName: string) {
     const zipballFile = await this.dowloadZipball(
       zipballUrl,
       path.join(parentDir, `${randomString()}.zip`),

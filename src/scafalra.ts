@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as fsp from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { cp, scafalraPath, uniq } from './utils.js';
+import { cp, scafalraRootDir, uniq } from './utils.js';
 import { Logger } from './logger.js';
 import { ScafalraError } from './error.js';
 import { Store } from './store.js';
@@ -10,7 +10,7 @@ import { GitHubGraphQLApi } from './github-graphql-api.js';
 import { UserConfig } from './user-config.js';
 
 export class Scafalra {
-  private readonly cachePath = path.join(scafalraPath, 'cache');
+  private readonly cacheDir = path.join(scafalraRootDir, 'cache');
   private readonly store = new Store();
   private readonly userConfig = new UserConfig();
   private readonly githubApi = new GitHubGraphQLApi();
@@ -20,9 +20,9 @@ export class Scafalra {
   }
 
   async init() {
-    if (!existsSync(scafalraPath)) {
-      await fsp.mkdir(scafalraPath);
-      await fsp.mkdir(this.cachePath);
+    if (!existsSync(scafalraRootDir)) {
+      await fsp.mkdir(scafalraRootDir);
+      await fsp.mkdir(this.cacheDir);
     }
     await this.userConfig.init();
     await this.store.init();
@@ -41,7 +41,11 @@ export class Scafalra {
     const finalName =
       name ?? (repo.subdir ? path.basename(repo.subdir) : repo.name);
     const oldLocalPath = this.store.get(finalName)?.local;
-    const finalPath = await repo.download(this.cachePath, apiRes.zipballUrl);
+    const finalPath = await repo.download(
+      this.cacheDir,
+      apiRes.zipballUrl,
+      path.join(this.cacheDir, finalName),
+    );
     const scafalraItem = { input, url: apiRes.url, sha: apiRes.oid };
     if (depth === 0) {
       this.store.add(finalName, { ...scafalraItem, local: finalPath });

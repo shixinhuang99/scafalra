@@ -2,7 +2,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { existsSync } from 'node:fs';
 import chalk from 'chalk';
-import { rmrf, scafalraPath, printObject } from './utils.js';
+import { rmrf, scafalraRootDir, printObject } from './utils.js';
 import { Logger } from './logger.js';
 import { ScafalraError } from './error.js';
 
@@ -20,7 +20,7 @@ const logSymbols = {
 } as const;
 
 export class Store {
-  private readonly path = path.join(scafalraPath, 'store.json');
+  private readonly path = path.join(scafalraRootDir, 'store.json');
 
   protected content: Map<string, ScafalraItem> = new Map();
 

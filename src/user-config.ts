@@ -1,14 +1,14 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { existsSync } from 'node:fs';
-import { scafalraPath, hasOwn, printObject } from './utils.js';
+import { scafalraRootDir, hasOwn, printObject } from './utils.js';
 
 interface UserConfigContent {
   token: string;
 }
 
 export class UserConfig {
-  private readonly path = path.join(scafalraPath, 'config.json');
+  private readonly path = path.join(scafalraRootDir, 'config.json');
 
   protected content: UserConfigContent = { token: '' };
 

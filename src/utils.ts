@@ -9,13 +9,13 @@ export function rmrf(target: string) {
   return fsp.rm(target, { force: true, recursive: true });
 }
 
-const ignoreFileOrDirs = new Set(['.git', '.DS_Store', 'node_modules']);
+const exclude = new Set(['.git', '.DS_Store', 'node_modules']);
 
 export async function cp(source: string, target: string) {
   const dirents = await fsp.readdir(source, { withFileTypes: true });
   await fsp.mkdir(target);
   for (const dirent of dirents) {
-    if (ignoreFileOrDirs.has(dirent.name)) {
+    if (exclude.has(dirent.name)) {
       continue;
     }
     const s = path.join(source, dirent.name);
@@ -32,7 +32,7 @@ export function uniq(arr: string[]) {
   return Array.from(new Set(arr));
 }
 
-export const scafalraPath = path.join(
+export const scafalraRootDir = path.join(
   os.homedir() ?? os.tmpdir(),
   process.env.NODE_ENV ? `.scafalra-${process.env.NODE_ENV}` : '.scafalra',
 );

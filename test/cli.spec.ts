@@ -5,12 +5,13 @@ import {
   beforeAll,
   afterAll,
   beforeEach,
+  onTestFailed,
 } from 'vitest';
 import * as fsp from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { inspect } from 'node:util';
-import { scafalraPath, rmrf } from '../src/utils.js';
-import type { ScafalraItem } from '../src/store.js';
+import { scafalraRootDir, rmrf } from '../src/utils.js';
+import { type ScafalraItem } from '../src/store.js';
 import { cli, Store, CacheController, UserConfig, Logger } from './utils.js';
 import { tokens } from './token.js';
 
@@ -19,17 +20,21 @@ const cacheController = new CacheController();
 const userConfig = new UserConfig();
 
 beforeAll(async () => {
-  if (existsSync(scafalraPath)) {
-    await rmrf(scafalraPath);
+  if (existsSync(scafalraRootDir)) {
+    await rmrf(scafalraRootDir);
   }
-  await fsp.mkdir(scafalraPath);
+  await fsp.mkdir(scafalraRootDir);
   await store.init();
   await cacheController.init();
   await userConfig.init();
 
   return async () => {
-    await rmrf(scafalraPath);
+    await rmrf(scafalraRootDir);
   };
+});
+
+onTestFailed(async () => {
+  await rmrf(scafalraRootDir);
 });
 
 describe('none action', () => {
