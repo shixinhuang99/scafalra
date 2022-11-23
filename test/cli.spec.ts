@@ -5,7 +5,6 @@ import {
   beforeAll,
   afterAll,
   beforeEach,
-  onTestFailed,
 } from 'vitest';
 import * as fsp from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -31,10 +30,6 @@ beforeAll(async () => {
   return async () => {
     await rmrf(scafalraRootDir);
   };
-});
-
-onTestFailed(async () => {
-  await rmrf(scafalraRootDir);
 });
 
 describe('none action', () => {
@@ -201,8 +196,6 @@ describe('add with token(repo scope)', () => {
     const stdout = await cli('add', [input]);
     expect(stdout).toBe(Logger.grid([[`+ ${name}`, '']]));
     const dirs = await cacheController.readdir();
-    // length will be 2 by unknown reason
-    // expect(dirs).toHaveLength(1)
     const local = dirs[0];
     const storeContent = await store.getContent();
     expect(storeContent.size).toBe(1);

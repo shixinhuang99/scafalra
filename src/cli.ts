@@ -8,8 +8,6 @@ async function main() {
   const cli = cac('scafalra');
   const scafalra = new Scafalra();
 
-  cli.commands.forEach((command) => command.outputHelp);
-
   cli
     .command('list', 'List all projects')
     .alias('ls')
