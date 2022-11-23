@@ -72,7 +72,7 @@ export class Repository {
     return tempParentDir;
   }
 
-  private async move(tempParentDir: string, dirName: string) {
+  private async move(tempParentDir: string, itemName: string) {
     const [extracted] = await fsp.readdir(tempParentDir);
     const sourcePath = this.subdir
       ? path.join(tempParentDir, extracted, this.subdir)
@@ -80,19 +80,22 @@ export class Repository {
     if (!fs.existsSync(sourcePath)) {
       throw new ScafalraError(`No such directory: '${sourcePath}'`);
     }
-    const finalPath = path.join(tempParentDir, '..', dirName);
+    const finalPath = path.join(tempParentDir, '..', itemName);
+    if (fs.existsSync(finalPath)) {
+      await rmrf(finalPath);
+    }
     await cp(sourcePath, finalPath);
     await rmrf(tempParentDir);
     return finalPath;
   }
 
-  async download(parentDir: string, zipballUrl: string, dirName: string) {
+  async download(parentDir: string, zipballUrl: string, itemName: string) {
     const zipballFile = await this.dowloadZipball(
       zipballUrl,
       path.join(parentDir, `${randomString()}.zip`),
     );
     const tempParentDir = await this.unzip(zipballFile);
-    const finalPath = await this.move(tempParentDir, dirName);
+    const finalPath = await this.move(tempParentDir, itemName);
     return finalPath;
   }
 

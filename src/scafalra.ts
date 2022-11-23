@@ -44,7 +44,7 @@ export class Scafalra {
     const finalPath = await repo.download(
       this.cacheDir,
       apiRes.zipballUrl,
-      path.join(this.cacheDir, finalName),
+      finalName,
     );
     const scafalraItem = { input, url: apiRes.url, sha: apiRes.oid };
     if (depth === 0) {
