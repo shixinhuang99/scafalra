@@ -1,9 +1,10 @@
 import * as https from 'node:https';
+import * as http from 'node:http';
 import { agent } from './utils.js';
 import type { Query } from './types.js';
 import { ScafalraError } from './error.js';
 
-interface RepositoryResult {
+export interface ApiResult {
   oid: string;
   zipballUrl: string;
   url: string;
@@ -31,19 +32,28 @@ interface ApiResultByRef {
   };
 }
 
-interface ApiParams {
+export interface ApiParams {
   owner: string;
   name: string;
+  query?: Query;
 }
 
-interface ApiParamsWithQuery extends ApiParams {
+export interface ApiParamsWithQuery extends ApiParams {
   query: Query;
 }
 
-export class GitHubGraphQLApi {
-  private readonly endpoint = 'https://api.github.com/graphql';
+export class GitHubApi {
+  private readonly endpoint: string;
 
-  private token = '';
+  private readonly nodeRequest: typeof http.request | typeof https.request;
+
+  private token: string | null = 'aaa';
+
+  constructor() {
+    const isTest = process.env.NODE_ENV === 'test';
+    this.endpoint = `http${isTest ? '' : 's'}://api.github.com/graphql`;
+    this.nodeRequest = isTest ? http.request : https.request;
+  }
 
   setToken(token: string) {
     this.token = token;
@@ -60,7 +70,7 @@ export class GitHubGraphQLApi {
       );
     }
     return new Promise<T>((resolve, reject) => {
-      const req = https.request(
+      const req = this.nodeRequest(
         this.endpoint,
         {
           agent,
@@ -85,7 +95,7 @@ export class GitHubGraphQLApi {
             if (res.statusCode === 200) {
               return resolve(result.data);
             }
-            return reject(new Error(result.message));
+            reject(new Error(result.message));
           });
           res.on('error', reject);
         },
@@ -152,11 +162,7 @@ export class GitHubGraphQLApi {
     return { ...object, url };
   }
 
-  get(repo: {
-    owner: string;
-    name: string;
-    query?: Query;
-  }): Promise<RepositoryResult> {
+  get(repo: ApiParams): Promise<ApiResult> {
     const { owner, name, query } = repo;
     if (query?.type === 'branch' || query?.type === 'tag') {
       return this.getRepositoryByBranchOrTag({ owner, name, query });

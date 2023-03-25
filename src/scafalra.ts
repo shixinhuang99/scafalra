@@ -4,16 +4,16 @@ import { existsSync } from 'node:fs';
 import { cp, scafalraRootDir, uniq } from './utils.js';
 import { Logger } from './logger.js';
 import { ScafalraError } from './error.js';
-import { Store } from './store.js';
+import { Store, type ScafalraItem } from './store.js';
 import { Repository } from './repository.js';
-import { GitHubGraphQLApi } from './github-graphql-api.js';
+import { GitHubApi } from './github-api.js';
 import { UserConfig } from './user-config.js';
 
 export class Scafalra {
   private readonly cacheDir = path.join(scafalraRootDir, 'cache');
   private readonly store = new Store();
   private readonly userConfig = new UserConfig();
-  private readonly githubApi = new GitHubGraphQLApi();
+  private readonly githubApi = new GitHubApi();
 
   static get version() {
     return '0.5.0';
@@ -46,7 +46,11 @@ export class Scafalra {
       apiRes.zipballUrl,
       finalName,
     );
-    const scafalraItem = { input, url: apiRes.url, sha: apiRes.oid };
+    const scafalraItem: Omit<ScafalraItem, 'local'> = {
+      input,
+      url: apiRes.url,
+      commit: apiRes.oid,
+    };
     if (depth === 0) {
       this.store.add(finalName, { ...scafalraItem, local: finalPath });
     }

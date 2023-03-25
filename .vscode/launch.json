@@ -9,8 +9,8 @@
       "program": "${workspaceFolder}/debug/cli.js",
       "preLaunchTask": "npm: debug",
       "outFiles": [ "${workspaceFolder}/debug/**/*.js" ],
-      "env": { "NODE_ENV": "dev" },
-      "args": [ ]
+      "env": { "NODE_ENV": "test" },
+      "args": [ "add", "foo/bar" ]
     }
   ]
 }
