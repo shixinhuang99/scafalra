@@ -1,11 +1,16 @@
 import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import * as fsp from 'node:fs/promises';
-import { type Dirent } from 'node:fs';
+import { type Dirent, existsSync } from 'node:fs';
+import { zip } from 'zip-a-folder';
+import { rest } from 'msw';
+import { setupServer, type SetupServerApi } from 'msw/node';
 import { scafalraRootDir, rmrf, printObject } from '../src/utils.js';
 import { Logger as BaseLogger, type Usage } from '../src/logger.js';
 import { Store as BaseStore, type ScafalraItem } from '../src/store.js';
 import { UserConfig as BaseUserConfig } from '../src/user-config.js';
+import type { ApiResult as GitHubApiResult } from '../src/github-api.js';
+import type { QueryType } from '../src/types.js';
 
 type Command =
   | 'list'
@@ -126,5 +131,104 @@ export class UserConfig extends BaseUserConfig {
 
   list(): string {
     return printObject(this.content);
+  }
+}
+
+export class GithubApiMock {
+  private lastIndex = 0;
+
+  private server: SetupServerApi | null = null;
+
+  private zipFileBuf: Buffer | null = null;
+
+  private zipFilePath: string | null = null;
+
+  private async createZipFile() {
+    const fileName = 'archive';
+    const testDirPath = join(process.cwd(), 'test');
+    const folderPath = join(testDirPath, fileName);
+    const zipFilePath = join(testDirPath, `${fileName}.zip`);
+
+    if (!existsSync(folderPath)) {
+      await fsp.mkdir(folderPath);
+      await fsp.mkdir(join(folderPath, 'node_modules'));
+      await fsp.writeFile(join(folderPath, 'node_modules', 'foo.txt'), 'foo');
+      const depth1 = ['a', 'b', 'c', '.d'];
+      await Promise.all(
+        depth1.map(async (e1) => {
+          await fsp.mkdir(join(folderPath, e1));
+          const depth2 = [`${e1}1`, `${e1}2`, `${e1}3`];
+          await Promise.all(
+            depth2.map(async (e2) => {
+              await fsp.mkdir(join(folderPath, e1, e2));
+              await fsp.writeFile(join(folderPath, e1, e2, `${e2}.txt`), 'foo');
+            }),
+          );
+        }),
+      );
+    }
+
+    await zip(folderPath, zipFilePath);
+
+    this.zipFileBuf = await fsp.readFile(zipFilePath);
+    this.zipFilePath = zipFilePath;
+  }
+
+  async init() {
+    await this.createZipFile();
+
+    const handles = [
+      rest.post('http://api.github.com/graphql', (_, res, ctx) => {
+        const result: GitHubApiResult = {
+          oid: 'commit',
+          zipballUrl: 'http://api.mock.com/download',
+          url: 'url',
+        };
+        return res(ctx.json({ data: result }));
+      }),
+      rest.get('http://api.mock.com/download', async (_, res, ctx) => {
+        if (!this.zipFileBuf) {
+          return res(ctx.status(500));
+        }
+        return res(
+          ctx.set('Content-Lenght', this.zipFileBuf.byteLength.toString()),
+          ctx.set('Content-Type', 'application/zip'),
+          ctx.body(this.zipFileBuf),
+        );
+      }),
+    ];
+
+    this.server = setupServer(...handles);
+    this.server.listen();
+  }
+
+  getRepo(queryType?: QueryType): { input: string; name: string } {
+    this.lastIndex += 1;
+
+    const name = `bar-${this.lastIndex}`;
+    const mockRepo = {
+      name,
+      input: `foo/${name}`,
+    };
+
+    if (queryType) {
+      mockRepo.input += `?${queryType}=${queryType}`;
+    }
+
+    return mockRepo;
+  }
+
+  async clear() {
+    this.zipFileBuf = null;
+
+    if (this.zipFilePath) {
+      await fsp.rm(this.zipFilePath);
+      this.zipFilePath = null;
+    }
+
+    if (this.server) {
+      this.server.close();
+      this.server = null;
+    }
   }
 }

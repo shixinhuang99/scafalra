@@ -30,13 +30,13 @@
   ],
   "scripts": {
     "dev": "npm run build && NODE_ENV=dev node ./dist/cli.js",
-    "build": "swc ./src -d ./dist",
+    "build": "node ./scripts/rmrf.js ./dist && swc ./src -d ./dist",
+    "pretest": "npm run build",
     "test": "vitest",
     "test:cov": "vitest --coverage",
     "postversion": "git push && git push --tags",
-    "clean": "node ./scripts/clean.js",
     "typecheck": "tsc --noEmit",
-    "debug": "swc ./src -d ./debug -s",
+    "debug": "node ./scripts/rmrf.js ./debug && swc ./src -d ./debug -s",
     "fmt": "rome format ./src ./test ./scripts --write",
     "lint": "rome check ./src ./test ./scripts",
     "prepare": "husky install"
@@ -55,9 +55,11 @@
     "@vitest/coverage-c8": "^0.24.3",
     "c8": "^7.12.0",
     "husky": "^8.0.0",
+    "msw": "^0.49.2",
     "rome": "^10.0.1",
     "typescript": "^4.9.3",
-    "vitest": "^0.25.3"
+    "vitest": "^0.25.3",
+    "zip-a-folder": "^1.1.5"
   },
   "packageManager": "pnpm@7.9.5"
 }

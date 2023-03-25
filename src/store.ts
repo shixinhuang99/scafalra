@@ -9,7 +9,7 @@ import { ScafalraError } from './error.js';
 export interface ScafalraItem {
   input: string;
   url: string;
-  sha: string;
+  commit: string;
   local: string;
 }
 
