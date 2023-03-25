@@ -1,8 +1,5 @@
 node_modules
 .DS_Store
 /dist
-/coverage
-/test/token.json
-/test/archive
-/test/archive.zip
-/debug
+/Cargo.lock
+/target
