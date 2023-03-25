@@ -1,0 +1,9 @@
+unstable_features = true
+version = "Two"
+max_width = 80
+group_imports = "StdExternalCrate"
+imports_granularity = "Module"
+use_field_init_shorthand = true
+edition = "2021"
+wrap_comments = true
+reorder_impl_items = true
