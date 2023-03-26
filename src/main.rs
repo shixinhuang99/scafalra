@@ -1,9 +1,15 @@
 mod cli;
-
-use clap::Parser;
-use cli::{Cli, Command};
+mod github_api;
+mod repotitory;
 
 fn main() {
+    run();
+}
+
+fn run() {
+    use clap::Parser;
+    use cli::{Cli, Command};
+
     let cli = Cli::parse();
 
     println!("verbose: {}", cli.verbose);

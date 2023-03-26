@@ -13,7 +13,7 @@ pub struct Cli {
     #[arg(short, long)]
     pub verbose: bool,
 
-    /// Specify the GitHub access token
+    /// Specify the GitHub personal access token(classic)
     #[arg(long)]
     pub token: Option<String>,
 }
@@ -35,7 +35,7 @@ pub enum Command {
     /// Copy the scaffold folder to the specified directory
     CREATE(CreateArgs),
 
-    /// Store your GitHub access token
+    /// Configure your GitHub personal access token(classic)
     TOKEN(TokenArgs),
 }
 
