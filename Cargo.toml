@@ -4,7 +4,7 @@ version = "0.6.0"
 edition = "2021"
 publish = false
 authors = ["shixinhuang99 <shixinhuang99@gmail.com>"]
-description = "scafalra is a command-line interface tool for manage scaffolding"
+description = "scafalra is a command-line interface tool for manage scaffold"
 repository = "https://github.com/shixinhuang99/scafalra"
 homepage = "https://github.com/shixinhuang99/scafalra"
 documentation = "https://github.com/shixinhuang99/scafalra"
@@ -14,3 +14,5 @@ keywords = ["scaffold"]
 
 [dependencies]
 clap = { version = "4.1.13", features = ["derive"] }
+serde = { version = "1.0.158", features = ["derive"] }
+ureq = { version = "2.6.2", features = ["json"] }
