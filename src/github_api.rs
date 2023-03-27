@@ -1,22 +1,83 @@
 #![allow(dead_code)]
 
-use github_api_response::{GitHubApiResponse, RepositoryData};
 use serde::{Deserialize, Serialize};
 
 use crate::repotitory::{Query, Repository};
 
 #[derive(Deserialize, Serialize)]
-pub struct GraphQLQuery {
+struct GraphQLQuery {
     query: &'static str,
     variables: String,
 }
 
 impl GraphQLQuery {
-    pub fn new(repo: Repository) -> Self {
+    fn new(repo: Repository) -> Self {
         Self {
             query: QUERY_TEMPLATE,
-            variables: repo_to_variable_string(repo),
+            variables: Variable::new(repo).to_string(),
         }
+    }
+}
+
+const QUERY_TEMPLATE: &str = r"
+query ($name: String!, $owner: String!, $oid: GitObjectID, $expression: String, $notDefaultBranch: Boolean!) {
+    repository(name: $name, owner: $owner) {
+        url
+        object(oid: $oid, expression: $expression) @include(if: $notDefaultBranch) {
+            ... on Commit {
+                oid
+                zipballUrl
+            }
+        }
+        defaultBranchRef {
+            target {
+                ... on Commit {
+                    oid
+                    zipballUrl
+                }
+            }
+        }
+    }
+}";
+
+#[derive(Serialize, Debug, PartialEq)]
+struct Variable {
+    name: String,
+    owner: String,
+    expression: Option<String>,
+    oid: Option<String>,
+
+    #[serde(rename = "notDefaultBranch")]
+    not_default_branch: bool,
+}
+
+impl Variable {
+    fn new(repo: Repository) -> Self {
+        let (expression, oid) = match repo.query {
+            Some(Query::BRANCH(val)) => {
+                (Some(format!("refs/heads/{}", val)), None)
+            }
+            Some(Query::TAG(val)) => (Some(format!("refs/tags/{}", val)), None),
+            Some(Query::COMMIT(val)) => (None, Some(val)),
+            _ => (None, None),
+        };
+
+        let not_default_branch = match (&expression, &oid) {
+            (None, None) => false,
+            _ => true,
+        };
+
+        Variable {
+            name: repo.name,
+            owner: repo.owner,
+            expression,
+            oid,
+            not_default_branch,
+        }
+    }
+
+    fn to_string(&self) -> String {
+        ureq::serde_json::to_string(self).unwrap()
     }
 }
 
@@ -36,7 +97,9 @@ impl GitHubApi {
         Self { token }
     }
 
-    pub fn request(&self, query: GraphQLQuery) -> GitHubApiResult {
+    pub fn request(&self, repo: Repository) -> GitHubApiResult {
+        let query = GraphQLQuery::new(repo);
+
         let response: GitHubApiResponse =
             ureq::post("https://api.github.com/graphql")
                 .set("Authorization", format!("bearer {}", self.token).as_str())
@@ -73,140 +136,117 @@ impl GitHubApi {
     }
 }
 
-mod github_api_response {
-    use serde::Deserialize;
+#[derive(Deserialize)]
+struct GitHubApiResponse<'a> {
+    data: Option<GitHubApiData>,
 
-    #[derive(Deserialize)]
-    pub struct GitHubApiResponse<'a> {
-        pub data: Option<GitHubApiData>,
-
-        #[allow(dead_code)]
-        #[serde(skip_deserializing, default)]
-        errors: &'a str,
-    }
-
-    #[derive(Deserialize)]
-    pub struct GitHubApiData {
-        pub repository: RepositoryData,
-    }
-
-    #[derive(Deserialize)]
-    pub struct RepositoryData {
-        pub url: String,
-
-        #[serde(rename = "defaultBranchRef")]
-        pub default_branch_ref: DefaultBranchRef,
-
-        pub object: Option<Target>,
-    }
-
-    #[derive(Deserialize)]
-    pub struct DefaultBranchRef {
-        pub target: Target,
-    }
-
-    #[derive(Deserialize)]
-    pub struct Target {
-        pub oid: String,
-
-        #[serde(rename = "zipballUrl")]
-        pub zipball_url: String,
-    }
+    #[allow(dead_code)]
+    #[serde(skip_deserializing, default)]
+    errors: &'a str,
 }
 
-const QUERY_TEMPLATE: &str = r"
-query ($name: String!, $owner: String!, $oid: GitObjectID, $expression: String, $notDefaultBranch: Boolean!) {
-    repository(name: $name, owner: $owner) {
-        url
-        object(oid: $oid, expression: $expression) @include(if: $notDefaultBranch) {
-            ... on Commit {
-                oid
-                zipballUrl
-            }
-        }
-        defaultBranchRef {
-            target {
-                ... on Commit {
-                oid
-                zipballUrl
-                }
-            }
-        }
-    }
-}";
-
-#[derive(Serialize)]
-struct Variable {
-    name: String,
-    owner: String,
-    expression: Option<String>,
-    oid: Option<String>,
-
-    #[serde(rename = "notDefaultBranch")]
-    not_default_branch: bool,
+#[derive(Deserialize)]
+struct GitHubApiData {
+    repository: RepositoryData,
 }
 
-fn repo_to_variable_string(repo: Repository) -> String {
-    let (expression, oid) = match repo.query {
-        Some(Query::BRANCH(val)) => (Some(format!("refs/heads/{}", val)), None),
-        Some(Query::TAG(val)) => (Some(format!("refs/tags/{}", val)), None),
-        Some(Query::COMMIT(val)) => (None, Some(val)),
-        _ => (None, None),
-    };
+#[derive(Deserialize)]
+struct RepositoryData {
+    url: String,
 
-    let not_default_branch = match (&expression, &oid) {
-        (None, None) => false,
-        _ => true,
-    };
+    #[serde(rename = "defaultBranchRef")]
+    default_branch_ref: DefaultBranchRef,
 
-    let v = Variable {
-        name: repo.name,
-        owner: repo.owner,
-        expression,
-        oid,
-        not_default_branch,
-    };
+    object: Option<Target>,
+}
 
-    ureq::serde_json::to_string(&v).unwrap()
+#[derive(Deserialize)]
+struct DefaultBranchRef {
+    target: Target,
+}
+
+#[derive(Deserialize)]
+struct Target {
+    oid: String,
+
+    #[serde(rename = "zipballUrl")]
+    zipball_url: String,
 }
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
-    use super::{GitHubApi, GitHubApiResult, GraphQLQuery, Repository};
-
-    fn get_token() -> String {
-        let content = fs::read_to_string("token.txt").unwrap();
-        let tokens: Vec<&str> = content.lines().collect();
-
-        tokens[0].to_string()
-    }
+    use super::{Query, Repository, Variable};
 
     impl Default for Repository {
         fn default() -> Self {
             Self {
-                owner: "shixinhuang99".to_string(),
-                name: "scafalra".to_string(),
+                owner: "scafalra".to_string(),
+                name: "shixinhuang99".to_string(),
                 subdir: None,
                 query: None,
             }
         }
     }
 
-    impl GitHubApiResult {
-        fn assert(&self) -> bool {
-            !self.oid.is_empty()
-                && !self.url.is_empty()
-                && !self.zipball_url.is_empty()
+    impl Default for Variable {
+        fn default() -> Self {
+            Self {
+                owner: "scafalra".to_string(),
+                name: "shixinhuang99".to_string(),
+                expression: None,
+                oid: None,
+                not_default_branch: false,
+            }
         }
     }
 
     #[test]
-    fn github_api_basic() {
-        let token = get_token();
-        let repo = Repository::default();
-        let api_result = GitHubApi::new(token).request(GraphQLQuery::new(repo));
-        assert!(api_result.assert());
+    fn variable_default() {
+        assert_eq!(Variable::default(), Variable::new(Repository::default()))
+    }
+
+    #[test]
+    fn variable_query_branch() {
+        assert_eq!(
+            Variable {
+                expression: Some("refs/heads/foo".to_string()),
+                not_default_branch: true,
+                ..Default::default()
+            },
+            Variable::new(Repository {
+                query: Some(Query::BRANCH("foo".to_string())),
+                ..Default::default()
+            })
+        )
+    }
+
+    #[test]
+    fn variable_query_tag() {
+        assert_eq!(
+            Variable {
+                expression: Some("refs/tags/foo".to_string()),
+                not_default_branch: true,
+                ..Default::default()
+            },
+            Variable::new(Repository {
+                query: Some(Query::TAG("foo".to_string())),
+                ..Default::default()
+            })
+        )
+    }
+
+    #[test]
+    fn variable_query_commit() {
+        assert_eq!(
+            Variable {
+                oid: Some("foo".to_string()),
+                not_default_branch: true,
+                ..Default::default()
+            },
+            Variable::new(Repository {
+                query: Some(Query::COMMIT("foo".to_string())),
+                ..Default::default()
+            })
+        )
     }
 }
