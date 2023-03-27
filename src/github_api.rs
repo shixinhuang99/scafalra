@@ -11,7 +11,7 @@ struct GraphQLQuery {
 }
 
 impl GraphQLQuery {
-    fn new(repo: Repository) -> Self {
+    fn new(repo: &Repository) -> Self {
         Self {
             query: QUERY_TEMPLATE,
             variables: Variable::new(repo).to_string(),
@@ -52,13 +52,15 @@ struct Variable {
 }
 
 impl Variable {
-    fn new(repo: Repository) -> Self {
-        let (expression, oid) = match repo.query {
-            Some(Query::BRANCH(val)) => {
-                (Some(format!("refs/heads/{}", val)), None)
+    fn new(repo: &Repository) -> Self {
+        let (expression, oid) = match &repo.query {
+            Some(Query::BRANCH(branch_val)) => {
+                (Some(format!("refs/heads/{}", branch_val)), None)
             }
-            Some(Query::TAG(val)) => (Some(format!("refs/tags/{}", val)), None),
-            Some(Query::COMMIT(val)) => (None, Some(val)),
+            Some(Query::TAG(tag_val)) => {
+                (Some(format!("refs/tags/{}", tag_val)), None)
+            }
+            Some(Query::COMMIT(oid_val)) => (None, Some(oid_val.clone())),
             _ => (None, None),
         };
 
@@ -68,8 +70,8 @@ impl Variable {
         };
 
         Variable {
-            name: repo.name,
-            owner: repo.owner,
+            name: repo.name.clone(),
+            owner: repo.owner.clone(),
             expression,
             oid,
             not_default_branch,
@@ -97,7 +99,7 @@ impl GitHubApi {
         Self { token }
     }
 
-    pub fn request(&self, repo: Repository) -> GitHubApiResult {
+    pub fn request(&self, repo: &Repository) -> GitHubApiResult {
         let query = GraphQLQuery::new(repo);
 
         let response: GitHubApiResponse =
@@ -202,7 +204,7 @@ mod tests {
 
     #[test]
     fn variable_default() {
-        assert_eq!(Variable::default(), Variable::new(Repository::default()))
+        assert_eq!(Variable::default(), Variable::new(&Repository::default()))
     }
 
     #[test]
@@ -213,7 +215,7 @@ mod tests {
                 not_default_branch: true,
                 ..Default::default()
             },
-            Variable::new(Repository {
+            Variable::new(&Repository {
                 query: Some(Query::BRANCH("foo".to_string())),
                 ..Default::default()
             })
@@ -228,7 +230,7 @@ mod tests {
                 not_default_branch: true,
                 ..Default::default()
             },
-            Variable::new(Repository {
+            Variable::new(&Repository {
                 query: Some(Query::TAG("foo".to_string())),
                 ..Default::default()
             })
@@ -243,7 +245,7 @@ mod tests {
                 not_default_branch: true,
                 ..Default::default()
             },
-            Variable::new(Repository {
+            Variable::new(&Repository {
                 query: Some(Query::COMMIT("foo".to_string())),
                 ..Default::default()
             })
