@@ -246,4 +246,20 @@ mod tests {
         assert_eq!(None, v.expression);
         assert_eq!(true, v.not_default_branch);
     }
+
+    #[ignore]
+    #[test]
+    fn github_api_request() {
+        use std::fs;
+
+        use super::GitHubApi;
+
+        let content = fs::read_to_string("something/token.txt").unwrap();
+        let token = content.lines().next().unwrap().to_string();
+        let api_result = GitHubApi::new(token).request(&default_repository());
+
+        assert!(!api_result.oid.is_empty());
+        assert!(!api_result.url.is_empty());
+        assert!(!api_result.zipball_url.is_empty());
+    }
 }
