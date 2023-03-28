@@ -2,14 +2,14 @@
 
 use std::error::Error;
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
-lazy_static! {
-    static ref REPO_RE: Regex = Regex::new(
-        r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$"
-    ).unwrap();
-}
+static REPO_RE: Lazy<Regex> = Lazy::new(|| {
+    let re = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
+
+    Regex::new(&re).unwrap()
+});
 
 pub struct Repository {
     pub owner: String,
