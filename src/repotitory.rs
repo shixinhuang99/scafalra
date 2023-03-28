@@ -1,9 +1,14 @@
 #![allow(dead_code)]
 
-use std::error::Error;
+use std::fs::{self, File};
+use std::io;
+use std::path::Path;
 
 use once_cell::sync::Lazy;
 use regex::Regex;
+use zip::ZipArchive;
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 static REPO_RE: Lazy<Regex> = Lazy::new(|| {
     let re = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
@@ -25,7 +30,7 @@ pub enum Query {
 }
 
 impl Repository {
-    fn new(input: &String) -> Result<Self, Box<dyn Error>> {
+    fn new(input: &String) -> Result<Self> {
         let caps = REPO_RE
             .captures(input)
             .ok_or(format!("Could not parse the input: '{}'.", input))?;
@@ -49,6 +54,35 @@ impl Repository {
             query,
         })
     }
+}
+
+fn download(url: &str, zip_file_path: &Path) -> Result<()> {
+    let response = ureq::get(&url).call()?;
+    let mut file = File::create(zip_file_path)?;
+    io::copy(&mut response.into_reader(), &mut file)?;
+
+    Ok(())
+}
+
+fn unzip(zip_file_path: &Path, target_dir_path: &Path) -> Result<()> {
+    let file = File::open(zip_file_path)?;
+    let mut archive = ZipArchive::new(file)?;
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let outpath = Path::new(target_dir_path).join(file.name());
+        if file.is_dir() {
+            fs::create_dir_all(&outpath)?;
+        } else {
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(&p)?;
+                }
+            }
+            let mut outfile = File::create(&outpath)?;
+            io::copy(&mut file, &mut outfile)?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -155,5 +189,25 @@ mod tests {
     fn repo_new_err() {
         let repo = Repository::new(&"test".to_string());
         assert!(repo.is_err());
+    }
+
+    #[ignore]
+    #[test]
+    fn download() {
+        use std::fs;
+        use std::path::Path;
+
+        let url = "https://codeload.github.com/shixinhuang99/scafalra/legacy.zip/ ea7c165bac336140bcf08f84758ab752769799be";
+
+        let zip_file_name = "shixinhuang99+scafalra+ea7c165bac336140bcf08f84758ab752769799be.zip";
+
+        let path = Path::new(zip_file_name);
+
+        super::download(url, &path).unwrap();
+
+        assert!(path.exists());
+        assert_eq!(zip_file_name, path.file_name().unwrap());
+
+        fs::remove_file(&path).unwrap();
     }
 }
