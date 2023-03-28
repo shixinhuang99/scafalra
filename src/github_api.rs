@@ -40,7 +40,7 @@ query ($name: String!, $owner: String!, $oid: GitObjectID, $expression: String, 
     }
 }";
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize)]
 struct Variable {
     name: String,
     owner: String,
@@ -179,76 +179,71 @@ struct Target {
 mod tests {
     use super::{Query, Repository, Variable};
 
-    impl Default for Repository {
-        fn default() -> Self {
-            Self {
-                owner: "scafalra".to_string(),
-                name: "shixinhuang99".to_string(),
-                subdir: None,
-                query: None,
-            }
+    fn default_repository() -> Repository {
+        Repository {
+            owner: "shixinhuang99".to_string(),
+            name: "scafalra".to_string(),
+            subdir: None,
+            query: None,
         }
     }
 
-    impl Default for Variable {
-        fn default() -> Self {
-            Self {
-                owner: "scafalra".to_string(),
-                name: "shixinhuang99".to_string(),
-                expression: None,
-                oid: None,
-                not_default_branch: false,
-            }
+    fn default_variable() -> Variable {
+        Variable {
+            owner: "shixinhuang99".to_string(),
+            name: "scafalra".to_string(),
+            expression: None,
+            oid: None,
+            not_default_branch: false,
         }
     }
 
     #[test]
     fn variable_default() {
-        assert_eq!(Variable::default(), Variable::new(&Repository::default()))
+        let v = Variable::new(&default_repository());
+        assert_eq!("scafalra", &v.name);
+        assert_eq!("shixinhuang99", &v.owner);
+        assert_eq!(None, v.oid);
+        assert_eq!(None, v.expression);
+        assert_eq!(false, v.not_default_branch);
     }
 
     #[test]
     fn variable_query_branch() {
-        assert_eq!(
-            Variable {
-                expression: Some("refs/heads/foo".to_string()),
-                not_default_branch: true,
-                ..Default::default()
-            },
-            Variable::new(&Repository {
-                query: Some(Query::BRANCH("foo".to_string())),
-                ..Default::default()
-            })
-        )
+        let v = Variable::new(&Repository {
+            query: Some(Query::BRANCH("foo".to_string())),
+            ..default_repository()
+        });
+        assert_eq!("scafalra", &v.name);
+        assert_eq!("shixinhuang99", &v.owner);
+        assert_eq!(None, v.oid);
+        assert_eq!(Some("refs/heads/foo".to_string()), v.expression);
+        assert_eq!(true, v.not_default_branch);
     }
 
     #[test]
     fn variable_query_tag() {
-        assert_eq!(
-            Variable {
-                expression: Some("refs/tags/foo".to_string()),
-                not_default_branch: true,
-                ..Default::default()
-            },
-            Variable::new(&Repository {
-                query: Some(Query::TAG("foo".to_string())),
-                ..Default::default()
-            })
-        )
+        let v = Variable::new(&Repository {
+            query: Some(Query::TAG("foo".to_string())),
+            ..default_repository()
+        });
+        assert_eq!("scafalra", &v.name);
+        assert_eq!("shixinhuang99", &v.owner);
+        assert_eq!(None, v.oid);
+        assert_eq!(Some("refs/tags/foo".to_string()), v.expression);
+        assert_eq!(true, v.not_default_branch);
     }
 
     #[test]
     fn variable_query_commit() {
-        assert_eq!(
-            Variable {
-                oid: Some("foo".to_string()),
-                not_default_branch: true,
-                ..Default::default()
-            },
-            Variable::new(&Repository {
-                query: Some(Query::COMMIT("foo".to_string())),
-                ..Default::default()
-            })
-        )
+        let v = Variable::new(&Repository {
+            query: Some(Query::COMMIT("foo".to_string())),
+            ..default_repository()
+        });
+        assert_eq!("scafalra", &v.name);
+        assert_eq!("shixinhuang99", &v.owner);
+        assert_eq!(Some("foo".to_string()), v.oid);
+        assert_eq!(None, v.expression);
+        assert_eq!(true, v.not_default_branch);
     }
 }
