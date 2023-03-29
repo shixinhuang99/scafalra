@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 
+use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::repotitory::{Query, Repository};
+use crate::utils::build_proxy_agent;
 
 #[derive(Deserialize, Serialize)]
 struct GraphQLQuery {
@@ -99,21 +101,21 @@ impl GitHubApi {
         Self { token }
     }
 
-    pub fn request(&self, repo: &Repository) -> GitHubApiResult {
+    pub fn request(&self, repo: &Repository) -> Result<GitHubApiResult> {
         let query = GraphQLQuery::new(repo);
 
-        let response: GitHubApiResponse =
-            ureq::post("https://api.github.com/graphql")
-                .set("Authorization", format!("bearer {}", self.token).as_str())
-                .set("Content-Type", "application/json")
-                .set("User-Agent", "scafalra")
-                .send_json(query)
-                .unwrap()
-                .into_json()
-                .unwrap();
+        let agent = build_proxy_agent();
+
+        let response: GitHubApiResponse = agent
+            .post("https://api.github.com/graphql")
+            .set("Authorization", format!("bearer {}", self.token).as_str())
+            .set("Content-Type", "application/json")
+            .set("User-Agent", "scafalra")
+            .send_json(query)?
+            .into_json()?;
 
         let Some(data) = response.data else {
-            panic!("GitHub GraphQL response errors");
+            bail!("GitHub GraphQL response errors");
         };
 
         let RepositoryData {
@@ -130,11 +132,11 @@ impl GitHubApi {
             ),
         };
 
-        GitHubApiResult {
+        Ok(GitHubApiResult {
             oid,
             zipball_url,
             url,
-        }
+        })
     }
 }
 
@@ -143,8 +145,8 @@ struct GitHubApiResponse<'a> {
     data: Option<GitHubApiData>,
 
     #[allow(dead_code)]
-    #[serde(skip_deserializing, default)]
-    errors: &'a str,
+    #[serde(skip_deserializing)]
+    errors: Option<&'a str>,
 }
 
 #[derive(Deserialize)]
@@ -185,16 +187,6 @@ mod tests {
             name: "scafalra".to_string(),
             subdir: None,
             query: None,
-        }
-    }
-
-    fn default_variable() -> Variable {
-        Variable {
-            owner: "shixinhuang99".to_string(),
-            name: "scafalra".to_string(),
-            expression: None,
-            oid: None,
-            not_default_branch: false,
         }
     }
 
@@ -257,7 +249,8 @@ mod tests {
         let content = fs::read_to_string("something/token.txt").unwrap();
         let token = content.lines().next().unwrap().to_string();
         let api_result = GitHubApi::new(token).request(&default_repository());
-
+        assert!(api_result.is_ok());
+        let api_result = api_result.unwrap();
         assert!(!api_result.oid.is_empty());
         assert!(!api_result.url.is_empty());
         assert!(!api_result.zipball_url.is_empty());
