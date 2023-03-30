@@ -2,6 +2,7 @@ mod cli;
 mod github_api;
 mod repotitory;
 mod utils;
+mod store;
 
 fn main() {
     run();
