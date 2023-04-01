@@ -15,9 +15,9 @@ mod log_symbols {
     pub const ERROR: &str = "x";
 }
 
-#[derive(Deserialize, Serialize, Default)]
+#[derive(Deserialize, Serialize)]
 struct StoreContent {
-    #[serde(rename = "scaffold")]
+    #[serde(rename = "scaffold", default)]
     scaffolds: Vec<Scaffold>,
 }
 
@@ -27,7 +27,9 @@ impl StoreContent {
             toml::from_str(&fs::read_to_string(&file_path)?)?
         } else {
             fs::File::create(file_path)?;
-            StoreContent::default()
+            StoreContent {
+                scaffolds: Vec::new(),
+            }
         };
 
         Ok(content)
@@ -130,7 +132,7 @@ impl Store {
     pub fn remove(&mut self, name: String) -> Result<()> {
         match self.scaffolds.get(&name) {
             Some(sc) => {
-                remove_dir_all(&sc.local)?;
+                remove_dir_all(Path::new(&sc.local))?;
 
                 self.changes
                     .push(format!("{} {}", log_symbols::REMOVE, &name));
@@ -150,18 +152,22 @@ impl Store {
         Ok(())
     }
 
-    pub fn rename(&mut self, name: String, new_name: String) {
-        if self.scaffolds.get(&new_name).is_some() {
-            println!(r#""{}" already exists"#, &new_name);
+    pub fn rename(&mut self, name: &str, new_name: &str) {
+        if self.scaffolds.contains_key(new_name) {
+            println!(r#""{}" already exists"#, new_name);
             return;
         }
 
-        match self.scaffolds.remove(&name) {
+        match self.scaffolds.remove(name) {
             Some(sc) => {
-                self.scaffolds.insert(new_name, sc);
+                self.scaffolds.insert(new_name.to_string(), sc);
+                self.changes
+                    .push(format!("{} {}", log_symbols::REMOVE, name));
+                self.changes
+                    .push(format!("{} {}", log_symbols::ADD, new_name));
             }
             None => {
-                println!(r#""{}" not found"#, &name);
+                println!(r#""{}" not found"#, name);
             }
         };
     }
@@ -177,6 +183,7 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
@@ -185,83 +192,106 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tempfile::{tempdir, TempDir};
 
-    use super::{Scaffold, Store, StoreContent};
+    use super::{Scaffold, ScaffoldMap, Store, StoreContent};
 
-    fn create_temp_file(content: &str) -> Result<(PathBuf, TempDir)> {
+    fn create_temp_file(
+        with_content: bool,
+    ) -> Result<(TempDir, PathBuf, PathBuf)> {
         let dir = tempdir()?;
-        let file_path = dir.path().join("store.toml");
-        let mut file = fs::File::create(&file_path)?;
-        file.write_all(content.as_bytes())?;
+        let store_file_path = dir.path().join("store.toml");
+        let mut file = fs::File::create(&store_file_path)?;
+        let local = dir.path().join("scaffold");
+        fs::create_dir(&local)?;
 
-        Ok((file_path, dir))
+        if with_content {
+            let content = format!(
+                r#"[[scaffold]]
+name = "scaffold"
+input = "input"
+url = "url"
+commit = "commit"
+local = "{}"
+"#,
+                local.display()
+            );
+            file.write_all(content.as_bytes())?;
+        }
+
+        Ok((dir, store_file_path, local))
+    }
+
+    fn build_scaffold() -> Scaffold {
+        Scaffold {
+            name: "scaffold".to_string(),
+            input: "input".to_string(),
+            url: "url".to_string(),
+            commit: "commit".to_string(),
+            local: "local".to_string(),
+        }
+    }
+
+    fn build_store_content(
+        with_content: bool,
+    ) -> Result<(StoreContent, TempDir, PathBuf, PathBuf)> {
+        let (dir, file_path, local) = create_temp_file(with_content)?;
+        let stc = StoreContent::new(&file_path)?;
+
+        Ok((stc, dir, file_path, local))
+    }
+
+    fn build_store(
+        with_content: bool,
+    ) -> Result<(Store, TempDir, PathBuf, PathBuf)> {
+        let (dir, file_path, local) = create_temp_file(with_content)?;
+        let store = Store::new(dir.path())?;
+
+        Ok((store, dir, file_path, local))
     }
 
     #[test]
     fn store_content_new_when_file_exists() -> Result<()> {
-        let file_content = r#"
-            [[scaffold]]
-            name = "test scaffold"
-            input = "test input"
-            url = "test url"
-            commit = "test commit"
-            local = "test local"
-        "#;
-        let (file_path, _dir) = create_temp_file(file_content)?;
+        let (stc, _dir, _, local) = build_store_content(true)?;
 
-        let st = StoreContent::new(&file_path)?;
-
-        assert_eq!(st.scaffolds.len(), 1);
-        let sc = &st.scaffolds[0];
-        assert_eq!(sc.name, "test scaffold");
-        assert_eq!(sc.input, "test input");
-        assert_eq!(sc.url, "test url");
-        assert_eq!(sc.commit, "test commit");
-        assert_eq!(sc.local, "test local");
+        assert_eq!(stc.scaffolds.len(), 1);
+        let sc = &stc.scaffolds[0];
+        assert_eq!(sc.name, "scaffold");
+        assert_eq!(sc.input, "input");
+        assert_eq!(sc.url, "url");
+        assert_eq!(sc.commit, "commit");
+        assert_eq!(sc.local, local.display().to_string());
 
         Ok(())
     }
 
     #[test]
     fn store_content_new_when_file_does_not_exist() -> Result<()> {
-        let dir = tempdir()?;
-        let file_path = dir.path().join("test.toml");
+        let (stc, _dir, _, _) = build_store_content(false)?;
 
-        let st = StoreContent::new(&file_path)?;
-
-        assert_eq!(st.scaffolds.len(), 0);
+        assert_eq!(stc.scaffolds.len(), 0);
 
         Ok(())
     }
 
     #[test]
     fn store_content_save() -> Result<()> {
-        let file_content = r#"
-            [[scaffold]]
-            name = "test scaffold"
-            input = "test input"
-            url = "test url"
-            commit = "test commit"
-            local = "test local"
-        "#;
-        let (file_path, _dir) = create_temp_file(file_content)?;
-
-        let mut st = StoreContent::new(&file_path)?;
-        st.scaffolds.push(Scaffold {
+        let (mut stc, _dir, file_path, local) = build_store_content(true)?;
+        stc.scaffolds.push(Scaffold {
             name: String::from("new scaffold"),
             input: String::from("new input"),
             url: String::from("new url"),
             commit: String::from("new commit"),
             local: String::from("new local"),
         });
-        st.save(&file_path)?;
+        stc.save(&file_path)?;
 
         let content = fs::read_to_string(&file_path)?;
-        let expected_content = r#"[[scaffold]]
-name = "test scaffold"
-input = "test input"
-url = "test url"
-commit = "test commit"
-local = "test local"
+        let expected_content = format!(
+            r#"[[scaffold]]
+name = "scaffold"
+input = "input"
+url = "url"
+commit = "commit"
+local = "{}"
 
 [[scaffold]]
 name = "new scaffold"
@@ -269,97 +299,146 @@ input = "new input"
 url = "new url"
 commit = "new commit"
 local = "new local"
-"#;
+"#,
+            local.display().to_string()
+        );
         assert_eq!(content, expected_content);
 
         Ok(())
     }
 
-    #[ignore]
     #[test]
-    fn scaffold_map_from_store_content() {
-        todo!();
+    fn scaffold_map_from_store_content() -> Result<()> {
+        let (stc, _dir, _, _) = build_store_content(true)?;
+        let scm = ScaffoldMap::from(stc);
+
+        assert_eq!(scm.len(), 1);
+        assert!(scm.contains_key("scaffold"));
+
+        Ok(())
     }
 
-    #[ignore]
     #[test]
     fn scaffold_map_into_store_content() {
-        todo!();
+        let mut scm = ScaffoldMap(HashMap::new());
+        let sc = build_scaffold();
+        scm.insert(sc.name.clone(), sc);
+        let st: StoreContent = scm.into();
+
+        assert_eq!(st.scaffolds.len(), 1);
+        assert_eq!(st.scaffolds[0].name, "scaffold");
     }
 
     #[test]
     fn store_new() -> Result<()> {
-        let file_content = r#"
-            [[scaffold]]
-            name = "test scaffold"
-            input = "test input"
-            url = "test url"
-            commit = "test commit"
-            local = "test local"
-        "#;
-        let (file_path, dir) = create_temp_file(file_content)?;
+        let (store, _dir, file_path, _) = build_store(true)?;
 
-        let store = Store::new(dir.path())?;
         assert_eq!(store.path, file_path);
-        assert!(store.scaffolds.contains_key("test scaffold"));
+        assert!(store.scaffolds.contains_key("scaffold"));
         assert_eq!(store.changes.len(), 0);
 
         Ok(())
     }
 
     #[test]
+    fn store_save() -> Result<()> {
+        let (mut store, _dir, file_path, _) = build_store(false)?;
+        let sc = build_scaffold();
+
+        store.add(sc.name.clone(), sc);
+        store.save()?;
+
+        let content = fs::read_to_string(&file_path)?;
+        let expected_content = r#"[[scaffold]]
+name = "scaffold"
+input = "input"
+url = "url"
+commit = "commit"
+local = "local"
+"#;
+        assert_eq!(content, expected_content);
+        assert_eq!(store.changes.len(), 1);
+        assert_eq!(store.changes[0], format!("+ scaffold"));
+
+        Ok(())
+    }
+
+    #[test]
     fn store_add() -> Result<()> {
-        let dir = tempdir()?;
-
-        let mut store = Store::new(dir.path())?;
-
-        let name = "test".to_string();
-        let default_sc = Scaffold {
-            name: "test".to_string(),
-            input: "input".to_string(),
-            url: "url".to_string(),
-            commit: "commit".to_string(),
-            local: "local".to_string(),
-        };
-        store.add(name.clone(), default_sc.clone());
+        let (mut store, _dir, _, _) = build_store(false)?;
+        let sc = build_scaffold();
+        store.add(sc.name.clone(), sc);
 
         assert_eq!(store.scaffolds.len(), 1);
-        assert!(store.scaffolds.contains_key(&name));
-        assert_eq!(store.changes, vec![format!("+ {}", &name)]);
+        assert!(store.scaffolds.contains_key("scaffold"));
+        assert_eq!(store.changes, vec!["+ scaffold"]);
 
         Ok(())
     }
 
     #[test]
     fn store_add_same() -> Result<()> {
-        let file_content = r#"
-            [[scaffold]]
-            name = "test"
-            input = "test"
-            url = "test"
-            commit = "test"
-            local = "test"
-        "#;
-        let (_, dir) = create_temp_file(file_content)?;
-
-        let mut store = Store::new(dir.path())?;
-
-        let name = "test".to_string();
-        let default_sc = Scaffold {
-            name: "test".to_string(),
-            input: "input".to_string(),
-            url: "url".to_string(),
-            commit: "commit".to_string(),
-            local: "local".to_string(),
-        };
-        store.add(name.clone(), default_sc.clone());
+        let (mut store, _dir, _, _) = build_store(true)?;
+        let sc = build_scaffold();
+        store.add(sc.name.clone(), sc);
 
         assert_eq!(store.scaffolds.len(), 1);
-        assert!(store.scaffolds.contains_key(&name));
-        assert_eq!(
-            store.changes,
-            vec![format!("- {}", &name), format!("+ {}", &name)]
-        );
+        assert!(store.scaffolds.contains_key("scaffold"));
+        assert_eq!(store.changes, vec!["- scaffold", "+ scaffold"]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn store_remove_ok() -> Result<()> {
+        let (mut store, _dir, _, local) = build_store(true)?;
+
+        assert!(local.exists());
+        store.remove("scaffold".to_string())?;
+
+        assert!(!local.exists());
+        assert_eq!(store.scaffolds.len(), 0);
+        assert_eq!(store.changes, vec!["- scaffold"]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn store_remove_not_found() -> Result<()> {
+        let (mut store, _dir, _, _) = build_store(true)?;
+        store.remove("foo".to_string())?;
+
+        assert_eq!(store.changes, vec!["x foo not found"]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn store_rename_ok() -> Result<()> {
+        let (mut store, _dir, _, _) = build_store(true)?;
+        store.rename("scaffold", "foo");
+
+        assert_eq!(store.scaffolds.len(), 1);
+        assert!(!store.scaffolds.contains_key("scaffold"));
+        assert!(store.scaffolds.contains_key("foo"));
+        assert_eq!(store.changes, vec!["- scaffold", "+ foo"]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn store_rename_exists_or_not_found() -> Result<()> {
+        let (mut store, _dir, _, _) = build_store(true)?;
+
+        store.rename("scaffold", "scaffold");
+
+        assert_eq!(store.scaffolds.len(), 1);
+        assert!(store.scaffolds.contains_key("scaffold"));
+
+        store.rename("foo", "bar");
+
+        assert_eq!(store.scaffolds.len(), 1);
+        assert!(store.scaffolds.contains_key("scaffold"));
 
         Ok(())
     }
