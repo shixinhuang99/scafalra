@@ -722,7 +722,6 @@ version = "0.6.0"
 dependencies = [
  "anyhow",
  "clap",
- "once_cell",
  "pretty_assertions",
  "regex",
  "remove_dir_all",
