@@ -9,6 +9,8 @@ use anyhow::Result;
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
 
+use crate::utils::Colorize;
+
 mod log_symbols {
     pub const ADD: &str = "+";
     pub const REMOVE: &str = "-";
@@ -120,11 +122,15 @@ impl Store {
 
     pub fn add(&mut self, name: String, scaffold: Scaffold) {
         if self.scaffolds.contains_key(&name) {
-            self.changes
-                .push(format!("{} {}", log_symbols::REMOVE, &name));
+            self.changes.push(format!(
+                "{} {}",
+                log_symbols::REMOVE.success(),
+                &name
+            ));
         }
 
-        self.changes.push(format!("{} {}", log_symbols::ADD, &name));
+        self.changes
+            .push(format!("{} {}", log_symbols::ADD.success(), &name));
 
         self.scaffolds.insert(name, scaffold);
     }
@@ -134,17 +140,20 @@ impl Store {
             Some(sc) => {
                 remove_dir_all(Path::new(&sc.local))?;
 
-                self.changes
-                    .push(format!("{} {}", log_symbols::REMOVE, &name));
+                self.changes.push(format!(
+                    "{} {}",
+                    log_symbols::REMOVE.success(),
+                    &name
+                ));
 
                 self.scaffolds.remove(&name);
             }
             None => {
                 self.changes.push(format!(
                     "{} {} {}",
-                    log_symbols::ERROR,
+                    log_symbols::ERROR.error(),
                     &name,
-                    "not found"
+                    "not found".error()
                 ));
             }
         }
@@ -161,10 +170,16 @@ impl Store {
         match self.scaffolds.remove(name) {
             Some(sc) => {
                 self.scaffolds.insert(new_name.to_string(), sc);
-                self.changes
-                    .push(format!("{} {}", log_symbols::REMOVE, name));
-                self.changes
-                    .push(format!("{} {}", log_symbols::ADD, new_name));
+                self.changes.push(format!(
+                    "{} {}",
+                    log_symbols::REMOVE.success(),
+                    name
+                ));
+                self.changes.push(format!(
+                    "{} {}",
+                    log_symbols::ADD.success(),
+                    new_name
+                ));
             }
             None => {
                 println!(r#""{}" not found"#, name);
