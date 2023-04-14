@@ -15,7 +15,7 @@ use tabled::{
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::{toml_content::TomlContent, utils::Colorize};
+use crate::utils::{Colorize, TomlContent};
 
 mod log_symbols {
     pub const ADD: &str = "+";
