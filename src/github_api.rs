@@ -3,8 +3,10 @@
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
-use crate::repotitory::{Query, Repository};
-use crate::utils::build_proxy_agent;
+use crate::{
+    repotitory::{Query, Repository},
+    utils::build_proxy_agent,
+};
 
 #[derive(Deserialize, Serialize)]
 struct GraphQLQuery {

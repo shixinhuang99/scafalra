@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
-use clap::builder::{PossibleValuesParser, TypedValueParser as _};
-use clap::{value_parser, Args, Parser, Subcommand};
+use clap::{
+    builder::{PossibleValuesParser, TypedValueParser as _},
+    value_parser, Args, Parser, Subcommand,
+};
 
 #[derive(Parser)]
 #[command(name = "scafalra", author, version, about, long_about = None)]

@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 
-use std::fs::{self, File};
-use std::io;
-use std::path::{Path, PathBuf};
+use std::{
+    fs::{self, File},
+    io,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{anyhow, Result};
 use regex::Regex;
