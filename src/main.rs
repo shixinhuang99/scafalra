@@ -3,7 +3,6 @@ mod config;
 mod github_api;
 mod repotitory;
 mod store;
-mod toml_content;
 mod utils;
 
 fn main() {

@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::toml_content::TomlContent;
+use crate::utils::TomlContent;
 
 #[derive(Deserialize, Serialize, Default)]
 struct ConfigContent {
