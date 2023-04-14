@@ -8,6 +8,10 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
+use tabled::settings::format::Format;
+use tabled::settings::object::Columns;
+use tabled::settings::{Alignment, Modify, Style};
+use tabled::{Table, Tabled};
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
 use crate::utils::Colorize;
@@ -46,7 +50,7 @@ impl StoreContent {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Tabled)]
 pub struct Scaffold {
     name: String,
     input: String,
@@ -201,8 +205,19 @@ impl Store {
         grid.fit_into_columns(6).to_string()
     }
 
-    pub fn print_table() {
-        todo!();
+    pub fn print_table(&self) -> String {
+        let data = Vec::from_iter(self.scaffolds.values().cloned());
+        let mut table = Table::new(&data);
+
+        let modify = Modify::new(Columns::first())
+            .with(Format::content(|s| s.primary()));
+
+        table
+            .with(Style::psql())
+            .with(Alignment::left())
+            .with(modify);
+
+        table.to_string()
     }
 }
 
@@ -521,6 +536,27 @@ local = "local"
             "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
              scaffold-4    scaffold-5\nscaffold-6    \n"
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn print_table() -> Result<()> {
+        let (mut store, _dir, _, _) = build_store(false)?;
+
+        for i in 0..2 {
+            let mut sc = build_scaffold();
+            sc.name.push_str(&format!("-{}", i));
+            store.add(sc.name.clone(), sc);
+        }
+
+        #[rustfmt::skip]
+        let expected = " name       | input | url | commit | local \n\
+                        ------------+-------+-----+--------+-------\n \
+                         scaffold-0 | input | url | commit | local \n \
+                         scaffold-1 | input | url | commit | local ";
+
+        assert_eq!(store.print_table(), expected);
 
         Ok(())
     }
