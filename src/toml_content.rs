@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde::{de::DeserializeOwned, Serialize};
 
 pub trait TomlContent: DeserializeOwned + Serialize + Default {
-    fn new(file_path: &Path) -> Result<Self> {
+    fn load(file_path: &Path) -> Result<Self> {
         let content: Self = if file_path.exists() {
             toml::from_str(&fs::read_to_string(&file_path)?)?
         } else {

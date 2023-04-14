@@ -86,7 +86,7 @@ impl Store {
     pub fn new(scafalra_dir: &Path) -> Result<Self> {
         let path = scafalra_dir.join("store.toml");
 
-        let scaffolds = ScaffoldMap::from(StoreContent::new(&path)?);
+        let scaffolds = ScaffoldMap::from(StoreContent::load(&path)?);
 
         Ok(Self {
             path,
@@ -252,7 +252,7 @@ local = "{}"
         with_content: bool,
     ) -> Result<(StoreContent, TempDir, PathBuf, PathBuf)> {
         let (dir, file_path, local) = create_temp_file(with_content)?;
-        let stc = StoreContent::new(&file_path)?;
+        let stc = StoreContent::load(&file_path)?;
 
         Ok((stc, dir, file_path, local))
     }
@@ -295,7 +295,7 @@ local = "{}"
         let dir = tempdir()?;
         let store_file_path = dir.path().join("store.toml");
 
-        let stc = StoreContent::new(&store_file_path)?;
+        let stc = StoreContent::load(&store_file_path)?;
 
         assert_eq!(stc.scaffolds.len(), 0);
 

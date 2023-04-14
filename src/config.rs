@@ -38,7 +38,7 @@ mod tests {
         with_content: bool,
     ) -> Result<(ConfigContent, TempDir, PathBuf)> {
         let (dir, file_path) = create_temp_file(with_content)?;
-        let cc = ConfigContent::new(&file_path)?;
+        let cc = ConfigContent::load(&file_path)?;
 
         Ok((cc, dir, file_path))
     }
@@ -67,7 +67,7 @@ mod tests {
         let dir = tempdir()?;
         let config_file_path = dir.path().join("config.toml");
 
-        let cc = ConfigContent::new(&config_file_path)?;
+        let cc = ConfigContent::load(&config_file_path)?;
 
         assert!(cc.token.is_none());
 
