@@ -2,7 +2,6 @@
 
 use std::{
     collections::BTreeMap,
-    fs,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
@@ -16,7 +15,7 @@ use tabled::{
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::utils::Colorize;
+use crate::{toml_content::TomlContent, utils::Colorize};
 
 mod log_symbols {
     pub const ADD: &str = "+";
@@ -24,33 +23,13 @@ mod log_symbols {
     pub const ERROR: &str = "x";
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Default)]
 struct StoreContent {
     #[serde(rename = "scaffold", default)]
     scaffolds: Vec<Scaffold>,
 }
 
-impl StoreContent {
-    pub fn new(file_path: &Path) -> Result<Self> {
-        let content: Self = if file_path.exists() {
-            toml::from_str(&fs::read_to_string(&file_path)?)?
-        } else {
-            fs::File::create(file_path)?;
-            StoreContent {
-                scaffolds: Vec::new(),
-            }
-        };
-
-        Ok(content)
-    }
-
-    pub fn save(&self, file_path: &Path) -> Result<()> {
-        let content = toml::to_string_pretty(self)?;
-        fs::write(file_path, &content)?;
-
-        Ok(())
-    }
-}
+impl TomlContent for StoreContent {}
 
 #[derive(Deserialize, Serialize, Clone, Tabled)]
 pub struct Scaffold {
@@ -231,15 +210,15 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tempfile::{tempdir, TempDir};
 
-    use super::{Scaffold, ScaffoldMap, Store, StoreContent};
+    use super::{Scaffold, ScaffoldMap, Store, StoreContent, TomlContent};
 
     fn create_temp_file(
         with_content: bool,
     ) -> Result<(TempDir, PathBuf, PathBuf)> {
-        let dir = tempdir()?;
-        let store_file_path = dir.path().join("store.toml");
+        let temp_dir = tempdir()?;
+        let store_file_path = temp_dir.path().join("store.toml");
         let mut file = fs::File::create(&store_file_path)?;
-        let local = dir.path().join("scaffold");
+        let local = temp_dir.path().join("scaffold");
         fs::create_dir(&local)?;
 
         if with_content {
@@ -256,7 +235,7 @@ local = "{}"
             file.write_all(content.as_bytes())?;
         }
 
-        Ok((dir, store_file_path, local))
+        Ok((temp_dir, store_file_path, local))
     }
 
     fn build_scaffold() -> Scaffold {
@@ -288,7 +267,7 @@ local = "{}"
     }
 
     #[test]
-    fn store_content_new_when_file_exists() -> Result<()> {
+    fn store_content_new_file_exists_with_content() -> Result<()> {
         let (stc, _dir, _, local) = build_store_content(true)?;
 
         assert_eq!(stc.scaffolds.len(), 1);
@@ -303,8 +282,20 @@ local = "{}"
     }
 
     #[test]
-    fn store_content_new_when_file_does_not_exist() -> Result<()> {
+    fn store_content_new_file_exists_no_content() -> Result<()> {
         let (stc, _dir, _, _) = build_store_content(false)?;
+
+        assert_eq!(stc.scaffolds.len(), 0);
+
+        Ok(())
+    }
+
+    #[test]
+    fn store_content_new_file_not_exist() -> Result<()> {
+        let dir = tempdir()?;
+        let store_file_path = dir.path().join("store.toml");
+
+        let stc = StoreContent::new(&store_file_path)?;
 
         assert_eq!(stc.scaffolds.len(), 0);
 
