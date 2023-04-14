@@ -1,7 +1,6 @@
 use std::env;
 
-use owo_colors::colors::xterm;
-use owo_colors::{OwoColorize, Stream, SupportsColorsDisplay};
+use owo_colors::{colors::xterm, OwoColorize, Stream, SupportsColorsDisplay};
 use ureq::{Agent, AgentBuilder, Proxy};
 
 pub fn build_proxy_agent() -> Agent {

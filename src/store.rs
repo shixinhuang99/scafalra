@@ -1,17 +1,19 @@
 #![allow(dead_code)]
 
-use std::collections::BTreeMap;
-use std::fs;
-use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    fs,
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
-use tabled::settings::format::Format;
-use tabled::settings::object::Columns;
-use tabled::settings::{Alignment, Modify, Style};
-use tabled::{Table, Tabled};
+use tabled::{
+    settings::{format::Format, object::Columns, Alignment, Modify, Style},
+    Table, Tabled,
+};
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
 use crate::utils::Colorize;
@@ -223,10 +225,7 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-    use std::fs;
-    use std::io::Write;
-    use std::path::PathBuf;
+    use std::{collections::BTreeMap, fs, io::Write, path::PathBuf};
 
     use anyhow::Result;
     use pretty_assertions::assert_eq;
