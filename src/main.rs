@@ -1,8 +1,8 @@
 mod cli;
 mod github_api;
 mod repotitory;
-mod utils;
 mod store;
+mod utils;
 
 fn main() {
     run();
