@@ -7,3 +7,4 @@ use_field_init_shorthand = true
 edition = "2021"
 wrap_comments = true
 reorder_impl_items = true
+format_strings = true

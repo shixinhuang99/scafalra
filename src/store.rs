@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fs;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
+use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
 use crate::utils::Colorize;
 
@@ -55,11 +56,11 @@ pub struct Scaffold {
 }
 
 #[derive(Clone)]
-struct ScaffoldMap(HashMap<String, Scaffold>);
+struct ScaffoldMap(BTreeMap<String, Scaffold>);
 
 impl From<StoreContent> for ScaffoldMap {
     fn from(value: StoreContent) -> Self {
-        Self(HashMap::from_iter(
+        Self(BTreeMap::from_iter(
             value
                 .scaffolds
                 .into_iter()
@@ -77,7 +78,7 @@ impl Into<StoreContent> for ScaffoldMap {
 }
 
 impl Deref for ScaffoldMap {
-    type Target = HashMap<String, Scaffold>;
+    type Target = BTreeMap<String, Scaffold>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -187,18 +188,27 @@ impl Store {
         };
     }
 
-    pub fn print_list() {
-        todo!();
+    pub fn print_grid(&self) -> String {
+        let mut grid = Grid::new(GridOptions {
+            filling: Filling::Spaces(4),
+            direction: Direction::LeftToRight,
+        });
+
+        self.scaffolds.keys().for_each(|key| {
+            grid.add(Cell::from(key.primary()));
+        });
+
+        grid.fit_into_columns(6).to_string()
     }
 
-    pub fn print_list_with_table() {
+    pub fn print_table() {
         todo!();
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
@@ -335,7 +345,7 @@ local = "new local"
 
     #[test]
     fn scaffold_map_into_store_content() {
-        let mut scm = ScaffoldMap(HashMap::new());
+        let mut scm = ScaffoldMap(BTreeMap::new());
         let sc = build_scaffold();
         scm.insert(sc.name.clone(), sc);
         let st: StoreContent = scm.into();
@@ -454,6 +464,63 @@ local = "local"
 
         assert_eq!(store.scaffolds.len(), 1);
         assert!(store.scaffolds.contains_key("scaffold"));
+
+        Ok(())
+    }
+
+    #[test]
+    fn print_grid_less_than_six_scaffolds() -> Result<()> {
+        let (mut store, _dir, _, _) = build_store(false)?;
+
+        for i in 0..5 {
+            let mut sc = build_scaffold();
+            sc.name.push_str(&format!("-{}", i));
+            store.add(sc.name.clone(), sc);
+        }
+
+        assert_eq!(
+            store.print_grid(),
+            "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
+             scaffold-4    \n"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn print_grid_equal_six_scaffolds() -> Result<()> {
+        let (mut store, _dir, _, _) = build_store(false)?;
+
+        for i in 0..6 {
+            let mut sc = build_scaffold();
+            sc.name.push_str(&format!("-{}", i));
+            store.add(sc.name.clone(), sc);
+        }
+
+        assert_eq!(
+            store.print_grid(),
+            "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
+             scaffold-4    scaffold-5\n"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn print_grid_more_than_six_scaffolds() -> Result<()> {
+        let (mut store, _dir, _, _) = build_store(false)?;
+
+        for i in 0..7 {
+            let mut sc = build_scaffold();
+            sc.name.push_str(&format!("-{}", i));
+            store.add(sc.name.clone(), sc);
+        }
+
+        assert_eq!(
+            store.print_grid(),
+            "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
+             scaffold-4    scaffold-5\nscaffold-6    \n"
+        );
 
         Ok(())
     }
