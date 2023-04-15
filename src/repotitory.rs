@@ -6,10 +6,10 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
+use flate2::read::GzDecoder;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
-use zip::ZipArchive;
 
 use crate::utils::build_proxy_agent;
 
@@ -65,30 +65,37 @@ impl Repository {
         })
     }
 
-    pub fn cache(
-        &self,
-        zipball_url: &str,
-        parent_dir: &Path,
-        oid: &str,
-    ) -> Result<()> {
-        let repo_dir_path = PathBuf::from(format!(
+    pub fn cache(&self, url: &str, parent_dir: &Path, oid: &str) -> Result<()> {
+        let repo_path = parent_dir.join(format!(
             "{}-{}-{}",
             self.owner,
             self.name,
             &oid[0..7]
         ));
 
-        let zip_file_path = repo_dir_path.with_extension("zip");
+        let file_path = repo_path.with_extension("tar.gz");
 
-        download(zipball_url, &zip_file_path)?;
-
-        if repo_dir_path.exists() {
-            remove_dir_all(repo_dir_path)?;
+        if file_path.exists() {
+            fs::remove_file(&file_path)?;
         }
 
-        unzip(&zip_file_path, parent_dir)?;
+        download(url, &file_path)?;
 
-        fs::remove_file(zip_file_path)?;
+        let temp_dir_path = parent_dir.join(oid);
+
+        unpack(&file_path, &temp_dir_path)?;
+
+        // There will only be one folder in this directory, which is the
+        // extracted repository
+        let extracted_dir = temp_dir_path.read_dir()?.next().unwrap()?;
+
+        if repo_path.exists() {
+            remove_dir_all(&repo_path)?;
+        }
+
+        fs::rename(extracted_dir.path(), &repo_path)?;
+
+        fs::remove_file(&file_path)?;
 
         Ok(())
     }
@@ -98,42 +105,31 @@ impl Repository {
     }
 }
 
-fn download(url: &str, zip_file_path: &Path) -> Result<()> {
+fn download(url: &str, file_path: &Path) -> Result<()> {
     let agent = build_proxy_agent();
     let response = agent.get(url).call()?;
-    let mut file = fs::File::create(zip_file_path)?;
+    let mut file = fs::File::create(file_path)?;
 
     io::copy(&mut response.into_reader(), &mut file)?;
 
     Ok(())
 }
 
-fn unzip(zip_file_path: &Path, parent_dir: &Path) -> Result<()> {
-    let file = fs::File::open(zip_file_path)?;
-    let mut archive = ZipArchive::new(file)?;
+fn unpack(file_path: &Path, parent_dir: &Path) -> Result<()> {
+    let file = fs::File::open(file_path)?;
+    let dec = GzDecoder::new(file);
+    let mut tar = tar::Archive::new(dec);
 
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i)?;
-        let outpath = Path::new(&parent_dir).join(file.name());
-
-        if file.is_dir() {
-            fs::create_dir_all(&outpath)?;
-        } else {
-            if let Some(p) = outpath.parent() {
-                if !p.exists() {
-                    fs::create_dir_all(&p)?;
-                }
-            }
-            let mut outfile = fs::File::create(&outpath)?;
-            io::copy(&mut file, &mut outfile)?;
-        }
-    }
+    tar.unpack(parent_dir)?;
 
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, path::PathBuf};
+
+    use anyhow::Result;
     use pretty_assertions::assert_eq;
 
     use super::{Query, Repository, REPO_RE};
@@ -218,23 +214,25 @@ mod tests {
     }
 
     #[test]
-    fn repo_new_basic() {
-        let repo = Repository::new("test/repository");
-        assert!(repo.is_ok());
-        let repo = repo.unwrap();
-        assert_eq!(&repo.owner, "test");
-        assert_eq!(&repo.name, "repository");
+    fn repo_new_basic() -> Result<()> {
+        let repo = Repository::new("test/repository")?;
+
+        assert_eq!(repo.owner, "test");
+        assert_eq!(repo.name, "repository");
+
+        Ok(())
     }
 
     #[test]
-    fn repo_new_with_all() {
-        let repo = Repository::new("test/repository/path/to/file?branch=main");
-        assert!(repo.is_ok());
-        let repo = repo.unwrap();
-        assert_eq!(&repo.owner, "test");
-        assert_eq!(&repo.name, "repository");
+    fn repo_new_with_all() -> Result<()> {
+        let repo = Repository::new("test/repository/path/to/file?branch=main")?;
+
+        assert_eq!(repo.owner, "test");
+        assert_eq!(repo.name, "repository");
         assert_eq!(repo.subdir.unwrap().to_str().unwrap(), "/path/to/file");
         assert_eq!(repo.query.unwrap(), Query::BRANCH("main".to_string()));
+
+        Ok(())
     }
 
     #[test]
@@ -249,20 +247,36 @@ mod tests {
         assert!(!Repository::is_repo("foo"));
     }
 
-    #[ignore]
     #[test]
-    fn cache_repo() {
-        use std::path::Path;
+    fn repo_cache_ok() -> Result<()> {
+        use std::io::Read;
 
-        use super::Repository;
+        let mut server = mockito::Server::new();
+        let file_path = PathBuf::from_iter(["assets", "scafalra-test.tar.gz"]);
+        let mut file = fs::File::open(&file_path)?;
+        let mut data = Vec::new();
+        file.read_to_end(&mut data)?;
 
-        let url = "https://codeload.github.com/shixinhuang99/scafalra/legacy.zip/ea7c165bac336140bcf08f84758ab752769799be";
-        let dir = Path::new("something");
+        let mock = server
+            .mock("GET", "/")
+            .with_status(200)
+            .with_header("content-type", "application/x-gzip")
+            .with_body(data)
+            .create();
+
+        let dir = tempfile::tempdir()?;
         let oid = "ea7c165bac336140bcf08f84758ab752769799be";
 
-        let repo = Repository::new("shixinhuang99/scafalra");
-        assert!(repo.is_ok());
-        let repo = repo.unwrap();
-        assert!(repo.cache(url, dir, oid).is_ok());
+        let repo = Repository::new("shixinhuang99/scafalra")?;
+        repo.cache(&server.url(), dir.path(), oid)?;
+
+        let repo_path = dir.path().join("shixinhuang99-scafalra-ea7c165");
+
+        mock.assert();
+        assert!(repo_path.exists());
+        assert!(repo_path.is_dir());
+        assert!(!repo_path.with_extension("tar.gz").exists());
+
+        Ok(())
     }
 }
