@@ -1,8 +1,7 @@
 #![allow(dead_code)]
 
 use std::{
-    fs::{self, File},
-    io,
+    fs, io,
     path::{Path, PathBuf},
 };
 
@@ -102,7 +101,7 @@ impl Repository {
 fn download(url: &str, zip_file_path: &Path) -> Result<()> {
     let agent = build_proxy_agent();
     let response = agent.get(url).call()?;
-    let mut file = File::create(zip_file_path)?;
+    let mut file = fs::File::create(zip_file_path)?;
 
     io::copy(&mut response.into_reader(), &mut file)?;
 
@@ -110,7 +109,7 @@ fn download(url: &str, zip_file_path: &Path) -> Result<()> {
 }
 
 fn unzip(zip_file_path: &Path, parent_dir: &Path) -> Result<()> {
-    let file = File::open(zip_file_path)?;
+    let file = fs::File::open(zip_file_path)?;
     let mut archive = ZipArchive::new(file)?;
 
     for i in 0..archive.len() {
@@ -125,7 +124,7 @@ fn unzip(zip_file_path: &Path, parent_dir: &Path) -> Result<()> {
                     fs::create_dir_all(&p)?;
                 }
             }
-            let mut outfile = File::create(&outpath)?;
+            let mut outfile = fs::File::create(&outpath)?;
             io::copy(&mut file, &mut outfile)?;
         }
     }
@@ -135,6 +134,8 @@ fn unzip(zip_file_path: &Path, parent_dir: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::{Query, Repository, REPO_RE};
 
     #[test]
@@ -142,8 +143,8 @@ mod tests {
         let caps = REPO_RE.captures("test/repository");
         assert!(caps.is_some());
         let caps = caps.unwrap();
-        assert_eq!("test", &caps[1]);
-        assert_eq!("repository", &caps[2]);
+        assert_eq!(&caps[1], "test");
+        assert_eq!(&caps[2], "repository");
     }
 
     #[test]
@@ -151,9 +152,9 @@ mod tests {
         let caps = REPO_RE.captures("test/repository/path/to/file");
         assert!(caps.is_some());
         let caps = caps.unwrap();
-        assert_eq!("test", &caps[1]);
-        assert_eq!("repository", &caps[2]);
-        assert_eq!("/path/to/file", &caps[3]);
+        assert_eq!(&caps[1], "test");
+        assert_eq!(&caps[2], "repository");
+        assert_eq!(&caps[3], "/path/to/file");
     }
 
     #[test]
@@ -161,11 +162,11 @@ mod tests {
         let caps = REPO_RE.captures("test/repository?branch=main");
         assert!(caps.is_some());
         let caps = caps.unwrap();
-        assert_eq!("test", &caps[1]);
-        assert_eq!("repository", &caps[2]);
-        assert_eq!(None, caps.get(3));
-        assert_eq!("branch", &caps[4]);
-        assert_eq!("main", &caps[5]);
+        assert_eq!(&caps[1], "test");
+        assert_eq!(&caps[2], "repository");
+        assert_eq!(caps.get(3), None);
+        assert_eq!(&caps[4], "branch");
+        assert_eq!(&caps[5], "main");
     }
 
     #[test]
@@ -173,11 +174,11 @@ mod tests {
         let caps = REPO_RE.captures("test/repository?tag=v1.0.0");
         assert!(caps.is_some());
         let caps = caps.unwrap();
-        assert_eq!("test", &caps[1]);
-        assert_eq!("repository", &caps[2]);
-        assert_eq!(None, caps.get(3));
-        assert_eq!("tag", &caps[4]);
-        assert_eq!("v1.0.0", &caps[5]);
+        assert_eq!(&caps[1], "test");
+        assert_eq!(&caps[2], "repository");
+        assert_eq!(caps.get(3), None);
+        assert_eq!(&caps[4], "tag");
+        assert_eq!(&caps[5], "v1.0.0");
     }
 
     #[test]
@@ -185,11 +186,11 @@ mod tests {
         let caps = REPO_RE.captures("test/repository?commit=abc123");
         assert!(caps.is_some());
         let caps = caps.unwrap();
-        assert_eq!("test", &caps[1]);
-        assert_eq!("repository", &caps[2]);
-        assert_eq!(None, caps.get(3));
-        assert_eq!("commit", &caps[4]);
-        assert_eq!("abc123", &caps[5]);
+        assert_eq!(&caps[1], "test");
+        assert_eq!(&caps[2], "repository");
+        assert_eq!(caps.get(3), None);
+        assert_eq!(&caps[4], "commit");
+        assert_eq!(&caps[5], "abc123");
     }
 
     #[test]
@@ -203,11 +204,11 @@ mod tests {
         let caps = REPO_RE.captures("test/repository/path/to/file?branch=main");
         assert!(caps.is_some());
         let caps = caps.unwrap();
-        assert_eq!("test", &caps[1]);
-        assert_eq!("repository", &caps[2]);
-        assert_eq!("/path/to/file", &caps[3]);
-        assert_eq!("branch", &caps[4]);
-        assert_eq!("main", &caps[5]);
+        assert_eq!(&caps[1], "test");
+        assert_eq!(&caps[2], "repository");
+        assert_eq!(caps.get(3).unwrap().as_str(), "/path/to/file");
+        assert_eq!(&caps[4], "branch");
+        assert_eq!(&caps[5], "main");
     }
 
     #[test]
@@ -221,8 +222,8 @@ mod tests {
         let repo = Repository::new("test/repository");
         assert!(repo.is_ok());
         let repo = repo.unwrap();
-        assert_eq!("test", &repo.owner);
-        assert_eq!("repository", &repo.name);
+        assert_eq!(&repo.owner, "test");
+        assert_eq!(&repo.name, "repository");
     }
 
     #[test]
@@ -230,10 +231,10 @@ mod tests {
         let repo = Repository::new("test/repository/path/to/file?branch=main");
         assert!(repo.is_ok());
         let repo = repo.unwrap();
-        assert_eq!("test", &repo.owner);
-        assert_eq!("repository", &repo.name);
-        assert_eq!("/path/to/file", repo.subdir.unwrap().to_str().unwrap());
-        assert_eq!(Query::BRANCH("main".to_string()), repo.query.unwrap());
+        assert_eq!(&repo.owner, "test");
+        assert_eq!(&repo.name, "repository");
+        assert_eq!(repo.subdir.unwrap().to_str().unwrap(), "/path/to/file");
+        assert_eq!(repo.query.unwrap(), Query::BRANCH("main".to_string()));
     }
 
     #[test]
@@ -244,8 +245,8 @@ mod tests {
 
     #[test]
     fn is_repo_ok() {
-        assert_eq!(true, Repository::is_repo("foo/bar"));
-        assert_eq!(false, Repository::is_repo("foo"));
+        assert!(Repository::is_repo("foo/bar"));
+        assert!(!Repository::is_repo("foo"));
     }
 
     #[ignore]
