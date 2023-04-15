@@ -118,9 +118,9 @@ impl GitHubApi {
 
         let response: GitHubApiResponse = agent
             .post(&self.endpoint)
-            .set("Authorization", format!("bearer {}", self.token).as_str())
-            .set("Content-Type", "application/json")
-            .set("User-Agent", "scafalra")
+            .set("authorization", format!("bearer {}", self.token).as_str())
+            .set("content-type", "application/json")
+            .set("user-agent", "scafalra")
             .send_json(query)?
             .into_json()?;
 
