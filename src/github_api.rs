@@ -30,14 +30,14 @@ query ($name: String!, $owner: String!, $oid: GitObjectID, $expression: String, 
         object(oid: $oid, expression: $expression) @include(if: $notDefaultBranch) {
             ... on Commit {
                 oid
-                zipballUrl
+                tarballUrl
             }
         }
         defaultBranchRef {
             target {
                 ... on Commit {
                     oid
-                    zipballUrl
+                    tarballUrl
                 }
             }
         }
@@ -89,18 +89,26 @@ impl Variable {
 
 pub struct GitHubApi {
     token: String,
+    endpoint: String,
 }
 
 #[derive(Debug)]
 pub struct GitHubApiResult {
     pub oid: String,
-    pub zipball_url: String,
+    pub tarball_url: String,
     pub url: String,
 }
 
 impl GitHubApi {
-    pub fn new(token: String) -> Self {
-        Self { token }
+    pub fn new(token: &str, endpoint: Option<&str>) -> Self {
+        let endpoint = endpoint
+            .unwrap_or("https://api.github.com/graphql")
+            .to_string();
+
+        Self {
+            token: token.to_string(),
+            endpoint,
+        }
     }
 
     pub fn request(&self, repo: &Repository) -> Result<GitHubApiResult> {
@@ -109,7 +117,7 @@ impl GitHubApi {
         let agent = build_proxy_agent();
 
         let response: GitHubApiResponse = agent
-            .post("https://api.github.com/graphql")
+            .post(&self.endpoint)
             .set("Authorization", format!("bearer {}", self.token).as_str())
             .set("Content-Type", "application/json")
             .set("User-Agent", "scafalra")
@@ -126,17 +134,17 @@ impl GitHubApi {
             url,
         } = data.repository;
 
-        let (oid, zipball_url) = match object {
-            Some(val) => (val.oid, val.zipball_url),
+        let (oid, tarball_url) = match object {
+            Some(val) => (val.oid, val.tarball_url),
             None => (
                 default_branch_ref.target.oid,
-                default_branch_ref.target.zipball_url,
+                default_branch_ref.target.tarball_url,
             ),
         };
 
         Ok(GitHubApiResult {
             oid,
-            zipball_url,
+            tarball_url,
             url,
         })
     }
@@ -175,15 +183,18 @@ struct DefaultBranchRef {
 struct Target {
     oid: String,
 
-    #[serde(rename = "zipballUrl")]
-    zipball_url: String,
+    #[serde(rename = "tarballUrl")]
+    tarball_url: String,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Query, Repository, Variable};
+    use anyhow::Result;
+    use pretty_assertions::assert_eq;
 
-    fn default_repository() -> Repository {
+    use super::{GitHubApi, Query, Repository, Variable};
+
+    fn build_repository() -> Repository {
         Repository {
             owner: "shixinhuang99".to_string(),
             name: "scafalra".to_string(),
@@ -193,8 +204,9 @@ mod tests {
     }
 
     #[test]
-    fn variable_default() {
-        let v = Variable::new(&default_repository());
+    fn variable_basic() {
+        let v = Variable::new(&build_repository());
+
         assert_eq!("scafalra", &v.name);
         assert_eq!("shixinhuang99", &v.owner);
         assert_eq!(None, v.oid);
@@ -206,8 +218,9 @@ mod tests {
     fn variable_query_branch() {
         let v = Variable::new(&Repository {
             query: Some(Query::BRANCH("foo".to_string())),
-            ..default_repository()
+            ..build_repository()
         });
+
         assert_eq!("scafalra", &v.name);
         assert_eq!("shixinhuang99", &v.owner);
         assert_eq!(None, v.oid);
@@ -219,8 +232,9 @@ mod tests {
     fn variable_query_tag() {
         let v = Variable::new(&Repository {
             query: Some(Query::TAG("foo".to_string())),
-            ..default_repository()
+            ..build_repository()
         });
+
         assert_eq!("scafalra", &v.name);
         assert_eq!("shixinhuang99", &v.owner);
         assert_eq!(None, v.oid);
@@ -232,8 +246,9 @@ mod tests {
     fn variable_query_commit() {
         let v = Variable::new(&Repository {
             query: Some(Query::COMMIT("foo".to_string())),
-            ..default_repository()
+            ..build_repository()
         });
+
         assert_eq!("scafalra", &v.name);
         assert_eq!("shixinhuang99", &v.owner);
         assert_eq!(Some("foo".to_string()), v.oid);
@@ -241,20 +256,42 @@ mod tests {
         assert_eq!(true, v.not_default_branch);
     }
 
-    #[ignore]
     #[test]
-    fn github_api_request() {
-        use std::fs;
+    fn github_api_request_ok() -> Result<()> {
+        let mut server = mockito::Server::new();
 
-        use super::GitHubApi;
+        let data = r#"{
+            "data": {
+              "repository": {
+                "url": "https://github.com/shixinhuang99/scafalra",
+                "defaultBranchRef": {
+                  "target": {
+                    "oid": "ea7c165bac336140bcf08f84758ab752769799be",
+                    "tarballUrl": "https://codeload.github.com/shixinhuang99/scafalra/legacy.tar.gz/ea7c165bac336140bcf08f84758ab752769799be"
+                  }
+                }
+              }
+            }
+        }"#;
 
-        let content = fs::read_to_string("something/token.txt").unwrap();
-        let token = content.lines().next().unwrap().to_string();
-        let api_result = GitHubApi::new(token).request(&default_repository());
-        assert!(api_result.is_ok());
-        let api_result = api_result.unwrap();
-        assert!(!api_result.oid.is_empty());
-        assert!(!api_result.url.is_empty());
-        assert!(!api_result.zipball_url.is_empty());
+        let mock = server
+            .mock("POST", "/")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(data)
+            .create();
+
+        let api_result = GitHubApi::new("token", Some(&server.url()))
+            .request(&build_repository())?;
+
+        mock.assert();
+        assert_eq!(api_result.oid, "ea7c165bac336140bcf08f84758ab752769799be");
+        assert_eq!(api_result.url, "https://github.com/shixinhuang99/scafalra");
+        assert_eq!(
+            api_result.tarball_url,
+            "https://codeload.github.com/shixinhuang99/scafalra/legacy.tar.gz/ea7c165bac336140bcf08f84758ab752769799be"
+        );
+
+        Ok(())
     }
 }
