@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 
+use std::path::{Path, PathBuf};
+
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::TomlContent;
@@ -11,6 +14,29 @@ struct ConfigContent {
 
 impl TomlContent for ConfigContent {}
 
+pub struct Config {
+    path: PathBuf,
+    content: ConfigContent,
+}
+
+impl Config {
+    pub fn new(scafalra_dir: &Path) -> Result<Self> {
+        let path = scafalra_dir.join("config.toml");
+        let content = ConfigContent::load(&path)?;
+
+        Ok(Self { path, content })
+    }
+
+    pub fn save(&self) -> Result<()> {
+        self.content.save(&self.path)
+    }
+
+    pub fn save_token(&mut self, token: &str) -> Result<()> {
+        self.content.token = Some(token.to_string());
+        self.save()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{fs, io::Write, path::PathBuf};
@@ -19,7 +45,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use tempfile::{tempdir, TempDir};
 
-    use super::{ConfigContent, TomlContent};
+    use super::{Config, ConfigContent, TomlContent};
 
     fn create_temp_file(with_content: bool) -> Result<(TempDir, PathBuf)> {
         let temp_dir = tempdir()?;
@@ -41,6 +67,13 @@ mod tests {
         let cc = ConfigContent::load(&file_path)?;
 
         Ok((cc, dir, file_path))
+    }
+
+    fn build_config(with_content: bool) -> Result<(Config, TempDir, PathBuf)> {
+        let (dir, file_path) = create_temp_file(with_content)?;
+        let config = Config::new(dir.path())?;
+
+        Ok((config, dir, file_path))
     }
 
     #[test]
@@ -84,6 +117,37 @@ mod tests {
         let content = fs::read_to_string(&file_path)?;
         let expected_content = "token = \"123\"\n";
         assert_eq!(content, expected_content);
+
+        Ok(())
+    }
+
+    #[test]
+    fn config_new_no_content() -> Result<()> {
+        let (config, _dir, file_path) = build_config(false)?;
+
+        assert_eq!(config.path, file_path);
+        assert_eq!(config.content.token, None);
+
+        Ok(())
+    }
+
+    #[test]
+    fn config_new_with_content() -> Result<()> {
+        let (config, _dir, file_path) = build_config(true)?;
+
+        assert_eq!(config.path, file_path);
+        assert_eq!(config.content.token, Some("token".to_string()));
+
+        Ok(())
+    }
+
+    #[test]
+    fn config_save_ok() -> Result<()> {
+        let (mut config, _dir, _) = build_config(true)?;
+
+        config.save_token("123")?;
+
+        assert_eq!(config.content.token, Some("123".to_string()));
 
         Ok(())
     }
