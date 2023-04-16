@@ -88,7 +88,7 @@ impl Variable {
 }
 
 pub struct GitHubApi {
-    token: String,
+    token: Option<String>,
     endpoint: String,
 }
 
@@ -100,25 +100,33 @@ pub struct GitHubApiResult {
 }
 
 impl GitHubApi {
-    pub fn new(token: &str, endpoint: Option<&str>) -> Self {
+    pub fn new(endpoint: Option<&str>) -> Self {
         let endpoint = endpoint
             .unwrap_or("https://api.github.com/graphql")
             .to_string();
 
         Self {
-            token: token.to_string(),
+            token: None,
             endpoint,
         }
     }
 
+    pub fn set_token(&mut self, token: &str) {
+        self.token = Some(token.to_string());
+    }
+
     pub fn request(&self, repo: &Repository) -> Result<GitHubApiResult> {
+        let Some(token) = &self.token else {
+            bail!("No GitHub personal access token configured");
+        };
+
         let query = GraphQLQuery::new(repo);
 
         let agent = build_proxy_agent();
 
         let response: GitHubApiResponse = agent
             .post(&self.endpoint)
-            .set("authorization", format!("bearer {}", self.token).as_str())
+            .set("authorization", format!("bearer {}", token).as_str())
             .set("content-type", "application/json")
             .set("user-agent", "scafalra")
             .send_json(query)?
@@ -200,6 +208,7 @@ mod tests {
             name: "scafalra".to_string(),
             subdir: None,
             query: None,
+            input: "shixinhuang99/scafalra".to_string(),
         }
     }
 
@@ -281,8 +290,11 @@ mod tests {
             .with_body(data)
             .create();
 
-        let api_result = GitHubApi::new("token", Some(&server.url()))
-            .request(&build_repository())?;
+        let mut github_api = GitHubApi::new(Some(&server.url()));
+
+        github_api.set_token("token");
+
+        let api_result = github_api.request(&build_repository())?;
 
         mock.assert();
         assert_eq!(api_result.oid, "ea7c165bac336140bcf08f84758ab752769799be");
@@ -293,5 +305,13 @@ mod tests {
         );
 
         Ok(())
+    }
+
+    #[test]
+    fn github_api_request_no_token() {
+        let github_api = GitHubApi::new(None);
+        let api_result = github_api.request(&build_repository());
+
+        assert!(api_result.is_err());
     }
 }

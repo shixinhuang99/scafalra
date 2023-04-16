@@ -33,11 +33,11 @@ impl TomlContent for StoreContent {}
 
 #[derive(Deserialize, Serialize, Clone, Tabled)]
 pub struct Scaffold {
-    name: String,
-    input: String,
-    url: String,
-    commit: String,
-    local: String,
+    pub name: String,
+    pub input: String,
+    pub url: String,
+    pub commit: String,
+    pub local: String,
 }
 
 #[derive(Clone)]
