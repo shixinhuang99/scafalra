@@ -37,7 +37,7 @@ pub enum Command {
     /// Copy the scaffold folder to the specified directory
     CREATE(CreateArgs),
 
-    /// Configure your GitHub personal access token(classic)
+    /// Configure or display your GitHub personal access token(classic)
     TOKEN(TokenArgs),
 }
 
@@ -61,6 +61,10 @@ pub struct MvArgs {
 
 #[derive(Args, Debug)]
 pub struct AddArgs {
+    /// owner/name/.../subdir?(branch|tag|commit)=...
+    ///
+    /// If a subdir is provided, the last level of the subdir will be used as
+    /// the scaffold name
     pub repository: String,
 
     /// The depth to go when recursing repository(only support 0 or 1)
@@ -80,9 +84,8 @@ pub struct AddArgs {
 
 #[derive(Args, Debug)]
 pub struct CreateArgs {
-    /// scaffold name of GitHub repotistory, Using the repository will only
-    /// download and not cache
-    pub name_or_repo: String,
+    /// Scaffold name
+    pub name: String,
 
     /// Specified directory(defaults to the current directory)
     #[arg(value_parser = value_parser!(PathBuf))]
@@ -91,7 +94,7 @@ pub struct CreateArgs {
 
 #[derive(Args, Debug)]
 pub struct TokenArgs {
-    pub token: String,
+    pub token: Option<String>,
 }
 
 #[cfg(test)]

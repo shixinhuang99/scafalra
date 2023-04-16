@@ -31,9 +31,12 @@ impl Config {
         self.content.save(&self.path)
     }
 
-    pub fn save_token(&mut self, token: &str) -> Result<()> {
+    pub fn set_token(&mut self, token: &str) {
         self.content.token = Some(token.to_string());
-        self.save()
+    }
+
+    pub fn token(&self) -> Option<&str> {
+        self.content.token.as_ref().map(|v| v.as_str())
     }
 }
 
@@ -145,7 +148,7 @@ mod tests {
     fn config_save_ok() -> Result<()> {
         let (mut config, _dir, _) = build_config(true)?;
 
-        config.save_token("123")?;
+        config.set_token("123");
 
         assert_eq!(config.content.token, Some("123".to_string()));
 

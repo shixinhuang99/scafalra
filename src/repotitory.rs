@@ -22,8 +22,9 @@ static REPO_RE: Lazy<Regex> = Lazy::new(|| {
 pub struct Repository {
     pub owner: String,
     pub name: String,
-    pub subdir: Option<PathBuf>,
+    pub subdir: Option<String>,
     pub query: Option<Query>,
+    pub input: String,
 }
 
 #[derive(PartialEq, Debug)]
@@ -34,7 +35,7 @@ pub enum Query {
 }
 
 impl Repository {
-    fn new(input: &str) -> Result<Self> {
+    pub fn new(input: &str) -> Result<Self> {
         let caps = REPO_RE
             .captures(input)
             .ok_or(anyhow!("Could not parse the input: '{}'", input))?;
@@ -42,10 +43,7 @@ impl Repository {
         let owner = (&caps[1]).to_string();
         let name = (&caps[2]).to_string();
 
-        let subdir = caps
-            .get(3)
-            .map_or(None, |v| Some(PathBuf::from(v.as_str())));
-
+        let subdir = caps.get(3).map_or(None, |v| Some(v.as_str().to_string()));
         let query_type = caps.get(4).map_or(None, |v| Some(v.as_str()));
         let query_val =
             caps.get(5).map_or(None, |v| Some(v.as_str().to_string()));
@@ -62,42 +60,48 @@ impl Repository {
             name,
             subdir,
             query,
+            input: input.to_string(),
         })
     }
 
-    pub fn cache(&self, url: &str, parent_dir: &Path, oid: &str) -> Result<()> {
-        let repo_path = parent_dir.join(format!(
+    pub fn cache(
+        &self,
+        url: &str,
+        cache_dir: &Path,
+        oid: &str,
+    ) -> Result<PathBuf> {
+        let scaffold_path = cache_dir.join(format!(
             "{}-{}-{}",
             self.owner,
             self.name,
             &oid[0..7]
         ));
 
-        let file_path = repo_path.with_extension("tar.gz");
+        let tarball_path = scaffold_path.with_extension("tar.gz");
 
-        if file_path.exists() {
-            fs::remove_file(&file_path)?;
+        if tarball_path.exists() {
+            fs::remove_file(&tarball_path)?;
         }
 
-        download(url, &file_path)?;
+        download(url, &tarball_path)?;
 
-        let temp_dir_path = parent_dir.join(oid);
+        let temp_dir_path = cache_dir.join(oid);
 
-        unpack(&file_path, &temp_dir_path)?;
+        unpack(&tarball_path, &temp_dir_path)?;
 
         // There will only be one folder in this directory, which is the
         // extracted repository
         let extracted_dir = temp_dir_path.read_dir()?.next().unwrap()?;
 
-        if repo_path.exists() {
-            remove_dir_all(&repo_path)?;
+        if scaffold_path.exists() {
+            remove_dir_all(&scaffold_path)?;
         }
 
-        fs::rename(extracted_dir.path(), &repo_path)?;
+        fs::rename(extracted_dir.path(), &scaffold_path)?;
 
-        fs::remove_file(&file_path)?;
+        fs::remove_file(&tarball_path)?;
 
-        Ok(())
+        Ok(scaffold_path)
     }
 
     pub fn is_repo(input: &str) -> bool {
@@ -145,12 +149,12 @@ mod tests {
 
     #[test]
     fn repo_re_subdir() {
-        let caps = REPO_RE.captures("test/repository/path/to/file");
+        let caps = REPO_RE.captures("test/repository/path/to/dir");
         assert!(caps.is_some());
         let caps = caps.unwrap();
         assert_eq!(&caps[1], "test");
         assert_eq!(&caps[2], "repository");
-        assert_eq!(&caps[3], "/path/to/file");
+        assert_eq!(&caps[3], "/path/to/dir");
     }
 
     #[test]
@@ -197,12 +201,12 @@ mod tests {
 
     #[test]
     fn repo_re_all() {
-        let caps = REPO_RE.captures("test/repository/path/to/file?branch=main");
+        let caps = REPO_RE.captures("test/repository/path/to/dir?branch=main");
         assert!(caps.is_some());
         let caps = caps.unwrap();
         assert_eq!(&caps[1], "test");
         assert_eq!(&caps[2], "repository");
-        assert_eq!(caps.get(3).unwrap().as_str(), "/path/to/file");
+        assert_eq!(caps.get(3).unwrap().as_str(), "/path/to/dir");
         assert_eq!(&caps[4], "branch");
         assert_eq!(&caps[5], "main");
     }
@@ -219,18 +223,20 @@ mod tests {
 
         assert_eq!(repo.owner, "test");
         assert_eq!(repo.name, "repository");
+        assert_eq!(repo.input, "test/repository");
 
         Ok(())
     }
 
     #[test]
     fn repo_new_with_all() -> Result<()> {
-        let repo = Repository::new("test/repository/path/to/file?branch=main")?;
+        let repo = Repository::new("test/repository/path/to/dir?branch=main")?;
 
         assert_eq!(repo.owner, "test");
         assert_eq!(repo.name, "repository");
-        assert_eq!(repo.subdir.unwrap().to_str().unwrap(), "/path/to/file");
+        assert_eq!(repo.subdir.unwrap(), "/path/to/dir");
         assert_eq!(repo.query.unwrap(), Query::BRANCH("main".to_string()));
+        assert_eq!(repo.input, "test/repository/path/to/dir?branch=main");
 
         Ok(())
     }
