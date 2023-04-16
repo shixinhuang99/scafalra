@@ -57,18 +57,18 @@ struct Variable {
 
 impl Variable {
     fn new(repo: &Repository) -> Self {
-        let (expression, oid) = match &repo.query {
-            Some(Query::BRANCH(branch_val)) => {
+        let (expression, oid) = match repo.query {
+            Some(Query::BRANCH(ref branch_val)) => {
                 (Some(format!("refs/heads/{}", branch_val)), None)
             }
-            Some(Query::TAG(tag_val)) => {
+            Some(Query::TAG(ref tag_val)) => {
                 (Some(format!("refs/tags/{}", tag_val)), None)
             }
-            Some(Query::COMMIT(oid_val)) => (None, Some(oid_val.clone())),
+            Some(Query::COMMIT(ref oid_val)) => (None, Some(oid_val.clone())),
             _ => (None, None),
         };
 
-        let not_default_branch = match (&expression, &oid) {
+        let not_default_branch = match (expression.as_ref(), oid.as_ref()) {
             (None, None) => false,
             _ => true,
         };
@@ -116,7 +116,7 @@ impl GitHubApi {
     }
 
     pub fn request(&self, repo: &Repository) -> Result<GitHubApiResult> {
-        let Some(token) = &self.token else {
+        let Some(ref token) = self.token else {
             bail!("No GitHub personal access token configured");
         };
 
