@@ -13,7 +13,7 @@ use crate::{
     config::Config,
     github_api::GitHubApi,
     print_flush,
-    repotitory::Repository,
+    repository::Repository,
     store::{Scaffold, Store},
 };
 

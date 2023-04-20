@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    repotitory::{Query, Repository},
+    repository::{Query, Repository},
     utils::build_proxy_agent,
 };
 
