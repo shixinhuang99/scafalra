@@ -271,15 +271,15 @@ mod tests {
 
         let data = r#"{
             "data": {
-              "repository": {
-                "url": "https://github.com/shixinhuang99/scafalra",
-                "defaultBranchRef": {
-                  "target": {
-                    "oid": "ea7c165bac336140bcf08f84758ab752769799be",
-                    "tarballUrl": "https://codeload.github.com/shixinhuang99/scafalra/legacy.tar.gz/ea7c165bac336140bcf08f84758ab752769799be"
-                  }
+                "repository": {
+                    "url": "https://github.com/shixinhuang99/scafalra",
+                    "defaultBranchRef": {
+                        "target": {
+                            "oid": "ea7c165bac336140bcf08f84758ab752769799be",
+                            "tarballUrl": "https://codeload.github.com/shixinhuang99/scafalra/legacy.tar.gz/ea7c165bac336140bcf08f84758ab752769799be"
+                        }
+                    }
                 }
-              }
             }
         }"#;
 

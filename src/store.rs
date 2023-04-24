@@ -40,6 +40,24 @@ pub struct Scaffold {
     pub local: String,
 }
 
+impl Scaffold {
+    pub fn new(
+        name: &str,
+        input: &str,
+        url: &str,
+        commit: &str,
+        local: &str,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            input: input.to_string(),
+            url: url.to_string(),
+            commit: commit.to_string(),
+            local: local.to_string(),
+        }
+    }
+}
+
 #[derive(Clone)]
 struct ScaffoldMap(BTreeMap<String, Scaffold>);
 
@@ -239,13 +257,7 @@ local = "{}"
     }
 
     fn build_scaffold() -> Scaffold {
-        Scaffold {
-            name: "scaffold".to_string(),
-            input: "input".to_string(),
-            url: "url".to_string(),
-            commit: "commit".to_string(),
-            local: "local".to_string(),
-        }
+        Scaffold::new("scaffold", "input", "url", "commit", "local")
     }
 
     fn build_store_content(
@@ -305,13 +317,13 @@ local = "{}"
     #[test]
     fn store_content_save() -> Result<()> {
         let (mut stc, _dir, file_path, local) = build_store_content(true)?;
-        stc.scaffolds.push(Scaffold {
-            name: String::from("new scaffold"),
-            input: String::from("new input"),
-            url: String::from("new url"),
-            commit: String::from("new commit"),
-            local: String::from("new local"),
-        });
+        stc.scaffolds.push(Scaffold::new(
+            "new scaffold",
+            "new input",
+            "new url",
+            "new commit",
+            "new local",
+        ));
         stc.save(&file_path)?;
 
         let content = fs::read_to_string(&file_path)?;
