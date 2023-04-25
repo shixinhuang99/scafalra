@@ -1,7 +1,6 @@
 mod cli;
 mod config;
 mod github_api;
-mod macros;
 mod repository;
 mod scafalra;
 mod store;
