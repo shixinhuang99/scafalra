@@ -1,8 +1,5 @@
-#![allow(dead_code)]
-
 use std::{
     fs,
-    io::Write,
     path::{Path, PathBuf},
 };
 
@@ -12,13 +9,11 @@ use crate::{
     cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
     config::Config,
     github_api::GitHubApi,
-    print_flush,
     repository::Repository,
     store::{Scaffold, Store},
 };
 
 pub struct Scafalra {
-    root_dir: PathBuf,
     cache_dir: PathBuf,
     config: Config,
     store: Store,
@@ -49,7 +44,6 @@ impl Scafalra {
         }
 
         Ok(Self {
-            root_dir,
             cache_dir,
             config,
             store,
@@ -90,7 +84,7 @@ impl Scafalra {
     pub fn add(&mut self, args: AddArgs) -> Result<()> {
         let repo = Repository::new(&args.repository)?;
 
-        print_flush!("Downloading `{}`\r", args.repository);
+        println!("Downloading `{}`", args.repository);
 
         let api_result = self.github_api.request(&repo)?;
 
@@ -152,7 +146,7 @@ impl Scafalra {
     pub fn create(&self, args: CreateArgs) -> Result<()> {
         use std::env::current_dir;
 
-        print_flush!("Creating `{}`\r", args.name);
+        println!("Creating `{}`", args.name);
 
         let scaffold = self.store.get(&args.name);
 
@@ -177,7 +171,7 @@ impl Scafalra {
             &fs_extra::dir::CopyOptions::new().content_only(true),
         )?;
 
-        println!("Created in `{}`", target_dir.to_string_lossy());
+        println!("\rCreated in `{}`", target_dir.to_string_lossy());
 
         Ok(())
     }
@@ -216,7 +210,6 @@ mod tests {
     use super::{AddArgs, CreateArgs, Scafalra};
 
     struct Paths {
-        root_dir: PathBuf,
         cache_dir: PathBuf,
         store_file: PathBuf,
         config_file: PathBuf,
@@ -266,7 +259,6 @@ local = "{}"
             sca,
             dir,
             Paths {
-                root_dir,
                 cache_dir,
                 store_file,
                 config_file,
@@ -322,9 +314,7 @@ local = "{}"
     fn scafalra_new() -> Result<()> {
         let (sca, _dir, paths) = build_scafalra(None, None, false)?;
 
-        assert_eq!(sca.root_dir, paths.root_dir);
         assert_eq!(sca.cache_dir, paths.cache_dir);
-        assert!(sca.root_dir.exists());
         assert!(sca.cache_dir.exists());
         assert!(paths.store_file.exists());
         assert!(paths.config_file.exists());
