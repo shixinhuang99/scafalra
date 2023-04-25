@@ -9,7 +9,7 @@ use std::{
 use anyhow::Result;
 
 use crate::{
-    cli::{AddArgs, CreateArgs, ListArgs, TokenArgs},
+    cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
     config::Config,
     github_api::GitHubApi,
     print_flush,
@@ -174,6 +174,18 @@ impl Scafalra {
         )?;
 
         println!("Created in `{}`", target_dir.to_string_lossy());
+
+        Ok(())
+    }
+
+    pub fn mv(&mut self, args: MvArgs) {
+        self.store.rename(&args.name, &args.new_name);
+    }
+
+    pub fn remove(&mut self, args: RemoveArgs) -> Result<()> {
+        for name in args.names {
+            self.store.remove(name)?;
+        }
 
         Ok(())
     }

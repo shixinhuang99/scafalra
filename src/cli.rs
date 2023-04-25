@@ -48,7 +48,7 @@ pub struct ListArgs {
 
 #[derive(Args, Debug)]
 pub struct RemoveArgs {
-    pub name: Vec<String>,
+    pub names: Vec<String>,
 }
 
 #[derive(Args, Debug)]
