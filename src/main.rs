@@ -31,7 +31,7 @@ fn run() -> Result<()> {
     match cli.command {
         Command::LIST(args) => scafalra.list(args),
         Command::REMOVE(args) => scafalra.remove(args)?,
-        Command::MV(args) => scafalra.mv(args),
+        Command::MV(args) => scafalra.mv(args)?,
         Command::ADD(args) => scafalra.add(args)?,
         Command::CREATE(args) => scafalra.create(args)?,
         Command::TOKEN(args) => scafalra.config_or_display_token(args)?,
