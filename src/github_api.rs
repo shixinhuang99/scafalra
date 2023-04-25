@@ -1,6 +1,4 @@
-#![allow(dead_code)]
-
-use anyhow::{bail, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -117,7 +115,7 @@ impl GitHubApi {
 
     pub fn request(&self, repo: &Repository) -> Result<GitHubApiResult> {
         let Some(ref token) = self.token else {
-            bail!("No GitHub personal access token configured");
+            anyhow::bail!("No GitHub personal access token configured");
         };
 
         let query = GraphQLQuery::new(repo);
@@ -133,7 +131,7 @@ impl GitHubApi {
             .into_json()?;
 
         let Some(data) = response.data else {
-            bail!("GitHub GraphQL response errors");
+            anyhow::bail!("GitHub GraphQL response errors");
         };
 
         let RepositoryData {

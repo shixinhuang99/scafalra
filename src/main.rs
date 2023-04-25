@@ -7,40 +7,35 @@ mod scafalra;
 mod store;
 mod utils;
 
+use anyhow::Result;
+use clap::Parser;
+use cli::{Cli, Command};
+use scafalra::Scafalra;
+
 fn main() {
-    run();
+    if let Err(err) = run() {
+        eprintln!("{}", err);
+    }
 }
 
-fn run() {
-    use clap::Parser;
-    use cli::{Cli, Command};
+fn run() -> Result<()> {
+    let Some(home_dir) = home::home_dir() else {
+        anyhow::bail!("Impossible to get your home dir");
+    };
 
     let cli = Cli::parse();
 
-    println!("verbose: {}", cli.verbose);
-
-    if let Some(token) = cli.token {
-        println!("specify token: {}", token);
-    }
+    let mut scafalra =
+        Scafalra::new(&home_dir, None, cli.token.as_ref().map(|v| v.as_str()))?;
 
     match cli.command {
-        Command::LIST(args) => {
-            println!("list args: {:?}", args);
-        }
-        Command::REMOVE(args) => {
-            println!("remove args: {:?}", args);
-        }
-        Command::MV(args) => {
-            println!("mv args: {:?}", args);
-        }
-        Command::ADD(args) => {
-            println!("add args: {:?}", args);
-        }
-        Command::CREATE(args) => {
-            println!("create args: {:?}", args);
-        }
-        Command::TOKEN(args) => {
-            println!("token args: {:?}", args);
-        }
+        Command::LIST(args) => scafalra.list(args),
+        Command::REMOVE(args) => scafalra.remove(args)?,
+        Command::MV(args) => scafalra.mv(args),
+        Command::ADD(args) => scafalra.add(args)?,
+        Command::CREATE(args) => scafalra.create(args)?,
+        Command::TOKEN(args) => scafalra.config_or_display_token(args)?,
     }
+
+    Ok(())
 }
