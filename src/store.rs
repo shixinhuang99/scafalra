@@ -220,6 +220,10 @@ impl Store {
     pub fn get(&self, name: &str) -> Option<Scaffold> {
         self.scaffolds.get(name).cloned()
     }
+
+    pub fn scaffold_len(&self) -> usize {
+        self.scaffolds.len()
+    }
 }
 
 #[cfg(test)]
