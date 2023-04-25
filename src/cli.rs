@@ -1,8 +1,6 @@
-use std::path::PathBuf;
-
 use clap::{
     builder::{PossibleValuesParser, TypedValueParser as _},
-    value_parser, Args, Parser, Subcommand,
+    Args, Parser, Subcommand,
 };
 
 #[derive(Parser)]
@@ -88,8 +86,7 @@ pub struct CreateArgs {
     pub name: String,
 
     /// Specified directory(defaults to the current directory)
-    #[arg(value_parser = value_parser!(PathBuf))]
-    pub directory: Option<PathBuf>,
+    pub directory: Option<String>,
 }
 
 #[derive(Args, Debug)]

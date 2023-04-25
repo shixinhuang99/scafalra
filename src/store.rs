@@ -218,6 +218,10 @@ impl Store {
 
         table.to_string()
     }
+
+    pub fn get(&self, name: &str) -> Option<Scaffold> {
+        self.scaffolds.get(name).cloned()
+    }
 }
 
 #[cfg(test)]
