@@ -74,6 +74,10 @@ impl Scafalra {
     }
 
     pub fn list(&self, args: ListArgs) {
+        if self.store.scaffold_len() <= 0 {
+            return;
+        }
+
         let res = if args.table {
             self.store.print_table()
         } else {
