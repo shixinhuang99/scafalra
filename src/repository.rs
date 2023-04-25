@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -102,10 +100,6 @@ impl Repository {
         fs::remove_file(&tarball_path)?;
 
         Ok(scaffold_path)
-    }
-
-    pub fn is_repo(input: &str) -> bool {
-        REPO_RE.is_match(input)
     }
 }
 
@@ -245,12 +239,6 @@ mod tests {
     fn repo_new_err() {
         let repo = Repository::new("test");
         assert!(repo.is_err());
-    }
-
-    #[test]
-    fn is_repo_ok() {
-        assert!(Repository::is_repo("foo/bar"));
-        assert!(!Repository::is_repo("foo"));
     }
 
     #[test]
