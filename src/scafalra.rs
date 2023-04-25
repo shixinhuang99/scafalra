@@ -178,14 +178,20 @@ impl Scafalra {
         Ok(())
     }
 
-    pub fn mv(&mut self, args: MvArgs) {
+    pub fn mv(&mut self, args: MvArgs) -> Result<()> {
         self.store.rename(&args.name, &args.new_name);
+
+        self.store.save()?;
+
+        Ok(())
     }
 
     pub fn remove(&mut self, args: RemoveArgs) -> Result<()> {
         for name in args.names {
             self.store.remove(name)?;
         }
+
+        self.store.save()?;
 
         Ok(())
     }
