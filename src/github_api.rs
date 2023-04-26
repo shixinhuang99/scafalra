@@ -56,20 +56,17 @@ struct Variable {
 impl Variable {
     fn new(repo: &Repository) -> Self {
         let (expression, oid) = match repo.query {
-            Some(Query::BRANCH(ref branch_val)) => {
-                (Some(format!("refs/heads/{}", branch_val)), None)
+            Some(Query::Branch(ref branch)) => {
+                (Some(format!("refs/heads/{}", branch)), None)
             }
-            Some(Query::TAG(ref tag_val)) => {
-                (Some(format!("refs/tags/{}", tag_val)), None)
+            Some(Query::Tag(ref tag)) => {
+                (Some(format!("refs/tags/{}", tag)), None)
             }
-            Some(Query::COMMIT(ref oid_val)) => (None, Some(oid_val.clone())),
+            Some(Query::Commit(ref oid)) => (None, Some(oid.clone())),
             _ => (None, None),
         };
 
-        let not_default_branch = match (expression.as_ref(), oid.as_ref()) {
-            (None, None) => false,
-            _ => true,
-        };
+        let not_default_branch = !(expression.is_none() && oid.is_none());
 
         Variable {
             name: repo.name.clone(),
@@ -79,9 +76,11 @@ impl Variable {
             not_default_branch,
         }
     }
+}
 
-    fn to_string(&self) -> String {
-        ureq::serde_json::to_string(self).unwrap()
+impl std::fmt::Display for Variable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", ureq::serde_json::to_string(self).unwrap())
     }
 }
 
@@ -224,7 +223,7 @@ mod tests {
     #[test]
     fn variable_query_branch() {
         let v = Variable::new(&Repository {
-            query: Some(Query::BRANCH("foo".to_string())),
+            query: Some(Query::Branch("foo".to_string())),
             ..build_repository()
         });
 
@@ -238,7 +237,7 @@ mod tests {
     #[test]
     fn variable_query_tag() {
         let v = Variable::new(&Repository {
-            query: Some(Query::TAG("foo".to_string())),
+            query: Some(Query::Tag("foo".to_string())),
             ..build_repository()
         });
 
@@ -252,7 +251,7 @@ mod tests {
     #[test]
     fn variable_query_commit() {
         let v = Variable::new(&Repository {
-            query: Some(Query::COMMIT("foo".to_string())),
+            query: Some(Query::Commit("foo".to_string())),
             ..build_repository()
         });
 

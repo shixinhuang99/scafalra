@@ -14,7 +14,7 @@ use crate::utils::build_proxy_agent;
 static REPO_RE: Lazy<Regex> = Lazy::new(|| {
     let re = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
 
-    Regex::new(&re).unwrap()
+    Regex::new(re).unwrap()
 });
 
 pub struct Repository {
@@ -27,9 +27,9 @@ pub struct Repository {
 
 #[derive(PartialEq, Debug)]
 pub enum Query {
-    BRANCH(String),
-    TAG(String),
-    COMMIT(String),
+    Branch(String),
+    Tag(String),
+    Commit(String),
 }
 
 impl Repository {
@@ -38,18 +38,17 @@ impl Repository {
             .captures(input)
             .ok_or(anyhow!("Could not parse the input: '{}'", input))?;
 
-        let owner = (&caps[1]).to_string();
-        let name = (&caps[2]).to_string();
+        let owner = caps[1].to_string();
+        let name = caps[2].to_string();
 
-        let subdir = caps.get(3).map_or(None, |v| Some(v.as_str().to_string()));
-        let query_type = caps.get(4).map_or(None, |v| Some(v.as_str()));
-        let query_val =
-            caps.get(5).map_or(None, |v| Some(v.as_str().to_string()));
+        let subdir = caps.get(3).map(|v| v.as_str().to_string());
+        let query_type = caps.get(4).map(|v| v.as_str());
+        let query_val = caps.get(5).map(|v| v.as_str().to_string());
 
         let query = match (query_type, query_val) {
-            (Some("branch"), Some(val)) => Some(Query::BRANCH(val)),
-            (Some("tag"), Some(val)) => Some(Query::TAG(val)),
-            (Some("commit"), Some(val)) => Some(Query::COMMIT(val)),
+            (Some("branch"), Some(val)) => Some(Query::Branch(val)),
+            (Some("tag"), Some(val)) => Some(Query::Tag(val)),
+            (Some("commit"), Some(val)) => Some(Query::Commit(val)),
             _ => None,
         };
 
@@ -229,7 +228,7 @@ mod tests {
         assert_eq!(repo.owner, "test");
         assert_eq!(repo.name, "repository");
         assert_eq!(repo.subdir.unwrap(), "/path/to/dir");
-        assert_eq!(repo.query.unwrap(), Query::BRANCH("main".to_string()));
+        assert_eq!(repo.query.unwrap(), Query::Branch("main".to_string()));
         assert_eq!(repo.input, "test/repository/path/to/dir?branch=main");
 
         Ok(())
@@ -247,7 +246,7 @@ mod tests {
 
         let mut server = mockito::Server::new();
         let file_path = PathBuf::from_iter(["assets", "scafalra-test.tar.gz"]);
-        let mut file = fs::File::open(&file_path)?;
+        let mut file = fs::File::open(file_path)?;
         let mut data = Vec::new();
         file.read_to_end(&mut data)?;
 

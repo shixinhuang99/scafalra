@@ -68,7 +68,7 @@ impl Scafalra {
     }
 
     pub fn list(&self, args: ListArgs) {
-        if self.store.scaffold_len() <= 0 {
+        if self.store.scaffolds_len() == 0 {
             return;
         }
 
@@ -123,7 +123,7 @@ impl Scafalra {
                 let file_type = entry.file_type()?;
                 let file_name = entry.file_name().to_string_lossy().to_string();
 
-                if file_type.is_dir() && !file_name.starts_with(".") {
+                if file_type.is_dir() && !file_name.starts_with('.') {
                     self.store.add(
                         file_name.clone(),
                         Scaffold::new(
@@ -166,7 +166,7 @@ impl Scafalra {
         };
 
         fs_extra::dir::copy(
-            &scaffold.local,
+            scaffold.local,
             &target_dir,
             &fs_extra::dir::CopyOptions::new().content_only(true),
         )?;
@@ -272,7 +272,7 @@ local = "{}"
         let mut server = mockito::Server::new();
 
         let file_path = PathBuf::from_iter(["assets", "scafalra-test.tar.gz"]);
-        let mut file = fs::File::open(&file_path)?;
+        let mut file = fs::File::open(file_path)?;
         let mut tarball_data = Vec::new();
         file.read_to_end(&mut tarball_data)?;
 

@@ -70,10 +70,10 @@ impl From<StoreContent> for ScaffoldMap {
     }
 }
 
-impl Into<StoreContent> for ScaffoldMap {
-    fn into(self) -> StoreContent {
+impl From<ScaffoldMap> for StoreContent {
+    fn from(value: ScaffoldMap) -> Self {
         StoreContent {
-            scaffolds: self.0.into_values().collect(),
+            scaffolds: value.0.into_values().collect(),
         }
     }
 }
@@ -204,7 +204,7 @@ impl Store {
 
     pub fn print_table(&self) -> String {
         let data = Vec::from_iter(self.scaffolds.values().cloned());
-        let mut table = Table::new(&data);
+        let mut table = Table::new(data);
 
         let modify = Modify::new(Columns::first())
             .with(Format::content(|s| s.primary()));
@@ -221,7 +221,7 @@ impl Store {
         self.scaffolds.get(name).cloned()
     }
 
-    pub fn scaffold_len(&self) -> usize {
+    pub fn scaffolds_len(&self) -> usize {
         self.scaffolds.len()
     }
 }
@@ -396,7 +396,7 @@ local = "new local"
         store.add(sc.name.clone(), sc);
         store.save()?;
 
-        let content = fs::read_to_string(&file_path)?;
+        let content = fs::read_to_string(file_path)?;
         let expected_content = r#"[[scaffold]]
 name = "scaffold"
 input = "input"

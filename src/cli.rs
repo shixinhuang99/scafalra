@@ -21,22 +21,22 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// List all scaffolds
-    LIST(ListArgs),
+    List(ListArgs),
 
     /// Remove specified scaffolds
-    REMOVE(RemoveArgs),
+    Remove(RemoveArgs),
 
     /// Rename a scaffold
-    MV(MvArgs),
+    Mv(MvArgs),
 
     /// Add scaffolds from GitHub repository
-    ADD(AddArgs),
+    Add(AddArgs),
 
     /// Copy the scaffold folder to the specified directory
-    CREATE(CreateArgs),
+    Create(CreateArgs),
 
     /// Configure or display your GitHub personal access token(classic)
-    TOKEN(TokenArgs),
+    Token(TokenArgs),
 }
 
 #[derive(Args, Debug)]
