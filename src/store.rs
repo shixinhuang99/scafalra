@@ -348,7 +348,7 @@ url = "new url"
 commit = "new commit"
 local = "new local"
 "#,
-            local.display().to_string()
+            local.display()
         );
         assert_eq!(content, expected_content);
 
