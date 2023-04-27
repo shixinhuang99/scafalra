@@ -112,7 +112,7 @@ impl Scafalra {
                     &repo.input,
                     &api_result.url,
                     &api_result.oid,
-                    &scaffold_path.to_string_lossy(),
+                    &scaffold_path.display().to_string(),
                 ),
             )
         }
@@ -131,7 +131,7 @@ impl Scafalra {
                             &repo.input,
                             &api_result.url,
                             &api_result.oid,
-                            &entry.path().to_string_lossy(),
+                            &entry.path().display().to_string(),
                         ),
                     )
                 }
@@ -171,7 +171,7 @@ impl Scafalra {
             &fs_extra::dir::CopyOptions::new().content_only(true),
         )?;
 
-        println!("\rCreated in `{}`", target_dir.to_string_lossy());
+        println!("\rCreated in `{}`", target_dir.display());
 
         Ok(())
     }
@@ -248,7 +248,7 @@ url = "url"
 commit = "commit"
 local = "{}"
 "#,
-                    scaffold_dir.to_string_lossy()
+                    scaffold_dir.display()
                 ),
             )?;
         }
@@ -349,7 +349,7 @@ url = "https://github.com/shixinhuang99/scafalra"
 commit = "ea7c165bac336140bcf08f84758ab752769799be"
 local = "{}"
 "#,
-            scaffold_dir.to_string_lossy()
+            scaffold_dir.display()
         );
 
         assert_eq!(store_content, expected_content);
@@ -385,7 +385,7 @@ url = "https://github.com/shixinhuang99/scafalra"
 commit = "ea7c165bac336140bcf08f84758ab752769799be"
 local = "{}"
 "#,
-            scaffold_dir.to_string_lossy()
+            scaffold_dir.display()
         );
 
         assert_eq!(store_content, expected_content);
@@ -442,10 +442,10 @@ url = "https://github.com/shixinhuang99/scafalra"
 commit = "ea7c165bac336140bcf08f84758ab752769799be"
 local = "{}"
 "#,
-            scaffold_dir.join("a").to_string_lossy(),
-            scaffold_dir.join("b").to_string_lossy(),
-            scaffold_dir.join("c").to_string_lossy(),
-            scaffold_dir.join("node_modules").to_string_lossy(),
+            scaffold_dir.join("a").display(),
+            scaffold_dir.join("b").display(),
+            scaffold_dir.join("c").display(),
+            scaffold_dir.join("node_modules").display(),
         );
 
         assert_eq!(store_content, expected_content);
@@ -481,7 +481,7 @@ url = "https://github.com/shixinhuang99/scafalra"
 commit = "ea7c165bac336140bcf08f84758ab752769799be"
 local = "{}"
 "#,
-            scaffold_dir.join("a").join("a1").to_string_lossy()
+            scaffold_dir.join("a").join("a1").display(),
         );
 
         assert_eq!(store_content, expected_content);
@@ -531,9 +531,9 @@ url = "https://github.com/shixinhuang99/scafalra"
 commit = "ea7c165bac336140bcf08f84758ab752769799be"
 local = "{}"
 "#,
-            scaffold_dir.join("a").join("a1").to_string_lossy(),
-            scaffold_dir.join("a").join("a2").to_string_lossy(),
-            scaffold_dir.join("a").join("a3").to_string_lossy(),
+            scaffold_dir.join("a").join("a1").display(),
+            scaffold_dir.join("a").join("a2").display(),
+            scaffold_dir.join("a").join("a3").display(),
         );
 
         assert_eq!(store_content, expected_content);
