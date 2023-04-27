@@ -34,7 +34,7 @@ impl Config {
     }
 
     pub fn token(&self) -> Option<&str> {
-        self.content.token.as_ref().map(|v| v.as_str())
+        self.content.token.as_deref()
     }
 }
 

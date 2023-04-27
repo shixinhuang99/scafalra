@@ -24,16 +24,15 @@ fn run() -> Result<()> {
 
     let cli = Cli::parse();
 
-    let mut scafalra =
-        Scafalra::new(&home_dir, None, cli.token.as_ref().map(|v| v.as_str()))?;
+    let mut scafalra = Scafalra::new(&home_dir, None, cli.token.as_deref())?;
 
     match cli.command {
-        Command::LIST(args) => scafalra.list(args),
-        Command::REMOVE(args) => scafalra.remove(args)?,
-        Command::MV(args) => scafalra.mv(args)?,
-        Command::ADD(args) => scafalra.add(args)?,
-        Command::CREATE(args) => scafalra.create(args)?,
-        Command::TOKEN(args) => scafalra.config_or_display_token(args)?,
+        Command::List(args) => scafalra.list(args),
+        Command::Remove(args) => scafalra.remove(args)?,
+        Command::Mv(args) => scafalra.mv(args)?,
+        Command::Add(args) => scafalra.add(args)?,
+        Command::Create(args) => scafalra.create(args)?,
+        Command::Token(args) => scafalra.config_or_display_token(args)?,
     }
 
     Ok(())

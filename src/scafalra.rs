@@ -1,6 +1,6 @@
 use std::{
     fs,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use anyhow::Result;
@@ -68,7 +68,7 @@ impl Scafalra {
     }
 
     pub fn list(&self, args: ListArgs) {
-        if self.store.scaffold_len() <= 0 {
+        if self.store.scaffolds_len() == 0 {
             return;
         }
 
@@ -97,8 +97,13 @@ impl Scafalra {
         )?;
 
         if let Some(subdir) = repo.subdir {
-            let subdir = Path::new(&subdir);
-            scaffold_path.push(subdir.strip_prefix("/").unwrap_or(subdir));
+            Path::new(&subdir)
+                .components()
+                .filter(|v| matches!(v, Component::Normal(_)))
+                .for_each(|v| {
+                    scaffold_path.push(v);
+                });
+
             if let Some(name) = scaffold_path.file_name() {
                 scaffold_name = name.to_string_lossy().to_string();
             }
@@ -112,7 +117,7 @@ impl Scafalra {
                     &repo.input,
                     &api_result.url,
                     &api_result.oid,
-                    &scaffold_path.to_string_lossy(),
+                    scaffold_path.clone(),
                 ),
             )
         }
@@ -123,7 +128,7 @@ impl Scafalra {
                 let file_type = entry.file_type()?;
                 let file_name = entry.file_name().to_string_lossy().to_string();
 
-                if file_type.is_dir() && !file_name.starts_with(".") {
+                if file_type.is_dir() && !file_name.starts_with('.') {
                     self.store.add(
                         file_name.clone(),
                         Scaffold::new(
@@ -131,7 +136,7 @@ impl Scafalra {
                             &repo.input,
                             &api_result.url,
                             &api_result.oid,
-                            &entry.path().to_string_lossy(),
+                            entry.path(),
                         ),
                     )
                 }
@@ -166,12 +171,12 @@ impl Scafalra {
         };
 
         fs_extra::dir::copy(
-            &scaffold.local,
+            scaffold.local,
             &target_dir,
             &fs_extra::dir::CopyOptions::new().content_only(true),
         )?;
 
-        println!("\rCreated in `{}`", target_dir.to_string_lossy());
+        println!("\rCreated in `{}`", target_dir.display());
 
         Ok(())
     }
@@ -208,6 +213,7 @@ mod tests {
     use tempfile::{tempdir, TempDir};
 
     use super::{AddArgs, CreateArgs, Scafalra};
+    use crate::utils::scaffold_toml;
 
     struct Paths {
         cache_dir: PathBuf,
@@ -238,19 +244,9 @@ mod tests {
             fs::File::create(scaffold_dir.join("a").join("foo.txt"))?;
             fs::File::create(&store_file)?;
 
-            fs::write(
-                &store_file,
-                format!(
-                    r#"[[scaffold]]
-name = "bar"
-input = "foo/bar"
-url = "url"
-commit = "commit"
-local = "{}"
-"#,
-                    scaffold_dir.to_string_lossy()
-                ),
-            )?;
+            let content = scaffold_toml("bar", "foo/bar", &scaffold_dir);
+
+            fs::write(&store_file, content)?;
         }
 
         let sca = Scafalra::new(dir_path, endpoint, token)?;
@@ -272,7 +268,7 @@ local = "{}"
         let mut server = mockito::Server::new();
 
         let file_path = PathBuf::from_iter(["assets", "scafalra-test.tar.gz"]);
-        let mut file = fs::File::open(&file_path)?;
+        let mut file = fs::File::open(file_path)?;
         let mut tarball_data = Vec::new();
         file.read_to_end(&mut tarball_data)?;
 
@@ -287,10 +283,10 @@ local = "{}"
             r#"{{
                 "data": {{
                     "repository": {{
-                        "url": "https://github.com/shixinhuang99/scafalra",
+                        "url": "url",
                         "defaultBranchRef": {{
                             "target": {{
-                                "oid": "ea7c165bac336140bcf08f84758ab752769799be",
+                                "oid": "aaaaaaa",
                                 "tarballUrl": "{}/tarball"
                             }}
                         }}
@@ -329,7 +325,7 @@ local = "{}"
             build_scafalra(Some(&server.url()), Some("token"), false)?;
 
         sca.add(AddArgs {
-            repository: "shixinhuang99/scafalra".to_string(),
+            repository: "foo/bar".to_string(),
             depth: 0,
             name: None,
         })?;
@@ -337,20 +333,10 @@ local = "{}"
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir =
-            paths.cache_dir.join("shixinhuang99-scafalra-ea7c165");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
-        let expected_content = format!(
-            r#"[[scaffold]]
-name = "scafalra"
-input = "shixinhuang99/scafalra"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-"#,
-            scaffold_dir.to_string_lossy()
-        );
+        let expected_content = scaffold_toml("bar", "foo/bar", &scaffold_dir);
 
         assert_eq!(store_content, expected_content);
         assert!(scaffold_dir.exists());
@@ -365,7 +351,7 @@ local = "{}"
             build_scafalra(Some(&server.url()), Some("token"), false)?;
 
         sca.add(AddArgs {
-            repository: "shixinhuang99/scafalra".to_string(),
+            repository: "foo/bar".to_string(),
             depth: 0,
             name: Some("foo".to_string()),
         })?;
@@ -373,20 +359,10 @@ local = "{}"
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir =
-            paths.cache_dir.join("shixinhuang99-scafalra-ea7c165");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
-        let expected_content = format!(
-            r#"[[scaffold]]
-name = "foo"
-input = "shixinhuang99/scafalra"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-"#,
-            scaffold_dir.to_string_lossy()
-        );
+        let expected_content = scaffold_toml("foo", "foo/bar", &scaffold_dir);
 
         assert_eq!(store_content, expected_content);
         assert!(scaffold_dir.exists());
@@ -401,7 +377,7 @@ local = "{}"
             build_scafalra(Some(&server.url()), Some("token"), false)?;
 
         sca.add(AddArgs {
-            repository: "shixinhuang99/scafalra".to_string(),
+            repository: "foo/bar".to_string(),
             depth: 1,
             name: Some("foo".to_string()),
         })?;
@@ -409,43 +385,19 @@ local = "{}"
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir =
-            paths.cache_dir.join("shixinhuang99-scafalra-ea7c165");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = format!(
-            r#"[[scaffold]]
-name = "a"
-input = "shixinhuang99/scafalra"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-
-[[scaffold]]
-name = "b"
-input = "shixinhuang99/scafalra"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-
-[[scaffold]]
-name = "c"
-input = "shixinhuang99/scafalra"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-
-[[scaffold]]
-name = "node_modules"
-input = "shixinhuang99/scafalra"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-"#,
-            scaffold_dir.join("a").to_string_lossy(),
-            scaffold_dir.join("b").to_string_lossy(),
-            scaffold_dir.join("c").to_string_lossy(),
-            scaffold_dir.join("node_modules").to_string_lossy(),
+            "{}\n{}\n{}\n{}",
+            scaffold_toml("a", "foo/bar", &scaffold_dir.join("a")),
+            scaffold_toml("b", "foo/bar", &scaffold_dir.join("b")),
+            scaffold_toml("c", "foo/bar", &scaffold_dir.join("c")),
+            scaffold_toml(
+                "node_modules",
+                "foo/bar",
+                &scaffold_dir.join("node_modules")
+            ),
         );
 
         assert_eq!(store_content, expected_content);
@@ -461,7 +413,7 @@ local = "{}"
             build_scafalra(Some(&server.url()), Some("token"), false)?;
 
         sca.add(AddArgs {
-            repository: "shixinhuang99/scafalra/a/a1".to_string(),
+            repository: "foo/bar/a/a1".to_string(),
             depth: 0,
             name: None,
         })?;
@@ -469,19 +421,13 @@ local = "{}"
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir =
-            paths.cache_dir.join("shixinhuang99-scafalra-ea7c165");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
-        let expected_content = format!(
-            r#"[[scaffold]]
-name = "a1"
-input = "shixinhuang99/scafalra/a/a1"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-"#,
-            scaffold_dir.join("a").join("a1").to_string_lossy()
+        let expected_content = scaffold_toml(
+            "a1",
+            "foo/bar/a/a1",
+            &scaffold_dir.join("a").join("a1"),
         );
 
         assert_eq!(store_content, expected_content);
@@ -497,7 +443,7 @@ local = "{}"
             build_scafalra(Some(&server.url()), Some("token"), false)?;
 
         sca.add(AddArgs {
-            repository: "shixinhuang99/scafalra/a".to_string(),
+            repository: "foo/bar/a".to_string(),
             depth: 1,
             name: None,
         })?;
@@ -505,35 +451,26 @@ local = "{}"
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir =
-            paths.cache_dir.join("shixinhuang99-scafalra-ea7c165");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = format!(
-            r#"[[scaffold]]
-name = "a1"
-input = "shixinhuang99/scafalra/a"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-
-[[scaffold]]
-name = "a2"
-input = "shixinhuang99/scafalra/a"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-
-[[scaffold]]
-name = "a3"
-input = "shixinhuang99/scafalra/a"
-url = "https://github.com/shixinhuang99/scafalra"
-commit = "ea7c165bac336140bcf08f84758ab752769799be"
-local = "{}"
-"#,
-            scaffold_dir.join("a").join("a1").to_string_lossy(),
-            scaffold_dir.join("a").join("a2").to_string_lossy(),
-            scaffold_dir.join("a").join("a3").to_string_lossy(),
+            "{}\n{}\n{}",
+            scaffold_toml(
+                "a1",
+                "foo/bar/a",
+                &scaffold_dir.join("a").join("a1")
+            ),
+            scaffold_toml(
+                "a2",
+                "foo/bar/a",
+                &scaffold_dir.join("a").join("a2")
+            ),
+            scaffold_toml(
+                "a3",
+                "foo/bar/a",
+                &scaffold_dir.join("a").join("a3")
+            ),
         );
 
         assert_eq!(store_content, expected_content);
@@ -546,22 +483,18 @@ local = "{}"
     fn scafalra_create_basic() -> Result<()> {
         let (sca, dir, _) = build_scafalra(None, None, true)?;
 
-        let mut dir_path = dir.path().to_path_buf();
-
-        dir_path.push("bar");
+        let dir_path = dir.path();
 
         sca.create(CreateArgs {
             name: "bar".to_string(),
             // Due to chroot restrictions, a directory is specified here to
             // simulate the current working directory
-            directory: Some(dir_path.to_string_lossy().to_string()),
+            directory: Some(dir_path.join("bar").display().to_string()),
         })?;
 
         assert!(dir_path.exists());
 
-        dir_path.push("a");
-        dir_path.push("foo.txt");
-        assert!(dir_path.exists());
+        assert!(dir_path.join("bar").join("a").join("foo.txt").exists());
 
         Ok(())
     }
