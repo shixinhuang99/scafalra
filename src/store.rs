@@ -35,7 +35,13 @@ pub struct Scaffold {
     pub input: String,
     pub url: String,
     pub commit: String,
-    pub local: String,
+
+    #[tabled(display_with = "display_local")]
+    pub local: PathBuf,
+}
+
+fn display_local(local: &Path) -> String {
+    local.display().to_string()
 }
 
 impl Scaffold {
@@ -44,14 +50,14 @@ impl Scaffold {
         input: &str,
         url: &str,
         commit: &str,
-        local: &str,
+        local: PathBuf,
     ) -> Self {
         Self {
             name: name.to_string(),
             input: input.to_string(),
             url: url.to_string(),
             commit: commit.to_string(),
-            local: local.to_string(),
+            local,
         }
     }
 }
@@ -235,58 +241,56 @@ mod tests {
     use tempfile::{tempdir, TempDir};
 
     use super::{Scaffold, ScaffoldMap, Store, StoreContent, TomlContent};
+    use crate::utils::scaffold_toml;
 
-    fn create_temp_file(
-        with_content: bool,
-    ) -> Result<(TempDir, PathBuf, PathBuf)> {
+    fn create_temp_file(with_content: bool) -> Result<(TempDir, PathBuf)> {
         let temp_dir = tempdir()?;
         let store_file_path = temp_dir.path().join("store.toml");
         let mut file = fs::File::create(&store_file_path)?;
-        let local = temp_dir.path().join("scaffold");
-        fs::create_dir(&local)?;
 
         if with_content {
-            let content = format!(
-                r#"[[scaffold]]
+            let content = r#"[[scaffold]]
 name = "scaffold"
 input = "input"
 url = "url"
 commit = "commit"
-local = "{}"
-"#,
-                local.display()
-            );
+local = "local"
+"#;
             file.write_all(content.as_bytes())?;
         }
 
-        Ok((temp_dir, store_file_path, local))
+        Ok((temp_dir, store_file_path))
     }
 
     fn build_scaffold() -> Scaffold {
-        Scaffold::new("scaffold", "input", "url", "commit", "local")
+        Scaffold::new(
+            "scaffold",
+            "input",
+            "url",
+            "commit",
+            PathBuf::from("local"),
+        )
     }
 
     fn build_store_content(
         with_content: bool,
-    ) -> Result<(StoreContent, TempDir, PathBuf, PathBuf)> {
-        let (dir, file_path, local) = create_temp_file(with_content)?;
+    ) -> Result<(StoreContent, TempDir, PathBuf)> {
+        let (dir, file_path) = create_temp_file(with_content)?;
         let stc = StoreContent::load(&file_path)?;
 
-        Ok((stc, dir, file_path, local))
+        Ok((stc, dir, file_path))
     }
 
-    fn build_store(
-        with_content: bool,
-    ) -> Result<(Store, TempDir, PathBuf, PathBuf)> {
-        let (dir, file_path, local) = create_temp_file(with_content)?;
+    fn build_store(with_content: bool) -> Result<(Store, TempDir, PathBuf)> {
+        let (dir, file_path) = create_temp_file(with_content)?;
         let store = Store::new(dir.path())?;
 
-        Ok((store, dir, file_path, local))
+        Ok((store, dir, file_path))
     }
 
     #[test]
     fn store_content_new_file_exists_with_content() -> Result<()> {
-        let (stc, _dir, _, local) = build_store_content(true)?;
+        let (stc, _dir, _) = build_store_content(true)?;
 
         assert_eq!(stc.scaffolds.len(), 1);
         let sc = &stc.scaffolds[0];
@@ -294,14 +298,14 @@ local = "{}"
         assert_eq!(sc.input, "input");
         assert_eq!(sc.url, "url");
         assert_eq!(sc.commit, "commit");
-        assert_eq!(sc.local, local.display().to_string());
+        assert_eq!(sc.local, PathBuf::from("local"));
 
         Ok(())
     }
 
     #[test]
     fn store_content_new_file_exists_no_content() -> Result<()> {
-        let (stc, _dir, _, _) = build_store_content(false)?;
+        let (stc, _dir, _) = build_store_content(false)?;
 
         assert_eq!(stc.scaffolds.len(), 0);
 
@@ -322,34 +326,31 @@ local = "{}"
 
     #[test]
     fn store_content_save() -> Result<()> {
-        let (mut stc, _dir, file_path, local) = build_store_content(true)?;
+        let (mut stc, _dir, file_path) = build_store_content(true)?;
         stc.scaffolds.push(Scaffold::new(
             "new scaffold",
             "new input",
             "new url",
             "new commit",
-            "new local",
+            PathBuf::from("new-local"),
         ));
         stc.save(&file_path)?;
 
         let content = fs::read_to_string(&file_path)?;
-        let expected_content = format!(
-            r#"[[scaffold]]
+        let expected_content = r#"[[scaffold]]
 name = "scaffold"
 input = "input"
 url = "url"
 commit = "commit"
-local = "{}"
+local = "local"
 
 [[scaffold]]
 name = "new scaffold"
 input = "new input"
 url = "new url"
 commit = "new commit"
-local = "new local"
-"#,
-            local.display()
-        );
+local = "new-local"
+"#;
         assert_eq!(content, expected_content);
 
         Ok(())
@@ -357,7 +358,7 @@ local = "new local"
 
     #[test]
     fn scaffold_map_from_store_content() -> Result<()> {
-        let (stc, _dir, _, _) = build_store_content(true)?;
+        let (stc, _dir, _) = build_store_content(true)?;
         let scm = ScaffoldMap::from(stc);
 
         assert_eq!(scm.len(), 1);
@@ -379,7 +380,7 @@ local = "new local"
 
     #[test]
     fn store_new() -> Result<()> {
-        let (store, _dir, file_path, _) = build_store(true)?;
+        let (store, _dir, file_path) = build_store(true)?;
 
         assert_eq!(store.path, file_path);
         assert!(store.scaffolds.contains_key("scaffold"));
@@ -390,7 +391,7 @@ local = "new local"
 
     #[test]
     fn store_save() -> Result<()> {
-        let (mut store, _dir, file_path, _) = build_store(false)?;
+        let (mut store, _dir, file_path) = build_store(false)?;
         let sc = build_scaffold();
 
         store.add(sc.name.clone(), sc);
@@ -413,7 +414,7 @@ local = "local"
 
     #[test]
     fn store_add() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(false)?;
+        let (mut store, _dir, _) = build_store(false)?;
         let sc = build_scaffold();
         store.add(sc.name.clone(), sc);
 
@@ -426,7 +427,7 @@ local = "local"
 
     #[test]
     fn store_add_same() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(true)?;
+        let (mut store, _dir, _) = build_store(true)?;
         let sc = build_scaffold();
         store.add(sc.name.clone(), sc);
 
@@ -439,7 +440,13 @@ local = "local"
 
     #[test]
     fn store_remove_ok() -> Result<()> {
-        let (mut store, _dir, _, local) = build_store(true)?;
+        let (_, dir, store_file_path) = build_store(true)?;
+
+        let local = dir.path().join("foo");
+        fs::create_dir(&local)?;
+        let content = scaffold_toml("scaffold", "input", &local);
+        fs::write(store_file_path, content)?;
+        let mut store = Store::new(dir.path())?;
 
         assert!(local.exists());
         store.remove("scaffold".to_string())?;
@@ -453,7 +460,7 @@ local = "local"
 
     #[test]
     fn store_remove_not_found() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(true)?;
+        let (mut store, _dir, _) = build_store(true)?;
         store.remove("foo".to_string())?;
 
         assert_eq!(store.changes, vec!["x foo not found"]);
@@ -463,7 +470,7 @@ local = "local"
 
     #[test]
     fn store_rename_ok() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(true)?;
+        let (mut store, _dir, _) = build_store(true)?;
         store.rename("scaffold", "foo");
 
         assert_eq!(store.scaffolds.len(), 1);
@@ -476,7 +483,7 @@ local = "local"
 
     #[test]
     fn store_rename_exists_or_not_found() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(true)?;
+        let (mut store, _dir, _) = build_store(true)?;
 
         store.rename("scaffold", "scaffold");
 
@@ -493,7 +500,7 @@ local = "local"
 
     #[test]
     fn print_grid_less_than_six_scaffolds() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(false)?;
+        let (mut store, _dir, _) = build_store(false)?;
 
         for i in 0..5 {
             let mut sc = build_scaffold();
@@ -512,7 +519,7 @@ local = "local"
 
     #[test]
     fn print_grid_equal_six_scaffolds() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(false)?;
+        let (mut store, _dir, _) = build_store(false)?;
 
         for i in 0..6 {
             let mut sc = build_scaffold();
@@ -531,7 +538,7 @@ local = "local"
 
     #[test]
     fn print_grid_more_than_six_scaffolds() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(false)?;
+        let (mut store, _dir, _) = build_store(false)?;
 
         for i in 0..7 {
             let mut sc = build_scaffold();
@@ -550,7 +557,7 @@ local = "local"
 
     #[test]
     fn print_table() -> Result<()> {
-        let (mut store, _dir, _, _) = build_store(false)?;
+        let (mut store, _dir, _) = build_store(false)?;
 
         for i in 0..2 {
             let mut sc = build_scaffold();

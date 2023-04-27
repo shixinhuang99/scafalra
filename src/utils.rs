@@ -72,6 +72,34 @@ pub trait TomlContent: DeserializeOwned + Serialize + Default {
 }
 
 #[cfg(test)]
+pub fn scaffold_toml(
+    name: &str,
+    input: &str,
+    local: &std::path::Path,
+) -> String {
+    #[cfg(windows)]
+    let quote = "'";
+
+    #[cfg(not(windows))]
+    let quote = r#"""#;
+
+    format!(
+        r#"[[scaffold]]
+name = "{}"
+input = "{}"
+url = "url"
+commit = "aaaaaaa"
+local = {}{}{}
+"#,
+        name,
+        input,
+        quote,
+        local.display(),
+        quote,
+    )
+}
+
+#[cfg(test)]
 mod tests {
 
     #[test]
