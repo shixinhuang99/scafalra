@@ -112,7 +112,7 @@ impl Scafalra {
                     &repo.input,
                     &api_result.url,
                     &api_result.oid,
-                    &scaffold_path,
+                    &scaffold_path.display().to_string(),
                 ),
             )
         }
@@ -131,7 +131,7 @@ impl Scafalra {
                             &repo.input,
                             &api_result.url,
                             &api_result.oid,
-                            &entry.path(),
+                            &entry.path().display().to_string(),
                         ),
                     )
                 }

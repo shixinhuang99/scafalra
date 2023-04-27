@@ -44,14 +44,14 @@ impl Scaffold {
         input: &str,
         url: &str,
         commit: &str,
-        local: &Path,
+        local: &str,
     ) -> Self {
         Self {
             name: name.to_string(),
             input: input.to_string(),
             url: url.to_string(),
             commit: commit.to_string(),
-            local: local.display().to_string(),
+            local: local.to_string(),
         }
     }
 }
@@ -228,7 +228,7 @@ impl Store {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeMap, env, fs, io::Write, path::PathBuf};
+    use std::{collections::BTreeMap, fs, io::Write, path::PathBuf};
 
     use anyhow::Result;
     use pretty_assertions::assert_eq;
@@ -263,13 +263,7 @@ local = "{}"
     }
 
     fn build_scaffold() -> Scaffold {
-        Scaffold::new(
-            "scaffold",
-            "input",
-            "url",
-            "commit",
-            &env::temp_dir().join("foo"),
-        )
+        Scaffold::new("scaffold", "input", "url", "commit", "local")
     }
 
     fn build_store_content(
@@ -329,13 +323,12 @@ local = "{}"
     #[test]
     fn store_content_save() -> Result<()> {
         let (mut stc, _dir, file_path, local) = build_store_content(true)?;
-        let another_path = env::temp_dir().join("foo");
         stc.scaffolds.push(Scaffold::new(
             "new scaffold",
             "new input",
             "new url",
             "new commit",
-            &another_path,
+            "new local",
         ));
         stc.save(&file_path)?;
 
@@ -353,10 +346,9 @@ name = "new scaffold"
 input = "new input"
 url = "new url"
 commit = "new commit"
-local = "{}"
+local = "new local"
 "#,
-            local.display(),
-            another_path.display(),
+            local.display()
         );
         assert_eq!(content, expected_content);
 
