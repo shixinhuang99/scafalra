@@ -249,13 +249,7 @@ mod tests {
         let mut file = fs::File::create(&store_file_path)?;
 
         if with_content {
-            let content = r#"[[scaffold]]
-name = "scaffold"
-input = "input"
-url = "url"
-commit = "commit"
-local = "local"
-"#;
+            let content = scaffold_toml("scaffold", "input", "local");
             file.write_all(content.as_bytes())?;
         }
 
@@ -267,7 +261,7 @@ local = "local"
             "scaffold",
             "input",
             "url",
-            "commit",
+            "aaaaaaa",
             PathBuf::from("local"),
         )
     }
@@ -297,7 +291,7 @@ local = "local"
         assert_eq!(sc.name, "scaffold");
         assert_eq!(sc.input, "input");
         assert_eq!(sc.url, "url");
-        assert_eq!(sc.commit, "commit");
+        assert_eq!(sc.commit, "aaaaaaa");
         assert_eq!(sc.local, PathBuf::from("local"));
 
         Ok(())
@@ -330,27 +324,19 @@ local = "local"
         stc.scaffolds.push(Scaffold::new(
             "new scaffold",
             "new input",
-            "new url",
-            "new commit",
+            "url",
+            "aaaaaaa",
             PathBuf::from("new-local"),
         ));
         stc.save(&file_path)?;
 
         let content = fs::read_to_string(&file_path)?;
-        let expected_content = r#"[[scaffold]]
-name = "scaffold"
-input = "input"
-url = "url"
-commit = "commit"
-local = "local"
+        let expected_content = format!(
+            "{}\n{}",
+            scaffold_toml("scaffold", "input", "local"),
+            scaffold_toml("new scaffold", "new input", "new-local")
+        );
 
-[[scaffold]]
-name = "new scaffold"
-input = "new input"
-url = "new url"
-commit = "new commit"
-local = "new-local"
-"#;
         assert_eq!(content, expected_content);
 
         Ok(())
@@ -398,13 +384,8 @@ local = "new-local"
         store.save()?;
 
         let content = fs::read_to_string(file_path)?;
-        let expected_content = r#"[[scaffold]]
-name = "scaffold"
-input = "input"
-url = "url"
-commit = "commit"
-local = "local"
-"#;
+        let expected_content = scaffold_toml("scaffold", "input", "local");
+
         assert_eq!(content, expected_content);
         assert_eq!(store.changes.len(), 1);
         assert_eq!(store.changes[0], format!("+ scaffold"));
@@ -566,10 +547,10 @@ local = "local"
         }
 
         #[rustfmt::skip]
-        let expected = " name       | input | url | commit | local \n\
-                        ------------+-------+-----+--------+-------\n \
-                         scaffold-0 | input | url | commit | local \n \
-                         scaffold-1 | input | url | commit | local ";
+        let expected = " name       | input | url | commit  | local \n\
+                        ------------+-------+-----+---------+-------\n \
+                         scaffold-0 | input | url | aaaaaaa | local \n \
+                         scaffold-1 | input | url | aaaaaaa | local ";
 
         assert_eq!(store.print_table(), expected);
 

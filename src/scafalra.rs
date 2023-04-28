@@ -390,13 +390,13 @@ mod tests {
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = format!(
             "{}\n{}\n{}\n{}",
-            scaffold_toml("a", "foo/bar", &scaffold_dir.join("a")),
-            scaffold_toml("b", "foo/bar", &scaffold_dir.join("b")),
-            scaffold_toml("c", "foo/bar", &scaffold_dir.join("c")),
+            scaffold_toml("a", "foo/bar", scaffold_dir.join("a")),
+            scaffold_toml("b", "foo/bar", scaffold_dir.join("b")),
+            scaffold_toml("c", "foo/bar", scaffold_dir.join("c")),
             scaffold_toml(
                 "node_modules",
                 "foo/bar",
-                &scaffold_dir.join("node_modules")
+                scaffold_dir.join("node_modules")
             ),
         );
 
@@ -427,7 +427,7 @@ mod tests {
         let expected_content = scaffold_toml(
             "a1",
             "foo/bar/a/a1",
-            &scaffold_dir.join("a").join("a1"),
+            scaffold_dir.join("a").join("a1"),
         );
 
         assert_eq!(store_content, expected_content);
@@ -456,21 +456,9 @@ mod tests {
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = format!(
             "{}\n{}\n{}",
-            scaffold_toml(
-                "a1",
-                "foo/bar/a",
-                &scaffold_dir.join("a").join("a1")
-            ),
-            scaffold_toml(
-                "a2",
-                "foo/bar/a",
-                &scaffold_dir.join("a").join("a2")
-            ),
-            scaffold_toml(
-                "a3",
-                "foo/bar/a",
-                &scaffold_dir.join("a").join("a3")
-            ),
+            scaffold_toml("a1", "foo/bar/a", scaffold_dir.join("a").join("a1")),
+            scaffold_toml("a2", "foo/bar/a", scaffold_dir.join("a").join("a2")),
+            scaffold_toml("a3", "foo/bar/a", scaffold_dir.join("a").join("a3")),
         );
 
         assert_eq!(store_content, expected_content);
