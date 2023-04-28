@@ -98,6 +98,8 @@ impl Repository {
 
         fs::remove_file(&tarball_path)?;
 
+        remove_dir_all(temp_dir_path)?;
+
         Ok(scaffold_path)
     }
 }
