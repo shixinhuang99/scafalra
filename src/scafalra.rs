@@ -333,7 +333,7 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = scaffold_toml("bar", "foo/bar", &scaffold_dir);
@@ -359,7 +359,7 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = scaffold_toml("foo", "foo/bar", &scaffold_dir);
@@ -385,7 +385,7 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = format!(
@@ -421,7 +421,7 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = scaffold_toml(
@@ -451,7 +451,7 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = format!(

@@ -261,7 +261,7 @@ mod tests {
             "scaffold",
             "input",
             "url",
-            "commit",
+            "aaaaaaa",
             PathBuf::from("local"),
         )
     }
@@ -291,7 +291,7 @@ mod tests {
         assert_eq!(sc.name, "scaffold");
         assert_eq!(sc.input, "input");
         assert_eq!(sc.url, "url");
-        assert_eq!(sc.commit, "commit");
+        assert_eq!(sc.commit, "aaaaaaa");
         assert_eq!(sc.local, PathBuf::from("local"));
 
         Ok(())
@@ -325,7 +325,7 @@ mod tests {
             "new scaffold",
             "new input",
             "url",
-            "commit",
+            "aaaaaaa",
             PathBuf::from("new-local"),
         ));
         stc.save(&file_path)?;

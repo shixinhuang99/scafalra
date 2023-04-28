@@ -87,7 +87,7 @@ where
 name = "{}"
 input = "{}"
 url = "url"
-commit = "commit"
+commit = "aaaaaaa"
 local = {}{}{}
 "#,
         name, input, quote, local, quote,
