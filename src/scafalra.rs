@@ -286,7 +286,7 @@ mod tests {
                         "url": "url",
                         "defaultBranchRef": {{
                             "target": {{
-                                "oid": "commit",
+                                "oid": "aaaaaaa",
                                 "tarballUrl": "{}/tarball"
                             }}
                         }}

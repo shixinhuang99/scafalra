@@ -547,10 +547,10 @@ mod tests {
         }
 
         #[rustfmt::skip]
-        let expected = " name       | input | url | commit | local \n\
-                        ------------+-------+-----+--------+-------\n \
-                         scaffold-0 | input | url | commit | local \n \
-                         scaffold-1 | input | url | commit | local ";
+        let expected = " name       | input | url | commit  | local \n\
+                        ------------+-------+-----+---------+-------\n \
+                         scaffold-0 | input | url | aaaaaaa | local \n \
+                         scaffold-1 | input | url | aaaaaaa | local ";
 
         assert_eq!(store.print_table(), expected);
 
