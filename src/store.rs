@@ -8,7 +8,7 @@ use anyhow::Result;
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
 use tabled::{
-    settings::{format::Format, object::Columns, Alignment, Modify, Style},
+    settings::{format::Format, object::Segment, Alignment, Modify, Style},
     Table, Tabled,
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
@@ -205,7 +205,7 @@ impl Store {
         let data = Vec::from_iter(self.scaffolds.values().cloned());
         let mut table = Table::new(data);
 
-        let modify = Modify::new(Columns::first())
+        let modify = Modify::new(Segment::new(1.., ..1))
             .with(Format::content(|s| s.primary()));
 
         table
