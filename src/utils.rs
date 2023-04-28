@@ -72,7 +72,7 @@ pub trait TomlContent: DeserializeOwned + Serialize + Default {
 }
 
 #[cfg(test)]
-pub fn scaffold_toml<P>(name: &str, input: &str, local: P) -> String
+pub fn scaffold_toml<P>(name: &str, local: P) -> String
 where
     P: AsRef<Path>,
 {
@@ -85,12 +85,10 @@ where
     format!(
         r#"[[scaffold]]
 name = "{}"
-input = "{}"
 url = "url"
-commit = "aaaaaaa"
 local = {}{}{}
 "#,
-        name, input, quote, local, quote,
+        name, quote, local, quote,
     )
 }
 

@@ -8,7 +8,7 @@ use anyhow::Result;
 use crate::{
     cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
     config::Config,
-    github_api::GitHubApi,
+    github_api::{GitHubApi, GitHubApiResult},
     repository::Repository,
     store::{Scaffold, Store},
 };
@@ -88,13 +88,16 @@ impl Scafalra {
 
         let api_result = self.github_api.request(&repo)?;
 
+        let GitHubApiResult {
+            url,
+            oid,
+            tarball_url,
+        } = api_result;
+
         let mut scaffold_name = args.name.unwrap_or(repo.name.clone());
 
-        let mut scaffold_path = repo.cache(
-            &api_result.tarball_url,
-            &self.cache_dir,
-            &api_result.oid,
-        )?;
+        let mut scaffold_path =
+            repo.cache(&tarball_url, &self.cache_dir, &oid)?;
 
         if let Some(subdir) = repo.subdir {
             Path::new(&subdir)
@@ -113,10 +116,8 @@ impl Scafalra {
             self.store.add(
                 scaffold_name.clone(),
                 Scaffold::new(
-                    &scaffold_name,
-                    &repo.input,
-                    &api_result.url,
-                    &api_result.oid,
+                    scaffold_name,
+                    url.clone(),
                     scaffold_path.clone(),
                 ),
             )
@@ -131,13 +132,7 @@ impl Scafalra {
                 if file_type.is_dir() && !file_name.starts_with('.') {
                     self.store.add(
                         file_name.clone(),
-                        Scaffold::new(
-                            &file_name,
-                            &repo.input,
-                            &api_result.url,
-                            &api_result.oid,
-                            entry.path(),
-                        ),
+                        Scaffold::new(file_name, url.clone(), entry.path()),
                     )
                 }
             }
@@ -202,10 +197,7 @@ impl Scafalra {
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        path::{Path, PathBuf},
-    };
+    use std::{fs, path::PathBuf};
 
     use anyhow::Result;
     use mockito::{Mock, ServerGuard};
@@ -228,12 +220,8 @@ mod tests {
     ) -> Result<(Scafalra, TempDir, Paths)> {
         let dir = tempdir()?;
         let dir_path = dir.path();
-        let root_dir = PathBuf::from_iter([dir_path, Path::new(".scafalra")]);
-        let cache_dir = PathBuf::from_iter([
-            dir_path,
-            Path::new(".scafalra"),
-            Path::new("cache"),
-        ]);
+        let root_dir = dir_path.join(".scafalra");
+        let cache_dir = root_dir.join("cache");
         let store_file = root_dir.join("store.toml");
         let config_file = root_dir.join("config.toml");
 
@@ -244,7 +232,7 @@ mod tests {
             fs::File::create(scaffold_dir.join("a").join("foo.txt"))?;
             fs::File::create(&store_file)?;
 
-            let content = scaffold_toml("bar", "foo/bar", &scaffold_dir);
+            let content = scaffold_toml("bar", scaffold_dir);
 
             fs::write(&store_file, content)?;
         }
@@ -336,9 +324,9 @@ mod tests {
         let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
-        let expected_content = scaffold_toml("bar", "foo/bar", &scaffold_dir);
+        let expected = scaffold_toml("bar", &scaffold_dir);
 
-        assert_eq!(store_content, expected_content);
+        assert_eq!(store_content, expected);
         assert!(scaffold_dir.exists());
 
         Ok(())
@@ -362,9 +350,9 @@ mod tests {
         let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
-        let expected_content = scaffold_toml("foo", "foo/bar", &scaffold_dir);
+        let expected = scaffold_toml("foo", &scaffold_dir);
 
-        assert_eq!(store_content, expected_content);
+        assert_eq!(store_content, expected);
         assert!(scaffold_dir.exists());
 
         Ok(())
@@ -388,19 +376,15 @@ mod tests {
         let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
-        let expected_content = format!(
+        let expected = format!(
             "{}\n{}\n{}\n{}",
-            scaffold_toml("a", "foo/bar", scaffold_dir.join("a")),
-            scaffold_toml("b", "foo/bar", scaffold_dir.join("b")),
-            scaffold_toml("c", "foo/bar", scaffold_dir.join("c")),
-            scaffold_toml(
-                "node_modules",
-                "foo/bar",
-                scaffold_dir.join("node_modules")
-            ),
+            scaffold_toml("a", scaffold_dir.join("a")),
+            scaffold_toml("b", scaffold_dir.join("b")),
+            scaffold_toml("c", scaffold_dir.join("c")),
+            scaffold_toml("node_modules", scaffold_dir.join("node_modules")),
         );
 
-        assert_eq!(store_content, expected_content);
+        assert_eq!(store_content, expected);
         assert!(scaffold_dir.exists());
 
         Ok(())
@@ -424,13 +408,9 @@ mod tests {
         let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
-        let expected_content = scaffold_toml(
-            "a1",
-            "foo/bar/a/a1",
-            scaffold_dir.join("a").join("a1"),
-        );
+        let expected = scaffold_toml("a1", scaffold_dir.join("a").join("a1"));
 
-        assert_eq!(store_content, expected_content);
+        assert_eq!(store_content, expected);
         assert!(scaffold_dir.exists());
 
         Ok(())
@@ -454,14 +434,14 @@ mod tests {
         let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
         let store_content = fs::read_to_string(paths.store_file)?;
-        let expected_content = format!(
+        let expected = format!(
             "{}\n{}\n{}",
-            scaffold_toml("a1", "foo/bar/a", scaffold_dir.join("a").join("a1")),
-            scaffold_toml("a2", "foo/bar/a", scaffold_dir.join("a").join("a2")),
-            scaffold_toml("a3", "foo/bar/a", scaffold_dir.join("a").join("a3")),
+            scaffold_toml("a1", scaffold_dir.join("a").join("a1")),
+            scaffold_toml("a2", scaffold_dir.join("a").join("a2")),
+            scaffold_toml("a3", scaffold_dir.join("a").join("a3")),
         );
 
-        assert_eq!(store_content, expected_content);
+        assert_eq!(store_content, expected);
         assert!(scaffold_dir.exists());
 
         Ok(())
@@ -481,7 +461,6 @@ mod tests {
         })?;
 
         assert!(dir_path.exists());
-
         assert!(dir_path.join("bar").join("a").join("foo.txt").exists());
 
         Ok(())

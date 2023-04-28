@@ -8,7 +8,7 @@ use anyhow::Result;
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
 use tabled::{
-    settings::{format::Format, object::Columns, Alignment, Modify, Style},
+    settings::{format::Format, object::Segment, Alignment, Modify, Style},
     Table, Tabled,
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
@@ -32,10 +32,7 @@ impl TomlContent for StoreContent {}
 #[derive(Deserialize, Serialize, Clone, Tabled)]
 pub struct Scaffold {
     pub name: String,
-    pub input: String,
     pub url: String,
-    pub commit: String,
-
     #[tabled(display_with = "display_local")]
     pub local: PathBuf,
 }
@@ -45,19 +42,15 @@ fn display_local(local: &Path) -> String {
 }
 
 impl Scaffold {
-    pub fn new(
-        name: &str,
-        input: &str,
-        url: &str,
-        commit: &str,
-        local: PathBuf,
-    ) -> Self {
+    pub fn new<T, P>(name: T, url: T, local: P) -> Self
+    where
+        T: AsRef<str>,
+        P: AsRef<Path>,
+    {
         Self {
-            name: name.to_string(),
-            input: input.to_string(),
-            url: url.to_string(),
-            commit: commit.to_string(),
-            local,
+            name: String::from(name.as_ref()),
+            url: String::from(url.as_ref()),
+            local: PathBuf::from(local.as_ref()),
         }
     }
 }
@@ -212,7 +205,7 @@ impl Store {
         let data = Vec::from_iter(self.scaffolds.values().cloned());
         let mut table = Table::new(data);
 
-        let modify = Modify::new(Columns::first())
+        let modify = Modify::new(Segment::new(1.., ..1))
             .with(Format::content(|s| s.primary()));
 
         table
@@ -249,7 +242,7 @@ mod tests {
         let mut file = fs::File::create(&store_file_path)?;
 
         if with_content {
-            let content = scaffold_toml("scaffold", "input", "local");
+            let content = scaffold_toml("scaffold", "local");
             file.write_all(content.as_bytes())?;
         }
 
@@ -257,13 +250,7 @@ mod tests {
     }
 
     fn build_scaffold() -> Scaffold {
-        Scaffold::new(
-            "scaffold",
-            "input",
-            "url",
-            "aaaaaaa",
-            PathBuf::from("local"),
-        )
+        Scaffold::new("scaffold", "url", PathBuf::from("local"))
     }
 
     fn build_store_content(
@@ -289,9 +276,7 @@ mod tests {
         assert_eq!(stc.scaffolds.len(), 1);
         let sc = &stc.scaffolds[0];
         assert_eq!(sc.name, "scaffold");
-        assert_eq!(sc.input, "input");
         assert_eq!(sc.url, "url");
-        assert_eq!(sc.commit, "aaaaaaa");
         assert_eq!(sc.local, PathBuf::from("local"));
 
         Ok(())
@@ -323,9 +308,7 @@ mod tests {
         let (mut stc, _dir, file_path) = build_store_content(true)?;
         stc.scaffolds.push(Scaffold::new(
             "new scaffold",
-            "new input",
             "url",
-            "aaaaaaa",
             PathBuf::from("new-local"),
         ));
         stc.save(&file_path)?;
@@ -333,8 +316,8 @@ mod tests {
         let content = fs::read_to_string(&file_path)?;
         let expected_content = format!(
             "{}\n{}",
-            scaffold_toml("scaffold", "input", "local"),
-            scaffold_toml("new scaffold", "new input", "new-local")
+            scaffold_toml("scaffold", "local"),
+            scaffold_toml("new scaffold", "new-local")
         );
 
         assert_eq!(content, expected_content);
@@ -384,7 +367,7 @@ mod tests {
         store.save()?;
 
         let content = fs::read_to_string(file_path)?;
-        let expected_content = scaffold_toml("scaffold", "input", "local");
+        let expected_content = scaffold_toml("scaffold", "local");
 
         assert_eq!(content, expected_content);
         assert_eq!(store.changes.len(), 1);
@@ -425,7 +408,7 @@ mod tests {
 
         let local = dir.path().join("foo");
         fs::create_dir(&local)?;
-        let content = scaffold_toml("scaffold", "input", &local);
+        let content = scaffold_toml("scaffold", &local);
         fs::write(store_file_path, content)?;
         let mut store = Store::new(dir.path())?;
 
@@ -547,10 +530,10 @@ mod tests {
         }
 
         #[rustfmt::skip]
-        let expected = " name       | input | url | commit  | local \n\
-                        ------------+-------+-----+---------+-------\n \
-                         scaffold-0 | input | url | aaaaaaa | local \n \
-                         scaffold-1 | input | url | aaaaaaa | local ";
+        let expected = " name       | url | local \n\
+                        ------------+-----+-------\n \
+                         scaffold-0 | url | local \n \
+                         scaffold-1 | url | local ";
 
         assert_eq!(store.print_table(), expected);
 
