@@ -72,30 +72,25 @@ pub trait TomlContent: DeserializeOwned + Serialize + Default {
 }
 
 #[cfg(test)]
-pub fn scaffold_toml(
-    name: &str,
-    input: &str,
-    local: &std::path::Path,
-) -> String {
-    #[cfg(windows)]
-    let quote = "'";
+pub fn scaffold_toml<P>(name: &str, input: &str, local: P) -> String
+where
+    P: AsRef<Path>,
+{
+    use std::path::PathBuf;
 
-    #[cfg(not(windows))]
-    let quote = r#"""#;
+    let local = PathBuf::from(local.as_ref()).display().to_string();
+
+    let quote = if local.contains('\\') { '\'' } else { '"' };
 
     format!(
         r#"[[scaffold]]
 name = "{}"
 input = "{}"
 url = "url"
-commit = "aaaaaaa"
+commit = "commit"
 local = {}{}{}
 "#,
-        name,
-        input,
-        quote,
-        local.display(),
-        quote,
+        name, input, quote, local, quote,
     )
 }
 

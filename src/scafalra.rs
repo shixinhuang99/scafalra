@@ -286,7 +286,7 @@ mod tests {
                         "url": "url",
                         "defaultBranchRef": {{
                             "target": {{
-                                "oid": "aaaaaaa",
+                                "oid": "commit",
                                 "tarballUrl": "{}/tarball"
                             }}
                         }}
@@ -333,7 +333,7 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = scaffold_toml("bar", "foo/bar", &scaffold_dir);
@@ -359,7 +359,7 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = scaffold_toml("foo", "foo/bar", &scaffold_dir);
@@ -385,18 +385,18 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = format!(
             "{}\n{}\n{}\n{}",
-            scaffold_toml("a", "foo/bar", &scaffold_dir.join("a")),
-            scaffold_toml("b", "foo/bar", &scaffold_dir.join("b")),
-            scaffold_toml("c", "foo/bar", &scaffold_dir.join("c")),
+            scaffold_toml("a", "foo/bar", scaffold_dir.join("a")),
+            scaffold_toml("b", "foo/bar", scaffold_dir.join("b")),
+            scaffold_toml("c", "foo/bar", scaffold_dir.join("c")),
             scaffold_toml(
                 "node_modules",
                 "foo/bar",
-                &scaffold_dir.join("node_modules")
+                scaffold_dir.join("node_modules")
             ),
         );
 
@@ -421,13 +421,13 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = scaffold_toml(
             "a1",
             "foo/bar/a/a1",
-            &scaffold_dir.join("a").join("a1"),
+            scaffold_dir.join("a").join("a1"),
         );
 
         assert_eq!(store_content, expected_content);
@@ -451,26 +451,14 @@ mod tests {
         tarball_mock.assert();
         api_mock.assert();
 
-        let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
+        let scaffold_dir = paths.cache_dir.join("foo-bar-commit");
 
         let store_content = fs::read_to_string(paths.store_file)?;
         let expected_content = format!(
             "{}\n{}\n{}",
-            scaffold_toml(
-                "a1",
-                "foo/bar/a",
-                &scaffold_dir.join("a").join("a1")
-            ),
-            scaffold_toml(
-                "a2",
-                "foo/bar/a",
-                &scaffold_dir.join("a").join("a2")
-            ),
-            scaffold_toml(
-                "a3",
-                "foo/bar/a",
-                &scaffold_dir.join("a").join("a3")
-            ),
+            scaffold_toml("a1", "foo/bar/a", scaffold_dir.join("a").join("a1")),
+            scaffold_toml("a2", "foo/bar/a", scaffold_dir.join("a").join("a2")),
+            scaffold_toml("a3", "foo/bar/a", scaffold_dir.join("a").join("a3")),
         );
 
         assert_eq!(store_content, expected_content);
