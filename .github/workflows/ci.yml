@@ -10,7 +10,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-    general-check:
+  general-check:
     runs-on: ubuntu-latest
 
     steps:
