@@ -113,14 +113,11 @@ impl Scafalra {
         }
 
         if args.depth == 0 {
-            self.store.add(
-                scaffold_name.clone(),
-                Scaffold::new(
-                    scaffold_name,
-                    url.clone(),
-                    scaffold_path.clone(),
-                ),
-            )
+            self.store.add(Scaffold::new(
+                scaffold_name,
+                url.clone(),
+                scaffold_path.clone(),
+            ))
         }
 
         if args.depth == 1 {
@@ -130,10 +127,11 @@ impl Scafalra {
                 let file_name = entry.file_name().to_string_lossy().to_string();
 
                 if file_type.is_dir() && !file_name.starts_with('.') {
-                    self.store.add(
-                        file_name.clone(),
-                        Scaffold::new(file_name, url.clone(), entry.path()),
-                    )
+                    self.store.add(Scaffold::new(
+                        file_name,
+                        url.clone(),
+                        entry.path(),
+                    ))
                 }
             }
         }
@@ -151,7 +149,7 @@ impl Scafalra {
         let scaffold = self.store.get(&args.name);
 
         let Some(scaffold) = scaffold else {
-            anyhow::bail!("Not found: `{}`", args.name);
+            anyhow::bail!("No such scaffold `{}`", args.name);
         };
 
         let target_dir = if let Some(dir) = args.directory {
@@ -171,7 +169,7 @@ impl Scafalra {
             &fs_extra::dir::CopyOptions::new().content_only(true),
         )?;
 
-        println!("\rCreated in `{}`", target_dir.display());
+        println!("Created in `{}`", target_dir.display());
 
         Ok(())
     }
@@ -185,8 +183,12 @@ impl Scafalra {
     }
 
     pub fn remove(&mut self, args: RemoveArgs) -> Result<()> {
-        for name in args.names {
-            self.store.remove(name)?;
+        use crate::utils::DedupExt;
+
+        let names = args.names.dedup_without_sort();
+
+        for name in names {
+            self.store.remove(&name)?;
         }
 
         self.store.save()?;

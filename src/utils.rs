@@ -6,7 +6,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use ureq::{Agent, AgentBuilder, Proxy};
 
 pub fn build_proxy_agent() -> Agent {
-    let env_proxy = env::var("https_proxy").or(env::var("http_proxy"));
+    let env_proxy = env::var("https_proxy").or_else(|_| env::var("http_proxy"));
     let agent = AgentBuilder::new();
 
     if let Ok(env_proxy) = env_proxy {
@@ -35,7 +35,7 @@ where
 
 pub trait Colorize: Sized + std::fmt::Display {
     fn primary(&self) -> String {
-        to_custom_color(self, |s| s.fg::<xterm::UserBlue>()).to_string()
+        to_custom_color(self, |s| s.fg::<xterm::Cyan>()).to_string()
     }
 
     fn error(&self) -> String {
@@ -92,14 +92,37 @@ local = {}{}{}
     )
 }
 
+pub trait DedupExt {
+    fn dedup_without_sort(self) -> Self;
+}
+
+impl DedupExt for Vec<String> {
+    fn dedup_without_sort(self) -> Self {
+        use std::collections::HashSet;
+
+        let set: HashSet<String> = HashSet::from_iter(self);
+
+        set.into_iter().collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::{Colorize, DedupExt};
 
     #[test]
     fn no_color_in_test() {
-        use super::Colorize;
-
         assert_eq!("foo".primary(), "foo");
         assert_eq!("foo".to_string().primary(), "foo");
+    }
+
+    #[test]
+    fn dedup_ok() {
+        let cases =
+            Vec::from_iter(["foo", "bar", "foo"].map(|v| v.to_string()));
+
+        let cases = cases.dedup_without_sort();
+
+        assert_eq!(cases, Vec::from_iter(["foo", "bar"].map(|v| v.to_string())))
     }
 }

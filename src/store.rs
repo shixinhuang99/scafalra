@@ -13,12 +13,24 @@ use tabled::{
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::utils::{Colorize, TomlContent};
+use crate::utils::TomlContent;
 
 mod log_symbols {
-    pub const ADD: &str = "+";
-    pub const REMOVE: &str = "-";
-    pub const ERROR: &str = "x";
+    use once_cell::sync::Lazy;
+
+    use crate::utils::Colorize;
+
+    pub struct LazyString(Lazy<String>);
+
+    impl std::fmt::Display for LazyString {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0.as_str())
+        }
+    }
+
+    pub static ADD: LazyString = LazyString(Lazy::new(|| "+".success()));
+
+    pub static REMOVE: LazyString = LazyString(Lazy::new(|| "-".error()));
 }
 
 #[derive(Deserialize, Serialize, Default)]
@@ -121,42 +133,27 @@ impl Store {
         Ok(())
     }
 
-    pub fn add(&mut self, name: String, scaffold: Scaffold) {
-        if self.scaffolds.contains_key(&name) {
-            self.changes.push(format!(
-                "{} {}",
-                log_symbols::REMOVE.success(),
-                &name
-            ));
+    pub fn add(&mut self, scaffold: Scaffold) {
+        let name: &str = scaffold.name.as_ref();
+
+        if self.scaffolds.contains_key(name) {
+            self.changes
+                .push(format!("{} {}", log_symbols::REMOVE, name));
         }
 
-        self.changes
-            .push(format!("{} {}", log_symbols::ADD.success(), &name));
+        self.changes.push(format!("{} {}", log_symbols::ADD, name));
 
-        self.scaffolds.insert(name, scaffold);
+        self.scaffolds.insert(scaffold.name.clone(), scaffold);
     }
 
-    pub fn remove(&mut self, name: String) -> Result<()> {
-        match self.scaffolds.get(&name) {
-            Some(sc) => {
-                remove_dir_all(Path::new(&sc.local))?;
+    pub fn remove(&mut self, name: &str) -> Result<()> {
+        if let Some(sc) = self.scaffolds.get(name) {
+            remove_dir_all(&sc.local)?;
 
-                self.changes.push(format!(
-                    "{} {}",
-                    log_symbols::REMOVE.success(),
-                    &name
-                ));
+            self.changes
+                .push(format!("{} {}", log_symbols::REMOVE, name));
 
-                self.scaffolds.remove(&name);
-            }
-            None => {
-                self.changes.push(format!(
-                    "{} {} {}",
-                    log_symbols::ERROR.error(),
-                    &name,
-                    "not found".error()
-                ));
-            }
+            self.scaffolds.remove(name);
         }
 
         Ok(())
@@ -164,31 +161,27 @@ impl Store {
 
     pub fn rename(&mut self, name: &str, new_name: &str) {
         if self.scaffolds.contains_key(new_name) {
-            println!(r#""{}" already exists"#, new_name);
+            println!("`{}` already exists", new_name);
             return;
         }
 
         match self.scaffolds.remove(name) {
             Some(sc) => {
                 self.scaffolds.insert(new_name.to_string(), sc);
-                self.changes.push(format!(
-                    "{} {}",
-                    log_symbols::REMOVE.success(),
-                    name
-                ));
-                self.changes.push(format!(
-                    "{} {}",
-                    log_symbols::ADD.success(),
-                    new_name
-                ));
+                self.changes
+                    .push(format!("{} {}", log_symbols::REMOVE, name));
+                self.changes
+                    .push(format!("{} {}", log_symbols::ADD, new_name));
             }
             None => {
-                println!(r#""{}" not found"#, name);
+                println!("No such scaffold `{}`", name);
             }
         };
     }
 
     pub fn print_grid(&self) -> String {
+        use crate::utils::Colorize;
+
         let mut grid = Grid::new(GridOptions {
             filling: Filling::Spaces(4),
             direction: Direction::LeftToRight,
@@ -198,10 +191,12 @@ impl Store {
             grid.add(Cell::from(key.primary()));
         });
 
-        grid.fit_into_columns(6).to_string()
+        grid.fit_into_columns(6).to_string().trim_end().to_string()
     }
 
     pub fn print_table(&self) -> String {
+        use crate::utils::Colorize;
+
         let data = Vec::from_iter(self.scaffolds.values().cloned());
         let mut table = Table::new(data);
 
@@ -363,7 +358,7 @@ mod tests {
         let (mut store, _dir, file_path) = build_store(false)?;
         let sc = build_scaffold();
 
-        store.add(sc.name.clone(), sc);
+        store.add(sc);
         store.save()?;
 
         let content = fs::read_to_string(file_path)?;
@@ -380,7 +375,7 @@ mod tests {
     fn store_add() -> Result<()> {
         let (mut store, _dir, _) = build_store(false)?;
         let sc = build_scaffold();
-        store.add(sc.name.clone(), sc);
+        store.add(sc);
 
         assert_eq!(store.scaffolds.len(), 1);
         assert!(store.scaffolds.contains_key("scaffold"));
@@ -393,7 +388,7 @@ mod tests {
     fn store_add_same() -> Result<()> {
         let (mut store, _dir, _) = build_store(true)?;
         let sc = build_scaffold();
-        store.add(sc.name.clone(), sc);
+        store.add(sc);
 
         assert_eq!(store.scaffolds.len(), 1);
         assert!(store.scaffolds.contains_key("scaffold"));
@@ -413,7 +408,7 @@ mod tests {
         let mut store = Store::new(dir.path())?;
 
         assert!(local.exists());
-        store.remove("scaffold".to_string())?;
+        store.remove("scaffold")?;
 
         assert!(!local.exists());
         assert_eq!(store.scaffolds.len(), 0);
@@ -425,9 +420,9 @@ mod tests {
     #[test]
     fn store_remove_not_found() -> Result<()> {
         let (mut store, _dir, _) = build_store(true)?;
-        store.remove("foo".to_string())?;
+        store.remove("foo")?;
 
-        assert_eq!(store.changes, vec!["x foo not found"]);
+        assert_eq!(store.changes, Vec::<String>::new());
 
         Ok(())
     }
@@ -469,13 +464,13 @@ mod tests {
         for i in 0..5 {
             let mut sc = build_scaffold();
             sc.name.push_str(&format!("-{}", i));
-            store.add(sc.name.clone(), sc);
+            store.add(sc);
         }
 
         assert_eq!(
             store.print_grid(),
             "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
-             scaffold-4    \n"
+             scaffold-4"
         );
 
         Ok(())
@@ -488,13 +483,13 @@ mod tests {
         for i in 0..6 {
             let mut sc = build_scaffold();
             sc.name.push_str(&format!("-{}", i));
-            store.add(sc.name.clone(), sc);
+            store.add(sc);
         }
 
         assert_eq!(
             store.print_grid(),
             "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
-             scaffold-4    scaffold-5\n"
+             scaffold-4    scaffold-5"
         );
 
         Ok(())
@@ -507,13 +502,13 @@ mod tests {
         for i in 0..7 {
             let mut sc = build_scaffold();
             sc.name.push_str(&format!("-{}", i));
-            store.add(sc.name.clone(), sc);
+            store.add(sc);
         }
 
         assert_eq!(
             store.print_grid(),
             "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
-             scaffold-4    scaffold-5\nscaffold-6    \n"
+             scaffold-4    scaffold-5\nscaffold-6"
         );
 
         Ok(())
@@ -526,7 +521,7 @@ mod tests {
         for i in 0..2 {
             let mut sc = build_scaffold();
             sc.name.push_str(&format!("-{}", i));
-            store.add(sc.name.clone(), sc);
+            store.add(sc);
         }
 
         #[rustfmt::skip]
