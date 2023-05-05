@@ -92,14 +92,37 @@ local = {}{}{}
     )
 }
 
+pub trait DedupExt {
+    fn dedup_without_sort(self) -> Self;
+}
+
+impl DedupExt for Vec<String> {
+    fn dedup_without_sort(self) -> Self {
+        use std::collections::HashSet;
+
+        let set: HashSet<String> = HashSet::from_iter(self);
+
+        set.into_iter().collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use super::{Colorize, DedupExt};
 
     #[test]
     fn no_color_in_test() {
-        use super::Colorize;
-
         assert_eq!("foo".primary(), "foo");
         assert_eq!("foo".to_string().primary(), "foo");
+    }
+
+    #[test]
+    fn dedup_ok() {
+        let cases =
+            Vec::from_iter(["foo", "bar", "foo"].map(|v| v.to_string()));
+
+        let cases = cases.dedup_without_sort();
+
+        assert_eq!(cases, Vec::from_iter(["foo", "bar"].map(|v| v.to_string())))
     }
 }
