@@ -183,11 +183,7 @@ impl Scafalra {
     }
 
     pub fn remove(&mut self, args: RemoveArgs) -> Result<()> {
-        use crate::utils::DedupExt;
-
-        let names = args.names.dedup_without_sort();
-
-        for name in names {
+        for name in args.names {
             self.store.remove(&name)?;
         }
 
