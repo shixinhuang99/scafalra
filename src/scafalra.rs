@@ -151,7 +151,7 @@ impl Scafalra {
         let scaffold = self.store.get(&args.name);
 
         let Some(scaffold) = scaffold else {
-            anyhow::bail!("Not found: `{}`", args.name);
+            anyhow::bail!("No such scaffold `{}`", args.name);
         };
 
         let target_dir = if let Some(dir) = args.directory {
@@ -171,7 +171,7 @@ impl Scafalra {
             &fs_extra::dir::CopyOptions::new().content_only(true),
         )?;
 
-        println!("\rCreated in `{}`", target_dir.display());
+        println!("Created in `{}`", target_dir.display());
 
         Ok(())
     }

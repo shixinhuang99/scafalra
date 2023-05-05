@@ -22,7 +22,6 @@ pub struct Repository {
     pub name: String,
     pub subdir: Option<String>,
     pub query: Option<Query>,
-    pub input: String,
 }
 
 #[derive(PartialEq, Debug)]
@@ -36,7 +35,7 @@ impl Repository {
     pub fn new(input: &str) -> Result<Self> {
         let caps = REPO_RE
             .captures(input)
-            .ok_or(anyhow!("Could not parse the input: '{}'", input))?;
+            .ok_or(anyhow!("Could not parse the input: `{}`", input))?;
 
         let owner = caps[1].to_string();
         let name = caps[2].to_string();
@@ -57,7 +56,6 @@ impl Repository {
             name,
             subdir,
             query,
-            input: input.to_string(),
         })
     }
 
@@ -218,7 +216,6 @@ mod tests {
 
         assert_eq!(repo.owner, "test");
         assert_eq!(repo.name, "repository");
-        assert_eq!(repo.input, "test/repository");
 
         Ok(())
     }
@@ -231,7 +228,6 @@ mod tests {
         assert_eq!(repo.name, "repository");
         assert_eq!(repo.subdir.unwrap(), "/path/to/dir");
         assert_eq!(repo.query.unwrap(), Query::Branch("main".to_string()));
-        assert_eq!(repo.input, "test/repository/path/to/dir?branch=main");
 
         Ok(())
     }

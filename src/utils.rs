@@ -6,7 +6,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use ureq::{Agent, AgentBuilder, Proxy};
 
 pub fn build_proxy_agent() -> Agent {
-    let env_proxy = env::var("https_proxy").or(env::var("http_proxy"));
+    let env_proxy = env::var("https_proxy").or_else(|_| env::var("http_proxy"));
     let agent = AgentBuilder::new();
 
     if let Ok(env_proxy) = env_proxy {
@@ -35,7 +35,7 @@ where
 
 pub trait Colorize: Sized + std::fmt::Display {
     fn primary(&self) -> String {
-        to_custom_color(self, |s| s.fg::<xterm::UserBlue>()).to_string()
+        to_custom_color(self, |s| s.fg::<xterm::Cyan>()).to_string()
     }
 
     fn error(&self) -> String {

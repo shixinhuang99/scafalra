@@ -200,7 +200,6 @@ mod tests {
             name: "scafalra".to_string(),
             subdir: None,
             query: None,
-            input: "shixinhuang99/scafalra".to_string(),
         }
     }
 

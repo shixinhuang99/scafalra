@@ -159,7 +159,7 @@ impl Store {
 
     pub fn rename(&mut self, name: &str, new_name: &str) {
         if self.scaffolds.contains_key(new_name) {
-            println!(r#""{}" already exists"#, new_name);
+            println!("`{}` already exists", new_name);
             return;
         }
 
@@ -172,7 +172,7 @@ impl Store {
                     .push(format!("{} {}", log_symbols::ADD, new_name));
             }
             None => {
-                println!(r#""{}" not found"#, name);
+                println!("No such scaffold `{}`", name);
             }
         };
     }
@@ -189,7 +189,7 @@ impl Store {
             grid.add(Cell::from(key.primary()));
         });
 
-        grid.fit_into_columns(6).to_string()
+        grid.fit_into_columns(6).to_string().trim_end().to_string()
     }
 
     pub fn print_table(&self) -> String {
@@ -468,7 +468,7 @@ mod tests {
         assert_eq!(
             store.print_grid(),
             "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
-             scaffold-4    \n"
+             scaffold-4"
         );
 
         Ok(())
@@ -487,7 +487,7 @@ mod tests {
         assert_eq!(
             store.print_grid(),
             "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
-             scaffold-4    scaffold-5\n"
+             scaffold-4    scaffold-5"
         );
 
         Ok(())
@@ -506,7 +506,7 @@ mod tests {
         assert_eq!(
             store.print_grid(),
             "scaffold-0    scaffold-1    scaffold-2    scaffold-3    \
-             scaffold-4    scaffold-5\nscaffold-6    \n"
+             scaffold-4    scaffold-5\nscaffold-6"
         );
 
         Ok(())
