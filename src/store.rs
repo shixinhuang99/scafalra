@@ -13,12 +13,24 @@ use tabled::{
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::utils::{Colorize, TomlContent};
+use crate::utils::TomlContent;
 
 mod log_symbols {
-    pub const ADD: &str = "+";
-    pub const REMOVE: &str = "-";
-    pub const ERROR: &str = "x";
+    use once_cell::sync::Lazy;
+
+    use crate::utils::Colorize;
+
+    pub struct LazyString(Lazy<String>);
+
+    impl std::fmt::Display for LazyString {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0.as_str())
+        }
+    }
+
+    pub static ADD: LazyString = LazyString(Lazy::new(|| "+".success()));
+
+    pub static REMOVE: LazyString = LazyString(Lazy::new(|| "-".error()));
 }
 
 #[derive(Deserialize, Serialize, Default)]
@@ -123,40 +135,23 @@ impl Store {
 
     pub fn add(&mut self, name: String, scaffold: Scaffold) {
         if self.scaffolds.contains_key(&name) {
-            self.changes.push(format!(
-                "{} {}",
-                log_symbols::REMOVE.success(),
-                &name
-            ));
+            self.changes
+                .push(format!("{} {}", log_symbols::REMOVE, &name));
         }
 
-        self.changes
-            .push(format!("{} {}", log_symbols::ADD.success(), &name));
+        self.changes.push(format!("{} {}", log_symbols::ADD, &name));
 
         self.scaffolds.insert(name, scaffold);
     }
 
     pub fn remove(&mut self, name: String) -> Result<()> {
-        match self.scaffolds.get(&name) {
-            Some(sc) => {
-                remove_dir_all(Path::new(&sc.local))?;
+        if let Some(sc) = self.scaffolds.get(&name) {
+            remove_dir_all(Path::new(&sc.local))?;
 
-                self.changes.push(format!(
-                    "{} {}",
-                    log_symbols::REMOVE.success(),
-                    &name
-                ));
+            self.changes
+                .push(format!("{} {}", log_symbols::REMOVE, &name));
 
-                self.scaffolds.remove(&name);
-            }
-            None => {
-                self.changes.push(format!(
-                    "{} {} {}",
-                    log_symbols::ERROR.error(),
-                    &name,
-                    "not found".error()
-                ));
-            }
+            self.scaffolds.remove(&name);
         }
 
         Ok(())
@@ -171,16 +166,10 @@ impl Store {
         match self.scaffolds.remove(name) {
             Some(sc) => {
                 self.scaffolds.insert(new_name.to_string(), sc);
-                self.changes.push(format!(
-                    "{} {}",
-                    log_symbols::REMOVE.success(),
-                    name
-                ));
-                self.changes.push(format!(
-                    "{} {}",
-                    log_symbols::ADD.success(),
-                    new_name
-                ));
+                self.changes
+                    .push(format!("{} {}", log_symbols::REMOVE, name));
+                self.changes
+                    .push(format!("{} {}", log_symbols::ADD, new_name));
             }
             None => {
                 println!(r#""{}" not found"#, name);
@@ -189,6 +178,8 @@ impl Store {
     }
 
     pub fn print_grid(&self) -> String {
+        use crate::utils::Colorize;
+
         let mut grid = Grid::new(GridOptions {
             filling: Filling::Spaces(4),
             direction: Direction::LeftToRight,
@@ -202,6 +193,8 @@ impl Store {
     }
 
     pub fn print_table(&self) -> String {
+        use crate::utils::Colorize;
+
         let data = Vec::from_iter(self.scaffolds.values().cloned());
         let mut table = Table::new(data);
 
@@ -427,7 +420,7 @@ mod tests {
         let (mut store, _dir, _) = build_store(true)?;
         store.remove("foo".to_string())?;
 
-        assert_eq!(store.changes, vec!["x foo not found"]);
+        assert_eq!(store.changes, Vec::<String>::new());
 
         Ok(())
     }
