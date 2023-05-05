@@ -48,7 +48,6 @@ struct Variable {
     owner: String,
     expression: Option<String>,
     oid: Option<String>,
-
     #[serde(rename = "notDefaultBranch")]
     not_default_branch: bool,
 }
@@ -158,7 +157,6 @@ impl GitHubApi {
 #[derive(Deserialize)]
 struct GitHubApiResponse<'a> {
     data: Option<GitHubApiData>,
-
     #[allow(dead_code)]
     #[serde(skip_deserializing)]
     errors: Option<&'a str>,
@@ -172,10 +170,8 @@ struct GitHubApiData {
 #[derive(Deserialize)]
 struct RepositoryData {
     url: String,
-
     #[serde(rename = "defaultBranchRef")]
     default_branch_ref: DefaultBranchRef,
-
     object: Option<Target>,
 }
 
@@ -187,7 +183,6 @@ struct DefaultBranchRef {
 #[derive(Deserialize)]
 struct Target {
     oid: String,
-
     #[serde(rename = "tarballUrl")]
     tarball_url: String,
 }
@@ -213,11 +208,11 @@ mod tests {
     fn variable_basic() {
         let v = Variable::new(&build_repository());
 
-        assert_eq!("scafalra", &v.name);
-        assert_eq!("shixinhuang99", &v.owner);
-        assert_eq!(None, v.oid);
-        assert_eq!(None, v.expression);
-        assert_eq!(false, v.not_default_branch);
+        assert_eq!(&v.name, "scafalra");
+        assert_eq!(&v.owner, "shixinhuang99");
+        assert_eq!(v.oid, None);
+        assert_eq!(v.expression, None);
+        assert_eq!(v.not_default_branch, false);
     }
 
     #[test]
@@ -227,11 +222,11 @@ mod tests {
             ..build_repository()
         });
 
-        assert_eq!("scafalra", &v.name);
-        assert_eq!("shixinhuang99", &v.owner);
-        assert_eq!(None, v.oid);
-        assert_eq!(Some("refs/heads/foo".to_string()), v.expression);
-        assert_eq!(true, v.not_default_branch);
+        assert_eq!(&v.name, "scafalra");
+        assert_eq!(&v.owner, "shixinhuang99");
+        assert_eq!(v.oid, None);
+        assert_eq!(v.expression, Some("refs/heads/foo".to_string()));
+        assert_eq!(v.not_default_branch, true);
     }
 
     #[test]
@@ -241,11 +236,11 @@ mod tests {
             ..build_repository()
         });
 
-        assert_eq!("scafalra", &v.name);
-        assert_eq!("shixinhuang99", &v.owner);
-        assert_eq!(None, v.oid);
-        assert_eq!(Some("refs/tags/foo".to_string()), v.expression);
-        assert_eq!(true, v.not_default_branch);
+        assert_eq!(&v.name, "scafalra");
+        assert_eq!(&v.owner, "shixinhuang99");
+        assert_eq!(v.oid, None);
+        assert_eq!(v.expression, Some("refs/tags/foo".to_string()));
+        assert_eq!(v.not_default_branch, true);
     }
 
     #[test]
@@ -255,11 +250,11 @@ mod tests {
             ..build_repository()
         });
 
-        assert_eq!("scafalra", &v.name);
-        assert_eq!("shixinhuang99", &v.owner);
-        assert_eq!(Some("foo".to_string()), v.oid);
-        assert_eq!(None, v.expression);
-        assert_eq!(true, v.not_default_branch);
+        assert_eq!(&v.name, "scafalra");
+        assert_eq!(&v.owner, "shixinhuang99");
+        assert_eq!(v.oid, Some("foo".to_string()));
+        assert_eq!(v.expression, None);
+        assert_eq!(v.not_default_branch, true);
     }
 
     #[test]
