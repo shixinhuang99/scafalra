@@ -113,14 +113,11 @@ impl Scafalra {
         }
 
         if args.depth == 0 {
-            self.store.add(
-                scaffold_name.clone(),
-                Scaffold::new(
-                    scaffold_name,
-                    url.clone(),
-                    scaffold_path.clone(),
-                ),
-            )
+            self.store.add(Scaffold::new(
+                scaffold_name,
+                url.clone(),
+                scaffold_path.clone(),
+            ))
         }
 
         if args.depth == 1 {
@@ -130,10 +127,11 @@ impl Scafalra {
                 let file_name = entry.file_name().to_string_lossy().to_string();
 
                 if file_type.is_dir() && !file_name.starts_with('.') {
-                    self.store.add(
-                        file_name.clone(),
-                        Scaffold::new(file_name, url.clone(), entry.path()),
-                    )
+                    self.store.add(Scaffold::new(
+                        file_name,
+                        url.clone(),
+                        entry.path(),
+                    ))
                 }
             }
         }
@@ -190,7 +188,7 @@ impl Scafalra {
         let names = args.names.dedup_without_sort();
 
         for name in names {
-            self.store.remove(name)?;
+            self.store.remove(&name)?;
         }
 
         self.store.save()?;

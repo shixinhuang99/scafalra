@@ -133,25 +133,27 @@ impl Store {
         Ok(())
     }
 
-    pub fn add(&mut self, name: String, scaffold: Scaffold) {
-        if self.scaffolds.contains_key(&name) {
+    pub fn add(&mut self, scaffold: Scaffold) {
+        let name: &str = scaffold.name.as_ref();
+
+        if self.scaffolds.contains_key(name) {
             self.changes
-                .push(format!("{} {}", log_symbols::REMOVE, &name));
+                .push(format!("{} {}", log_symbols::REMOVE, name));
         }
 
-        self.changes.push(format!("{} {}", log_symbols::ADD, &name));
+        self.changes.push(format!("{} {}", log_symbols::ADD, name));
 
-        self.scaffolds.insert(name, scaffold);
+        self.scaffolds.insert(scaffold.name.clone(), scaffold);
     }
 
-    pub fn remove(&mut self, name: String) -> Result<()> {
-        if let Some(sc) = self.scaffolds.get(&name) {
-            remove_dir_all(Path::new(&sc.local))?;
+    pub fn remove(&mut self, name: &str) -> Result<()> {
+        if let Some(sc) = self.scaffolds.get(name) {
+            remove_dir_all(&sc.local)?;
 
             self.changes
-                .push(format!("{} {}", log_symbols::REMOVE, &name));
+                .push(format!("{} {}", log_symbols::REMOVE, name));
 
-            self.scaffolds.remove(&name);
+            self.scaffolds.remove(name);
         }
 
         Ok(())
@@ -356,7 +358,7 @@ mod tests {
         let (mut store, _dir, file_path) = build_store(false)?;
         let sc = build_scaffold();
 
-        store.add(sc.name.clone(), sc);
+        store.add(sc);
         store.save()?;
 
         let content = fs::read_to_string(file_path)?;
@@ -373,7 +375,7 @@ mod tests {
     fn store_add() -> Result<()> {
         let (mut store, _dir, _) = build_store(false)?;
         let sc = build_scaffold();
-        store.add(sc.name.clone(), sc);
+        store.add(sc);
 
         assert_eq!(store.scaffolds.len(), 1);
         assert!(store.scaffolds.contains_key("scaffold"));
@@ -386,7 +388,7 @@ mod tests {
     fn store_add_same() -> Result<()> {
         let (mut store, _dir, _) = build_store(true)?;
         let sc = build_scaffold();
-        store.add(sc.name.clone(), sc);
+        store.add(sc);
 
         assert_eq!(store.scaffolds.len(), 1);
         assert!(store.scaffolds.contains_key("scaffold"));
@@ -406,7 +408,7 @@ mod tests {
         let mut store = Store::new(dir.path())?;
 
         assert!(local.exists());
-        store.remove("scaffold".to_string())?;
+        store.remove("scaffold")?;
 
         assert!(!local.exists());
         assert_eq!(store.scaffolds.len(), 0);
@@ -418,7 +420,7 @@ mod tests {
     #[test]
     fn store_remove_not_found() -> Result<()> {
         let (mut store, _dir, _) = build_store(true)?;
-        store.remove("foo".to_string())?;
+        store.remove("foo")?;
 
         assert_eq!(store.changes, Vec::<String>::new());
 
@@ -462,7 +464,7 @@ mod tests {
         for i in 0..5 {
             let mut sc = build_scaffold();
             sc.name.push_str(&format!("-{}", i));
-            store.add(sc.name.clone(), sc);
+            store.add(sc);
         }
 
         assert_eq!(
@@ -481,7 +483,7 @@ mod tests {
         for i in 0..6 {
             let mut sc = build_scaffold();
             sc.name.push_str(&format!("-{}", i));
-            store.add(sc.name.clone(), sc);
+            store.add(sc);
         }
 
         assert_eq!(
@@ -500,7 +502,7 @@ mod tests {
         for i in 0..7 {
             let mut sc = build_scaffold();
             sc.name.push_str(&format!("-{}", i));
-            store.add(sc.name.clone(), sc);
+            store.add(sc);
         }
 
         assert_eq!(
@@ -519,7 +521,7 @@ mod tests {
         for i in 0..2 {
             let mut sc = build_scaffold();
             sc.name.push_str(&format!("-{}", i));
-            store.add(sc.name.clone(), sc);
+            store.add(sc);
         }
 
         #[rustfmt::skip]
