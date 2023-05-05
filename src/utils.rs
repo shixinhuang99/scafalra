@@ -98,9 +98,9 @@ pub trait DedupExt {
 
 impl DedupExt for Vec<String> {
     fn dedup_without_sort(self) -> Self {
-        use std::collections::HashSet;
+        use std::collections::BTreeSet;
 
-        let set: HashSet<String> = HashSet::from_iter(self);
+        let set: BTreeSet<String> = BTreeSet::from_iter(self);
 
         set.into_iter().collect()
     }
