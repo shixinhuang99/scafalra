@@ -531,7 +531,7 @@ mod tests {
         }
 
         #[rustfmt::skip]
-        let expected = " name       | url | created at         \n\
+        let expected = " name       | url | created at          \n\
                         ------------+-----+---------------------\n \
                          scaffold-0 | url | 2023-05-19 00:00:00 \n \
                          scaffold-1 | url | 2023-05-19 00:00:00 ";
