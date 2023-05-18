@@ -3,7 +3,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::{
     cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
@@ -31,7 +31,8 @@ impl Scafalra {
         let cache_dir = root_dir.join("cache");
 
         if !cache_dir.exists() {
-            fs::create_dir_all(&cache_dir)?;
+            fs::create_dir_all(&cache_dir)
+                .with_context(|| "failed to create cache directory")?;
         }
 
         let config = Config::new(&root_dir)?;
@@ -123,7 +124,10 @@ impl Scafalra {
         }
 
         if args.depth == 1 {
-            for entry in scaffold_path.read_dir()? {
+            for entry in scaffold_path
+                .read_dir()
+                .with_context(|| "failed to read repository directories")?
+            {
                 let entry = entry?;
                 let file_type = entry.file_type()?;
                 let file_name = entry.file_name().to_string_lossy().to_string();
@@ -154,22 +158,28 @@ impl Scafalra {
             anyhow::bail!("No such scaffold `{}`", args.name);
         };
 
+        let curr_dir = current_dir()
+            .with_context(|| "failed to get current working directory")?;
+
         let target_dir = if let Some(dir) = args.directory {
             let dir_path = PathBuf::from(dir);
             if dir_path.is_absolute() {
                 dir_path
             } else {
-                current_dir()?.join(dir_path)
+                curr_dir.join(dir_path)
             }
         } else {
-            current_dir()?.join(args.name)
+            curr_dir.join(args.name)
         };
 
         fs_extra::dir::copy(
             scaffold.local,
             &target_dir,
             &fs_extra::dir::CopyOptions::new().content_only(true),
-        )?;
+        )
+        .with_context(|| {
+            "failed to copy the scaffold to the specified directory"
+        })?;
 
         println!("Created in `{}`", target_dir.display());
 

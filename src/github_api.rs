@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -79,7 +79,12 @@ impl Variable {
 
 impl std::fmt::Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", ureq::serde_json::to_string(self).unwrap())
+        write!(
+            f,
+            "{}",
+            ureq::serde_json::to_string(self)
+                .expect("`Variable` should be serialized")
+        )
     }
 }
 
@@ -125,8 +130,16 @@ impl GitHubApi {
             .set("authorization", format!("bearer {}", token).as_str())
             .set("content-type", "application/json")
             .set("user-agent", "scafalra")
-            .send_json(query)?
-            .into_json()?;
+            .send_json(query)
+            .with_context(|| {
+                "failed to send the request or failed to serialize the request \
+                 body"
+            })?
+            .into_json()
+            .with_context(|| {
+                "failed to got the response or failed to deserialize the \
+                 response body"
+            })?;
 
         let Some(data) = response.data else {
             anyhow::bail!("GitHub GraphQL response errors");
