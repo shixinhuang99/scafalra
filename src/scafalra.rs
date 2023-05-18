@@ -3,7 +3,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 
 use crate::{
     cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
@@ -11,6 +11,7 @@ use crate::{
     github_api::{GitHubApi, GitHubApiResult},
     repository::Repository,
     store::{Scaffold, Store},
+    verbose,
 };
 
 pub struct Scafalra {
@@ -31,7 +32,8 @@ impl Scafalra {
         let cache_dir = root_dir.join("cache");
 
         if !cache_dir.exists() {
-            fs::create_dir_all(&cache_dir)?;
+            fs::create_dir_all(&cache_dir)
+                .with_context(|| "failed to create cache directory")?;
         }
 
         let config = Config::new(&root_dir)?;
@@ -54,6 +56,8 @@ impl Scafalra {
     }
 
     pub fn config_or_display_token(&mut self, args: TokenArgs) -> Result<()> {
+        verbose!("args: {:#?}", args);
+
         match args.token {
             Some(token) => {
                 self.config.set_token(&token);
@@ -70,6 +74,8 @@ impl Scafalra {
     }
 
     pub fn list(&self, args: ListArgs) {
+        verbose!("args: {:#?}", args);
+
         if self.store.scaffolds_len() == 0 {
             return;
         }
@@ -84,6 +90,8 @@ impl Scafalra {
     }
 
     pub fn add(&mut self, args: AddArgs) -> Result<()> {
+        verbose!("args: {:#?}", args);
+
         let repo = Repository::new(&args.repository)?;
 
         println!("Downloading `{}`", args.repository);
@@ -123,7 +131,10 @@ impl Scafalra {
         }
 
         if args.depth == 1 {
-            for entry in scaffold_path.read_dir()? {
+            for entry in scaffold_path
+                .read_dir()
+                .with_context(|| "failed to read repository directories")?
+            {
                 let entry = entry?;
                 let file_type = entry.file_type()?;
                 let file_name = entry.file_name().to_string_lossy().to_string();
@@ -146,6 +157,8 @@ impl Scafalra {
     pub fn create(&self, args: CreateArgs) -> Result<()> {
         use std::env::current_dir;
 
+        verbose!("args: {:#?}", args);
+
         println!("Creating `{}`", args.name);
 
         let scaffold = self.store.get(&args.name);
@@ -154,22 +167,32 @@ impl Scafalra {
             anyhow::bail!("No such scaffold `{}`", args.name);
         };
 
+        let curr_dir = current_dir()
+            .with_context(|| "failed to get current working directory")?;
+
+        verbose!("current directory: {:?}", curr_dir);
+
         let target_dir = if let Some(dir) = args.directory {
             let dir_path = PathBuf::from(dir);
             if dir_path.is_absolute() {
                 dir_path
             } else {
-                current_dir()?.join(dir_path)
+                curr_dir.join(dir_path)
             }
         } else {
-            current_dir()?.join(args.name)
+            curr_dir.join(args.name)
         };
+
+        verbose!("target directory: {:?}", target_dir);
 
         fs_extra::dir::copy(
             scaffold.local,
             &target_dir,
             &fs_extra::dir::CopyOptions::new().content_only(true),
-        )?;
+        )
+        .with_context(|| {
+            "failed to copy the scaffold to the specified directory"
+        })?;
 
         println!("Created in `{}`", target_dir.display());
 
@@ -177,6 +200,8 @@ impl Scafalra {
     }
 
     pub fn mv(&mut self, args: MvArgs) -> Result<()> {
+        verbose!("args: {:#?}", args);
+
         self.store.rename(&args.name, &args.new_name);
 
         self.store.save()?;
@@ -185,6 +210,8 @@ impl Scafalra {
     }
 
     pub fn remove(&mut self, args: RemoveArgs) -> Result<()> {
+        verbose!("args: {:#?}", args);
+
         for name in args.names {
             self.store.remove(&name)?;
         }

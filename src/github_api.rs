@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     repository::{Query, Repository},
     utils::build_proxy_agent,
+    verbose,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -14,9 +15,13 @@ struct GraphQLQuery {
 
 impl GraphQLQuery {
     fn new(repo: &Repository) -> Self {
+        let variables = Variable::new(repo).to_string();
+
+        verbose!("GraphQL variables json: {}", variables);
+
         Self {
             query: QUERY_TEMPLATE,
-            variables: Variable::new(repo).to_string(),
+            variables,
         }
     }
 }
@@ -79,7 +84,12 @@ impl Variable {
 
 impl std::fmt::Display for Variable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", ureq::serde_json::to_string(self).unwrap())
+        write!(
+            f,
+            "{}",
+            ureq::serde_json::to_string(self)
+                .expect("`Variable` should be serialized")
+        )
     }
 }
 
@@ -125,8 +135,18 @@ impl GitHubApi {
             .set("authorization", format!("bearer {}", token).as_str())
             .set("content-type", "application/json")
             .set("user-agent", "scafalra")
-            .send_json(query)?
-            .into_json()?;
+            .send_json(query)
+            .with_context(|| {
+                "failed to send the request or failed to serialize the request \
+                 body"
+            })?
+            .into_json()
+            .with_context(|| {
+                "failed to got the response or failed to deserialize the \
+                 response body"
+            })?;
+
+        verbose!("response: {:#?}", response);
 
         let Some(data) = response.data else {
             anyhow::bail!("GitHub GraphQL response errors");
@@ -154,7 +174,7 @@ impl GitHubApi {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct GitHubApiResponse<'a> {
     data: Option<GitHubApiData>,
     #[allow(dead_code)]
@@ -162,12 +182,12 @@ struct GitHubApiResponse<'a> {
     errors: Option<&'a str>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct GitHubApiData {
     repository: RepositoryData,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct RepositoryData {
     url: String,
     #[serde(rename = "defaultBranchRef")]
@@ -175,12 +195,12 @@ struct RepositoryData {
     object: Option<Target>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct DefaultBranchRef {
     target: Target,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct Target {
     oid: String,
     #[serde(rename = "tarballUrl")]

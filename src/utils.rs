@@ -1,6 +1,8 @@
-use std::{env, fs, path::Path};
+pub use std::sync::atomic::Ordering;
+use std::{env, fs, path::Path, sync::atomic::AtomicBool};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use once_cell::sync::Lazy;
 use owo_colors::{colors::xterm, OwoColorize, Stream, SupportsColorsDisplay};
 use serde::{de::DeserializeOwned, Serialize};
 use ureq::{Agent, AgentBuilder, Proxy};
@@ -54,9 +56,16 @@ impl Colorize for String {}
 pub trait TomlContent: DeserializeOwned + Serialize + Default {
     fn load(file_path: &Path) -> Result<Self> {
         let content: Self = if file_path.exists() {
-            toml::from_str(&fs::read_to_string(file_path)?)?
+            toml::from_str(&fs::read_to_string(file_path).with_context(
+                || format!("failed to read the file `{}`", file_path.display()),
+            )?)
+            .with_context(|| {
+                format!("failed to parse the file `{}`", file_path.display())
+            })?
         } else {
-            fs::File::create(file_path)?;
+            fs::File::create(file_path).with_context(|| {
+                format!("failed to create the file `{}`", file_path.display())
+            })?;
             Self::default()
         };
 
@@ -64,8 +73,18 @@ pub trait TomlContent: DeserializeOwned + Serialize + Default {
     }
 
     fn save(&self, file_path: &Path) -> Result<()> {
-        let content = toml::to_string_pretty(self)?;
-        fs::write(file_path, content)?;
+        let content = toml::to_string_pretty(self).with_context(|| {
+            format!(
+                "failed to serialize data to the file `{}`",
+                file_path.display()
+            )
+        })?;
+        fs::write(file_path, content).with_context(|| {
+            format!(
+                "failed to wirte date to the file `{}`",
+                file_path.display()
+            )
+        })?;
 
         Ok(())
     }
@@ -91,6 +110,21 @@ created_at = "2023-05-19 00:00:00"
 "#,
         name, quote, local, quote,
     )
+}
+
+pub static VERBOSE: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
+
+pub fn set_verbose(val: bool) {
+    VERBOSE.store(val, Ordering::SeqCst);
+}
+
+#[macro_export]
+macro_rules! verbose {
+    ($($arg:tt)*) => {{
+        if $crate::utils::VERBOSE.load($crate::utils::Ordering::SeqCst) {
+            println!($($arg)*);
+        }
+    }};
 }
 
 #[cfg(test)]

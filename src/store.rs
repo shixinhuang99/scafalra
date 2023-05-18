@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
 use tabled::{
@@ -154,7 +154,8 @@ impl Store {
 
     pub fn remove(&mut self, name: &str) -> Result<()> {
         if let Some(sc) = self.scaffolds.get(name) {
-            remove_dir_all(&sc.local)?;
+            remove_dir_all(&sc.local)
+                .with_context(|| "failed to remove the scaffold directory")?;
 
             self.changes
                 .push(format!("{} {}", log_symbols::REMOVE, name));
