@@ -45,12 +45,10 @@ impl TomlContent for StoreContent {}
 pub struct Scaffold {
     pub name: String,
     pub url: String,
-    #[tabled(display_with = "display_local")]
+    #[tabled(skip)]
     pub local: PathBuf,
-}
-
-fn display_local(local: &Path) -> String {
-    local.display().to_string()
+    #[tabled(rename = "created at")]
+    pub created_at: String,
 }
 
 impl Scaffold {
@@ -59,10 +57,18 @@ impl Scaffold {
         T: AsRef<str>,
         P: AsRef<Path>,
     {
+        #[cfg(not(test))]
+        let created_at =
+            chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+
+        #[cfg(test)]
+        let created_at = "2023-05-19 00:00:00".to_string();
+
         Self {
             name: String::from(name.as_ref()),
             url: String::from(url.as_ref()),
             local: PathBuf::from(local.as_ref()),
+            created_at,
         }
     }
 }
@@ -525,10 +531,10 @@ mod tests {
         }
 
         #[rustfmt::skip]
-        let expected = " name       | url | local \n\
-                        ------------+-----+-------\n \
-                         scaffold-0 | url | local \n \
-                         scaffold-1 | url | local ";
+        let expected = " name       | url | created at         \n\
+                        ------------+-----+---------------------\n \
+                         scaffold-0 | url | 2023-05-19 00:00:00 \n \
+                         scaffold-1 | url | 2023-05-19 00:00:00 ";
 
         assert_eq!(store.print_table(), expected);
 

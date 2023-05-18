@@ -87,6 +87,7 @@ where
 name = "{}"
 url = "url"
 local = {}{}{}
+created_at = "2023-5-19 00:00:00"
 "#,
         name, quote, local, quote,
     )
