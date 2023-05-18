@@ -26,6 +26,11 @@ fn run() -> Result<()> {
 
     let mut scafalra = Scafalra::new(&home_dir, None, cli.token.as_deref())?;
 
+    if cli.root_dir {
+        println!("{}", scafalra.root_dir.display());
+        return Ok(());
+    }
+
     match cli.command {
         Command::List(args) => scafalra.list(args),
         Command::Remove(args) => scafalra.remove(args)?,

@@ -14,6 +14,7 @@ use crate::{
 };
 
 pub struct Scafalra {
+    pub root_dir: PathBuf,
     cache_dir: PathBuf,
     config: Config,
     store: Store,
@@ -44,6 +45,7 @@ impl Scafalra {
         }
 
         Ok(Self {
+            root_dir,
             cache_dir,
             config,
             store,
