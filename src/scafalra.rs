@@ -11,6 +11,7 @@ use crate::{
     github_api::{GitHubApi, GitHubApiResult},
     repository::Repository,
     store::{Scaffold, Store},
+    verbose,
 };
 
 pub struct Scafalra {
@@ -55,6 +56,8 @@ impl Scafalra {
     }
 
     pub fn config_or_display_token(&mut self, args: TokenArgs) -> Result<()> {
+        verbose!("args: {:#?}", args);
+
         match args.token {
             Some(token) => {
                 self.config.set_token(&token);
@@ -71,6 +74,8 @@ impl Scafalra {
     }
 
     pub fn list(&self, args: ListArgs) {
+        verbose!("args: {:#?}", args);
+
         if self.store.scaffolds_len() == 0 {
             return;
         }
@@ -85,6 +90,8 @@ impl Scafalra {
     }
 
     pub fn add(&mut self, args: AddArgs) -> Result<()> {
+        verbose!("args: {:#?}", args);
+
         let repo = Repository::new(&args.repository)?;
 
         println!("Downloading `{}`", args.repository);
@@ -150,6 +157,8 @@ impl Scafalra {
     pub fn create(&self, args: CreateArgs) -> Result<()> {
         use std::env::current_dir;
 
+        verbose!("args: {:#?}", args);
+
         println!("Creating `{}`", args.name);
 
         let scaffold = self.store.get(&args.name);
@@ -161,6 +170,8 @@ impl Scafalra {
         let curr_dir = current_dir()
             .with_context(|| "failed to get current working directory")?;
 
+        verbose!("current directory: {:?}", curr_dir);
+
         let target_dir = if let Some(dir) = args.directory {
             let dir_path = PathBuf::from(dir);
             if dir_path.is_absolute() {
@@ -171,6 +182,8 @@ impl Scafalra {
         } else {
             curr_dir.join(args.name)
         };
+
+        verbose!("target directory: {:?}", target_dir);
 
         fs_extra::dir::copy(
             scaffold.local,
@@ -187,6 +200,8 @@ impl Scafalra {
     }
 
     pub fn mv(&mut self, args: MvArgs) -> Result<()> {
+        verbose!("args: {:#?}", args);
+
         self.store.rename(&args.name, &args.new_name);
 
         self.store.save()?;
@@ -195,6 +210,8 @@ impl Scafalra {
     }
 
     pub fn remove(&mut self, args: RemoveArgs) -> Result<()> {
+        verbose!("args: {:#?}", args);
+
         for name in args.names {
             self.store.remove(&name)?;
         }

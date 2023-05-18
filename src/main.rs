@@ -10,6 +10,7 @@ use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Command};
 use scafalra::Scafalra;
+use utils::set_verbose;
 
 fn main() {
     if let Err(err) = run() {
@@ -23,6 +24,10 @@ fn run() -> Result<()> {
     };
 
     let cli = Cli::parse();
+
+    if cli.verbose {
+        set_verbose(cli.verbose);
+    }
 
     let mut scafalra = Scafalra::new(&home_dir, None, cli.token.as_deref())?;
 

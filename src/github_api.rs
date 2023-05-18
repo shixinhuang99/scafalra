@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     repository::{Query, Repository},
     utils::build_proxy_agent,
+    verbose,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -14,9 +15,13 @@ struct GraphQLQuery {
 
 impl GraphQLQuery {
     fn new(repo: &Repository) -> Self {
+        let variables = Variable::new(repo).to_string();
+
+        verbose!("GraphQL variables json: {}", variables);
+
         Self {
             query: QUERY_TEMPLATE,
-            variables: Variable::new(repo).to_string(),
+            variables,
         }
     }
 }
@@ -141,6 +146,8 @@ impl GitHubApi {
                  response body"
             })?;
 
+        verbose!("response: {:#?}", response);
+
         let Some(data) = response.data else {
             anyhow::bail!("GitHub GraphQL response errors");
         };
@@ -167,7 +174,7 @@ impl GitHubApi {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct GitHubApiResponse<'a> {
     data: Option<GitHubApiData>,
     #[allow(dead_code)]
@@ -175,12 +182,12 @@ struct GitHubApiResponse<'a> {
     errors: Option<&'a str>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct GitHubApiData {
     repository: RepositoryData,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct RepositoryData {
     url: String,
     #[serde(rename = "defaultBranchRef")]
@@ -188,12 +195,12 @@ struct RepositoryData {
     object: Option<Target>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct DefaultBranchRef {
     target: Target,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct Target {
     oid: String,
     #[serde(rename = "tarballUrl")]
