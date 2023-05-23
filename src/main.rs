@@ -36,13 +36,15 @@ fn run() -> Result<()> {
         return Ok(());
     }
 
-    match cli.command {
-        Command::List(args) => scafalra.list(args),
-        Command::Remove(args) => scafalra.remove(args)?,
-        Command::Mv(args) => scafalra.mv(args)?,
-        Command::Add(args) => scafalra.add(args)?,
-        Command::Create(args) => scafalra.create(args)?,
-        Command::Token(args) => scafalra.config_or_display_token(args)?,
+    if let Some(command) = cli.command {
+        match command {
+            Command::List(args) => scafalra.list(args),
+            Command::Remove(args) => scafalra.remove(args)?,
+            Command::Mv(args) => scafalra.mv(args)?,
+            Command::Add(args) => scafalra.add(args)?,
+            Command::Create(args) => scafalra.create(args)?,
+            Command::Token(args) => scafalra.config_or_display_token(args)?,
+        }
     }
 
     Ok(())

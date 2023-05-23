@@ -4,13 +4,13 @@ use clap::{
 };
 
 #[derive(Parser)]
-#[command(name = "scafalra", author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 
     /// Use verbose output
-    #[arg(short, long)]
+    #[arg(short, long, global = true)]
     pub verbose: bool,
 
     /// Specify the GitHub personal access token(classic)

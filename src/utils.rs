@@ -1,8 +1,10 @@
-pub use std::sync::atomic::Ordering;
-use std::{env, fs, path::Path, sync::atomic::AtomicBool};
+use std::{
+    env, fs,
+    path::Path,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
 use owo_colors::{colors::xterm, OwoColorize, Stream, SupportsColorsDisplay};
 use serde::{de::DeserializeOwned, Serialize};
 use ureq::{Agent, AgentBuilder, Proxy};
@@ -112,16 +114,16 @@ created_at = "2023-05-19 00:00:00"
     )
 }
 
-pub static VERBOSE: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
+pub static VERBOSE: AtomicBool = AtomicBool::new(false);
 
 pub fn set_verbose(val: bool) {
-    VERBOSE.store(val, Ordering::SeqCst);
+    VERBOSE.store(val, Ordering::Relaxed);
 }
 
 #[macro_export]
 macro_rules! verbose {
     ($($arg:tt)*) => {{
-        if $crate::utils::VERBOSE.load($crate::utils::Ordering::SeqCst) {
+        if $crate::utils::VERBOSE.load(std::sync::atomic::Ordering::Relaxed) {
             println!($($arg)*);
         }
     }};
