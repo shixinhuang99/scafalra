@@ -26,6 +26,8 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: general-check
 
       - name: Check
         run: cargo check --all-targets
@@ -55,6 +57,8 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ matrix.target }}
 
       - name: Tests
         run: |
