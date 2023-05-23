@@ -26,8 +26,6 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
 
       - name: Check
         run: cargo check --all-targets
@@ -40,37 +38,25 @@ jobs:
 
   tests:
     needs: general-check
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    container: messense/cargo-zigbuild
 
     strategy:
       matrix:
-        include:
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
+        target:
+          - aarch64-apple-darwin
+          - x86_64-apple-darwin
+          - aarch64-unknown-linux-musl
+          - x86_64-unknown-linux-musl
+          - x86_64-pc-windows-gnu
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2023-04-20
-
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
 
-      - name: Install Cross
-        run: cargo install cross
-
-      - name: Cross tests
-        run: cross test --target ${{ matrix.target }}
+      - name: Tests
+        run: |
+          cargo zigbuild --target ${{ matrix.target }}
+          cargo test --target ${{ matrix.target }}
