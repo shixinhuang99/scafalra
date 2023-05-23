@@ -114,16 +114,20 @@ created_at = "2023-05-19 00:00:00"
     )
 }
 
-pub static VERBOSE: AtomicBool = AtomicBool::new(false);
+static VERBOSE: AtomicBool = AtomicBool::new(false);
 
 pub fn set_verbose(val: bool) {
     VERBOSE.store(val, Ordering::Relaxed);
 }
 
+pub fn get_verbose() -> bool {
+    VERBOSE.load(Ordering::Relaxed)
+}
+
 #[macro_export]
 macro_rules! verbose {
     ($($arg:tt)*) => {{
-        if $crate::utils::VERBOSE.load(std::sync::atomic::Ordering::Relaxed) {
+        if $crate::utils::get_verbose() {
             println!($($arg)*);
         }
     }};
