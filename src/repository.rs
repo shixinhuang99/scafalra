@@ -133,7 +133,7 @@ fn download(url: &str, file_path: &Path) -> Result<()> {
         .with_context(|| "failed to create the tarball")?;
 
     io::copy(&mut response.into_reader(), &mut file)
-        .with_context(|| "failed to wirte data into the tarball")?;
+        .with_context(|| "failed to write data into the tarball")?;
 
     Ok(())
 }

@@ -81,7 +81,7 @@ pub trait TomlContent: DeserializeOwned + Serialize + Default {
         })?;
         fs::write(file_path, content).with_context(|| {
             format!(
-                "failed to wirte date to the file `{}`",
+                "failed to write date to the file `{}`",
                 file_path.display()
             )
         })?;
