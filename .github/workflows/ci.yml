@@ -26,8 +26,6 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
 
       - name: Check
         run: cargo check --all-targets
@@ -40,11 +38,20 @@ jobs:
 
   tests:
     needs: general-check
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        target:
+          [
+            aarch64-apple-darwin,
+            x86_64-apple-darwin,
+            aarch64-unknown-linux-musl,
+            x86_64-unknown-linux-musl,
+            arm-unknown-linux-musleabihf,
+            armv7-unknown-linux-musleabihf,
+            x86_64-pc-windows-msvc,
+          ]
 
     steps:
       - uses: actions/checkout@v3
@@ -56,8 +63,15 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
 
-      - name: Test code on ${{ matrix.os }}
-        run: cargo test --all-targets
+      - name: Install Podman
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install podman
+          podman ps -a
+
+      - name: Install Cross
+        run: cargo install cross
+
+      - name: Cross tests
+        run: cross test --target ${{ matrix.target }}
