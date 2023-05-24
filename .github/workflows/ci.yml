@@ -41,6 +41,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -62,6 +63,13 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+
+      - name: Install musl-tools
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install musl-tools
+          musl-gcc
 
       - name: Run tests
         if: matrix.test
