@@ -28,7 +28,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Check
-        run: cargo check --all-targets
+        run: cargo check --all-targets --target x86_64-unknown-linux-gnu
 
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
