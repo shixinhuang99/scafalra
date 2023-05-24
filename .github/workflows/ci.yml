@@ -43,6 +43,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -50,9 +51,9 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
           - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
+            target: aarch64-unknown-linux-musl
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
           - os: windows-latest
             target: x86_64-pc-windows-msvc
 
@@ -63,6 +64,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ runner.os }}
+
+      - name: Log
+        run: |
+          rustc --version --verbose
+          cc -v
 
       - name: Tests
         run: |
