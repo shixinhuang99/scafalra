@@ -9,9 +9,9 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,
 
-    /// Use verbose output
-    #[arg(short, long, global = true)]
-    pub verbose: bool,
+    /// Use debug output
+    #[arg(long, global = true)]
+    pub debug: bool,
 
     /// Specify the GitHub personal access token(classic)
     #[arg(long)]
