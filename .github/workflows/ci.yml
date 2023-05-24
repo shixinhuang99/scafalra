@@ -26,8 +26,6 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
 
       - name: Check
         run: cargo check --all-targets
@@ -43,21 +41,23 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2023-04-20
-
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
 
-      - name: Test code on ${{ matrix.os }}
-        run: cargo test --all-targets
+      - name: Tests
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo test --target ${{ matrix.target }}
