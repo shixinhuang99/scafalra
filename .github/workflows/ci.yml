@@ -70,7 +70,7 @@ jobs:
           cargo test --target ${{ matrix.target }}
 
       - name: Build only
-        if: !matrix.test
+        if: matrix.test == ''
         run: |
           rustup target add ${{ matrix.target }}
           cargo build --target ${{ matrix.target }}
