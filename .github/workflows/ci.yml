@@ -26,8 +26,6 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
 
       - name: Check
         run: cargo check --all-targets
@@ -47,13 +45,9 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: macos-latest
             target: x86_64-apple-darwin
           - os: ubuntu-latest
-            target: aarch64-unknown-linux-musl
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
+            target: x86_64-unknown-linux-gnu
           - os: windows-latest
             target: x86_64-pc-windows-msvc
 
@@ -62,13 +56,6 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
-
-      - name: Log
-        run: |
-          rustc --version --verbose
-          cc -v
 
       - name: Tests
         run: |
