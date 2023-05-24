@@ -10,7 +10,7 @@ pub struct Cli {
     pub command: Option<Command>,
 
     /// Use debug output
-    #[arg(short, long, global = true)]
+    #[arg(long, global = true)]
     pub debug: bool,
 
     /// Specify the GitHub personal access token(classic)
