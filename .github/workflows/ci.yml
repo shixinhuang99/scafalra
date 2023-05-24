@@ -39,6 +39,7 @@ jobs:
   tests:
     needs: general-check
     runs-on: ${{ matrix.os }}
+    name: tests (${{ matrix.target }})
 
     strategy:
       fail-fast: false
