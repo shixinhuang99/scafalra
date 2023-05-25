@@ -75,7 +75,7 @@ jobs:
         run: |
           exe_name="scafalra"
           target_dir="${{ env.TARGET_DIR }}"
-          archive_dir="$exe_name-${{ evn.release_version }}-${{ matrix.target }}"
+          archive_dir="$exe_name-${{ env.release_version }}-${{ matrix.target }}"
           exe_ext=""
           archive_ext="tar.gz"
           archive_cmd="tar czf"
