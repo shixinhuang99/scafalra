@@ -125,7 +125,7 @@ pub fn get_debug() -> bool {
 }
 
 #[macro_export]
-macro_rules! verbose {
+macro_rules! debug {
     ($($arg:tt)*) => {{
         if $crate::utils::get_debug() {
             println!($($arg)*);

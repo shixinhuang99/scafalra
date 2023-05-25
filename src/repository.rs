@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
 
-use crate::{utils::build_proxy_agent, verbose};
+use crate::{debug, utils::build_proxy_agent};
 
 static REPO_RE: Lazy<Regex> = Lazy::new(|| {
     let re = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
@@ -72,7 +72,7 @@ impl Repository {
             &oid[0..7]
         ));
 
-        verbose!("scaffold directory: {:?}", scaffold_path);
+        debug!("scaffold directory: {:?}", scaffold_path);
 
         let tarball_path = scaffold_path.with_extension("tar.gz");
 
@@ -98,7 +98,7 @@ impl Repository {
             .unwrap()
             .with_context(|| "no any entries within the temporary directory")?;
 
-        verbose!("extracted directory: {:?}", extracted_dir);
+        debug!("extracted directory: {:?}", extracted_dir);
 
         if scaffold_path.exists() {
             remove_dir_all(&scaffold_path).with_context(|| {

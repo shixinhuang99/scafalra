@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    debug,
     repository::{Query, Repository},
     utils::build_proxy_agent,
-    verbose,
 };
 
 #[derive(Deserialize, Serialize)]
@@ -17,7 +17,7 @@ impl GraphQLQuery {
     fn new(repo: &Repository) -> Self {
         let variables = Variable::new(repo).to_string();
 
-        verbose!("GraphQL variables json: {}", variables);
+        debug!("GraphQL variables json: {}", variables);
 
         Self {
             query: QUERY_TEMPLATE,
@@ -146,7 +146,7 @@ impl GitHubApi {
                  response body"
             })?;
 
-        verbose!("response: {:#?}", response);
+        debug!("response: {:#?}", response);
 
         let Some(data) = response.data else {
             anyhow::bail!("GitHub GraphQL response errors");
