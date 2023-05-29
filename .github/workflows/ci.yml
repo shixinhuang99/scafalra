@@ -18,14 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Rust toolchain
+      - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly-2023-04-20
           components: clippy, rustfmt
 
-      - name: Rust Cache
-        id: cache
+      - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ runner.os }}
@@ -38,10 +37,6 @@ jobs:
 
       - name: Fmt
         run: cargo fmt --all -- --check
-
-      - name: Install cross
-        if: ${{ steps.cache.outputs.cache-hit }} == ''
-        run: cargo install cross
 
   tests:
     needs: general-check
@@ -70,24 +65,29 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Rust Cache
+      - name: Rust cache
+        id: cache
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Run tests
+      - name: Install cross
+        if: ${{ steps.cache.outputs.cache-hit }} == ''
+        run: cargo install cross
+
+      - name: Test code
         if: matrix.test
         run: |
           rustup target add ${{ matrix.target }}
           cargo test --target ${{ matrix.target }}
 
-      - name: Cargo build
+      - name: Test cargo build
         if: matrix.test == '' && matrix.cross == ''
         run: |
           rustup target add ${{ matrix.target }}
           cargo build --target ${{ matrix.target }}
 
-      - name: Cross build
+      - name: Test cross build
         if: matrix.cross
         run: |
           cross build --target ${{ matrix.target }}
