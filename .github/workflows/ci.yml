@@ -25,7 +25,10 @@ jobs:
           components: clippy, rustfmt
 
       - name: Rust Cache
+        id: cache
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ runner.os }}
 
       - name: Check
         run: cargo check --all-targets
@@ -35,6 +38,10 @@ jobs:
 
       - name: Fmt
         run: cargo fmt --all -- --check
+
+      - name: Install cross
+        if: ${{ steps.cache.outputs.cache-hit }} == ''
+        run: cargo install cross
 
   tests:
     needs: general-check
@@ -65,6 +72,8 @@ jobs:
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ runner.os }}
 
       - name: Run tests
         if: matrix.test
@@ -81,5 +90,4 @@ jobs:
       - name: Cross build
         if: matrix.cross
         run: |
-          cargo install cross
           cross build --target ${{ matrix.target }}
