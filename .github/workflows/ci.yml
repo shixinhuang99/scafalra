@@ -29,14 +29,14 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Check
-        run: cargo check --all-targets
+      - name: Fmt
+        run: cargo fmt --all -- --check
 
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Fmt
-        run: cargo fmt --all -- --check
+      - name: Check
+        run: cargo check --all-targets
 
   tests:
     needs: general-check
