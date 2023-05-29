@@ -2,7 +2,6 @@
 name = "scafalra"
 version = "0.6.0"
 edition = "2021"
-publish = false
 authors = ["shixinhuang99 <shixinhuang99@gmail.com>"]
 description = "scafalra is a command-line interface tool for manage scaffold"
 repository = "https://github.com/shixinhuang99/scafalra"
@@ -11,6 +10,8 @@ documentation = "https://github.com/shixinhuang99/scafalra"
 license = "MIT"
 categories = ["command-line-utilities"]
 keywords = ["scaffold"]
+readme = "README.md"
+exclude = ["assets/*"]
 
 [dependencies]
 anyhow = "1.0.70"

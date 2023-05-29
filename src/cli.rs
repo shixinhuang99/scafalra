@@ -14,7 +14,7 @@ pub struct Cli {
     pub debug: bool,
 
     /// Specify the GitHub personal access token(classic)
-    #[arg(long)]
+    #[arg(long, global = true)]
     pub token: Option<String>,
 
     /// Display root dir of scafalra
