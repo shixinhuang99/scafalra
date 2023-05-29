@@ -71,10 +71,6 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Install cross
-        if: ${{ steps.cache.outputs.cache-hit }} == ''
-        run: cargo install cross
-
       - name: Test code
         if: matrix.test
         run: |
@@ -90,4 +86,5 @@ jobs:
       - name: Test cross build
         if: matrix.cross
         run: |
+          cargo install cross
           cross build --target ${{ matrix.target }}
