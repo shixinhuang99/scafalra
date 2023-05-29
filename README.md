@@ -26,7 +26,7 @@ scafalra token your_token
 
 ## Usage
 
-```bash
+```
 scafalra is a command-line interface tool for manage scaffold
 
 Usage: scafalra [OPTIONS] [COMMAND]
