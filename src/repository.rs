@@ -1,6 +1,6 @@
 use std::{
-    fs, io,
-    path::{Path, PathBuf},
+	fs, io,
+	path::{Path, PathBuf},
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -12,290 +12,290 @@ use remove_dir_all::remove_dir_all;
 use crate::{debug, utils::build_proxy_agent};
 
 static REPO_RE: Lazy<Regex> = Lazy::new(|| {
-    let re = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
+	let re = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
 
-    Regex::new(re).expect("the regular expression should be created")
+	Regex::new(re).expect("the regular expression should be created")
 });
 
 pub struct Repository {
-    pub owner: String,
-    pub name: String,
-    pub subdir: Option<String>,
-    pub query: Option<Query>,
+	pub owner: String,
+	pub name: String,
+	pub subdir: Option<String>,
+	pub query: Option<Query>,
 }
 
 #[derive(PartialEq, Debug)]
 pub enum Query {
-    Branch(String),
-    Tag(String),
-    Commit(String),
+	Branch(String),
+	Tag(String),
+	Commit(String),
 }
 
 impl Repository {
-    pub fn new(input: &str) -> Result<Self> {
-        let caps = REPO_RE
-            .captures(input)
-            .ok_or(anyhow!("Could not parse the input: `{}`", input))?;
+	pub fn new(input: &str) -> Result<Self> {
+		let caps = REPO_RE
+			.captures(input)
+			.ok_or(anyhow!("Could not parse the input: `{}`", input))?;
 
-        let owner = caps[1].to_string();
-        let name = caps[2].to_string();
+		let owner = caps[1].to_string();
+		let name = caps[2].to_string();
 
-        let subdir = caps.get(3).map(|v| v.as_str().to_string());
-        let query_type = caps.get(4).map(|v| v.as_str());
-        let query_val = caps.get(5).map(|v| v.as_str().to_string());
+		let subdir = caps.get(3).map(|v| v.as_str().to_string());
+		let query_type = caps.get(4).map(|v| v.as_str());
+		let query_val = caps.get(5).map(|v| v.as_str().to_string());
 
-        let query = match (query_type, query_val) {
-            (Some("branch"), Some(val)) => Some(Query::Branch(val)),
-            (Some("tag"), Some(val)) => Some(Query::Tag(val)),
-            (Some("commit"), Some(val)) => Some(Query::Commit(val)),
-            _ => None,
-        };
+		let query = match (query_type, query_val) {
+			(Some("branch"), Some(val)) => Some(Query::Branch(val)),
+			(Some("tag"), Some(val)) => Some(Query::Tag(val)),
+			(Some("commit"), Some(val)) => Some(Query::Commit(val)),
+			_ => None,
+		};
 
-        Ok(Self {
-            owner,
-            name,
-            subdir,
-            query,
-        })
-    }
+		Ok(Self {
+			owner,
+			name,
+			subdir,
+			query,
+		})
+	}
 
-    pub fn cache(
-        &self,
-        url: &str,
-        cache_dir: &Path,
-        oid: &str,
-    ) -> Result<PathBuf> {
-        let scaffold_path = cache_dir.join(format!(
-            "{}-{}-{}",
-            self.owner,
-            self.name,
-            &oid[0..7]
-        ));
+	pub fn cache(
+		&self,
+		url: &str,
+		cache_dir: &Path,
+		oid: &str,
+	) -> Result<PathBuf> {
+		let scaffold_path = cache_dir.join(format!(
+			"{}-{}-{}",
+			self.owner,
+			self.name,
+			&oid[0..7]
+		));
 
-        debug!("scaffold directory: {:?}", scaffold_path);
+		debug!("scaffold directory: {:?}", scaffold_path);
 
-        let tarball_path = scaffold_path.with_extension("tar.gz");
+		let tarball_path = scaffold_path.with_extension("tar.gz");
 
-        if tarball_path.exists() {
-            fs::remove_file(&tarball_path)
-                .with_context(|| "failed to remove the old tarball")?;
-        }
+		if tarball_path.exists() {
+			fs::remove_file(&tarball_path)
+				.with_context(|| "failed to remove the old tarball")?;
+		}
 
-        download(url, &tarball_path)?;
+		download(url, &tarball_path)?;
 
-        let temp_dir_path = cache_dir.join(oid);
+		let temp_dir_path = cache_dir.join(oid);
 
-        unpack(&tarball_path, &temp_dir_path)?;
+		unpack(&tarball_path, &temp_dir_path)?;
 
-        // There will only be one folder in this directory, which is the
-        // extracted repository
-        let extracted_dir = temp_dir_path
-            .read_dir()
-            .with_context(|| {
-                "failed to read entries within the temporary directory"
-            })?
-            .next()
-            .unwrap()
-            .with_context(|| "no any entries within the temporary directory")?;
+		// There will only be one folder in this directory, which is the
+		// extracted repository
+		let extracted_dir = temp_dir_path
+			.read_dir()
+			.with_context(|| {
+				"failed to read entries within the temporary directory"
+			})?
+			.next()
+			.unwrap()
+			.with_context(|| "no any entries within the temporary directory")?;
 
-        debug!("extracted directory: {:?}", extracted_dir);
+		debug!("extracted directory: {:?}", extracted_dir);
 
-        if scaffold_path.exists() {
-            remove_dir_all(&scaffold_path).with_context(|| {
-                "failed to remove the scaffold directory when exists"
-            })?;
-        }
+		if scaffold_path.exists() {
+			remove_dir_all(&scaffold_path).with_context(|| {
+				"failed to remove the scaffold directory when exists"
+			})?;
+		}
 
-        fs::rename(extracted_dir.path(), &scaffold_path).with_context(
-            || {
-                "failed to moveout the scaffold directory within temporary \
-                 diecrory"
-            },
-        )?;
+		fs::rename(extracted_dir.path(), &scaffold_path).with_context(
+			|| {
+				"failed to moveout the scaffold directory within temporary \
+				 diecrory"
+			},
+		)?;
 
-        fs::remove_file(&tarball_path)
-            .with_context(|| "failed to remove the tarball")?;
+		fs::remove_file(&tarball_path)
+			.with_context(|| "failed to remove the tarball")?;
 
-        remove_dir_all(temp_dir_path)
-            .with_context(|| "failed to remove the temporary directory")?;
+		remove_dir_all(temp_dir_path)
+			.with_context(|| "failed to remove the temporary directory")?;
 
-        Ok(scaffold_path)
-    }
+		Ok(scaffold_path)
+	}
 }
 
 fn download(url: &str, file_path: &Path) -> Result<()> {
-    let agent = build_proxy_agent();
-    let response = agent
-        .get(url)
-        .call()
-        .with_context(|| "failed to request the tarbll")?;
-    let mut file = fs::File::create(file_path)
-        .with_context(|| "failed to create the tarball")?;
+	let agent = build_proxy_agent();
+	let response = agent
+		.get(url)
+		.call()
+		.with_context(|| "failed to request the tarbll")?;
+	let mut file = fs::File::create(file_path)
+		.with_context(|| "failed to create the tarball")?;
 
-    io::copy(&mut response.into_reader(), &mut file)
-        .with_context(|| "failed to write data into the tarball")?;
+	io::copy(&mut response.into_reader(), &mut file)
+		.with_context(|| "failed to write data into the tarball")?;
 
-    Ok(())
+	Ok(())
 }
 
 fn unpack(file_path: &Path, parent_dir: &Path) -> Result<()> {
-    let file = fs::File::open(file_path)
-        .with_context(|| "failed to open the tarball")?;
-    let dec = GzDecoder::new(file);
-    let mut tar = tar::Archive::new(dec);
+	let file = fs::File::open(file_path)
+		.with_context(|| "failed to open the tarball")?;
+	let dec = GzDecoder::new(file);
+	let mut tar = tar::Archive::new(dec);
 
-    tar.unpack(parent_dir)
-        .with_context(|| "failed to unpack the tarball")?;
+	tar.unpack(parent_dir)
+		.with_context(|| "failed to unpack the tarball")?;
 
-    Ok(())
+	Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, path::PathBuf};
+	use std::{fs, path::PathBuf};
 
-    use anyhow::Result;
-    use pretty_assertions::assert_eq;
+	use anyhow::Result;
+	use pretty_assertions::assert_eq;
 
-    use super::{Query, Repository, REPO_RE};
+	use super::{Query, Repository, REPO_RE};
 
-    #[test]
-    fn repo_re_basic() {
-        let caps = REPO_RE.captures("test/repository");
-        assert!(caps.is_some());
-        let caps = caps.unwrap();
-        assert_eq!(&caps[1], "test");
-        assert_eq!(&caps[2], "repository");
-    }
+	#[test]
+	fn repo_re_basic() {
+		let caps = REPO_RE.captures("test/repository");
+		assert!(caps.is_some());
+		let caps = caps.unwrap();
+		assert_eq!(&caps[1], "test");
+		assert_eq!(&caps[2], "repository");
+	}
 
-    #[test]
-    fn repo_re_subdir() {
-        let caps = REPO_RE.captures("test/repository/path/to/dir");
-        assert!(caps.is_some());
-        let caps = caps.unwrap();
-        assert_eq!(&caps[1], "test");
-        assert_eq!(&caps[2], "repository");
-        assert_eq!(&caps[3], "/path/to/dir");
-    }
+	#[test]
+	fn repo_re_subdir() {
+		let caps = REPO_RE.captures("test/repository/path/to/dir");
+		assert!(caps.is_some());
+		let caps = caps.unwrap();
+		assert_eq!(&caps[1], "test");
+		assert_eq!(&caps[2], "repository");
+		assert_eq!(&caps[3], "/path/to/dir");
+	}
 
-    #[test]
-    fn repo_re_query_branch() {
-        let caps = REPO_RE.captures("test/repository?branch=main");
-        assert!(caps.is_some());
-        let caps = caps.unwrap();
-        assert_eq!(&caps[1], "test");
-        assert_eq!(&caps[2], "repository");
-        assert_eq!(caps.get(3), None);
-        assert_eq!(&caps[4], "branch");
-        assert_eq!(&caps[5], "main");
-    }
+	#[test]
+	fn repo_re_query_branch() {
+		let caps = REPO_RE.captures("test/repository?branch=main");
+		assert!(caps.is_some());
+		let caps = caps.unwrap();
+		assert_eq!(&caps[1], "test");
+		assert_eq!(&caps[2], "repository");
+		assert_eq!(caps.get(3), None);
+		assert_eq!(&caps[4], "branch");
+		assert_eq!(&caps[5], "main");
+	}
 
-    #[test]
-    fn repo_re_query_tag() {
-        let caps = REPO_RE.captures("test/repository?tag=v1.0.0");
-        assert!(caps.is_some());
-        let caps = caps.unwrap();
-        assert_eq!(&caps[1], "test");
-        assert_eq!(&caps[2], "repository");
-        assert_eq!(caps.get(3), None);
-        assert_eq!(&caps[4], "tag");
-        assert_eq!(&caps[5], "v1.0.0");
-    }
+	#[test]
+	fn repo_re_query_tag() {
+		let caps = REPO_RE.captures("test/repository?tag=v1.0.0");
+		assert!(caps.is_some());
+		let caps = caps.unwrap();
+		assert_eq!(&caps[1], "test");
+		assert_eq!(&caps[2], "repository");
+		assert_eq!(caps.get(3), None);
+		assert_eq!(&caps[4], "tag");
+		assert_eq!(&caps[5], "v1.0.0");
+	}
 
-    #[test]
-    fn repo_re_query_commit() {
-        let caps = REPO_RE.captures("test/repository?commit=abc123");
-        assert!(caps.is_some());
-        let caps = caps.unwrap();
-        assert_eq!(&caps[1], "test");
-        assert_eq!(&caps[2], "repository");
-        assert_eq!(caps.get(3), None);
-        assert_eq!(&caps[4], "commit");
-        assert_eq!(&caps[5], "abc123");
-    }
+	#[test]
+	fn repo_re_query_commit() {
+		let caps = REPO_RE.captures("test/repository?commit=abc123");
+		assert!(caps.is_some());
+		let caps = caps.unwrap();
+		assert_eq!(&caps[1], "test");
+		assert_eq!(&caps[2], "repository");
+		assert_eq!(caps.get(3), None);
+		assert_eq!(&caps[4], "commit");
+		assert_eq!(&caps[5], "abc123");
+	}
 
-    #[test]
-    fn repo_re_query_empty() {
-        let caps = REPO_RE.captures("test/repository?commit= ");
-        assert!(caps.is_none());
-    }
+	#[test]
+	fn repo_re_query_empty() {
+		let caps = REPO_RE.captures("test/repository?commit= ");
+		assert!(caps.is_none());
+	}
 
-    #[test]
-    fn repo_re_all() {
-        let caps = REPO_RE.captures("test/repository/path/to/dir?branch=main");
-        assert!(caps.is_some());
-        let caps = caps.unwrap();
-        assert_eq!(&caps[1], "test");
-        assert_eq!(&caps[2], "repository");
-        assert_eq!(caps.get(3).unwrap().as_str(), "/path/to/dir");
-        assert_eq!(&caps[4], "branch");
-        assert_eq!(&caps[5], "main");
-    }
+	#[test]
+	fn repo_re_all() {
+		let caps = REPO_RE.captures("test/repository/path/to/dir?branch=main");
+		assert!(caps.is_some());
+		let caps = caps.unwrap();
+		assert_eq!(&caps[1], "test");
+		assert_eq!(&caps[2], "repository");
+		assert_eq!(caps.get(3).unwrap().as_str(), "/path/to/dir");
+		assert_eq!(&caps[4], "branch");
+		assert_eq!(&caps[5], "main");
+	}
 
-    #[test]
-    fn repo_re_none_match() {
-        let caps = REPO_RE.captures("test");
-        assert!(caps.is_none());
-    }
+	#[test]
+	fn repo_re_none_match() {
+		let caps = REPO_RE.captures("test");
+		assert!(caps.is_none());
+	}
 
-    #[test]
-    fn repo_new_basic() -> Result<()> {
-        let repo = Repository::new("test/repository")?;
+	#[test]
+	fn repo_new_basic() -> Result<()> {
+		let repo = Repository::new("test/repository")?;
 
-        assert_eq!(repo.owner, "test");
-        assert_eq!(repo.name, "repository");
+		assert_eq!(repo.owner, "test");
+		assert_eq!(repo.name, "repository");
 
-        Ok(())
-    }
+		Ok(())
+	}
 
-    #[test]
-    fn repo_new_with_all() -> Result<()> {
-        let repo = Repository::new("test/repository/path/to/dir?branch=main")?;
+	#[test]
+	fn repo_new_with_all() -> Result<()> {
+		let repo = Repository::new("test/repository/path/to/dir?branch=main")?;
 
-        assert_eq!(repo.owner, "test");
-        assert_eq!(repo.name, "repository");
-        assert_eq!(repo.subdir.unwrap(), "/path/to/dir");
-        assert_eq!(repo.query.unwrap(), Query::Branch("main".to_string()));
+		assert_eq!(repo.owner, "test");
+		assert_eq!(repo.name, "repository");
+		assert_eq!(repo.subdir.unwrap(), "/path/to/dir");
+		assert_eq!(repo.query.unwrap(), Query::Branch("main".to_string()));
 
-        Ok(())
-    }
+		Ok(())
+	}
 
-    #[test]
-    fn repo_new_err() {
-        let repo = Repository::new("test");
-        assert!(repo.is_err());
-    }
+	#[test]
+	fn repo_new_err() {
+		let repo = Repository::new("test");
+		assert!(repo.is_err());
+	}
 
-    #[test]
-    fn repo_cache_ok() -> Result<()> {
-        use std::io::Read;
+	#[test]
+	fn repo_cache_ok() -> Result<()> {
+		use std::io::Read;
 
-        let mut server = mockito::Server::new();
-        let file_path = PathBuf::from_iter(["assets", "scafalra-test.tar.gz"]);
-        let mut file = fs::File::open(file_path)?;
-        let mut data = Vec::new();
-        file.read_to_end(&mut data)?;
+		let mut server = mockito::Server::new();
+		let file_path = PathBuf::from_iter(["assets", "scafalra-test.tar.gz"]);
+		let mut file = fs::File::open(file_path)?;
+		let mut data = Vec::new();
+		file.read_to_end(&mut data)?;
 
-        let mock = server
-            .mock("GET", "/")
-            .with_status(200)
-            .with_header("content-type", "application/x-gzip")
-            .with_body(data)
-            .create();
+		let mock = server
+			.mock("GET", "/")
+			.with_status(200)
+			.with_header("content-type", "application/x-gzip")
+			.with_body(data)
+			.create();
 
-        let dir = tempfile::tempdir()?;
-        let oid = "ea7c165bac336140bcf08f84758ab752769799be";
+		let dir = tempfile::tempdir()?;
+		let oid = "ea7c165bac336140bcf08f84758ab752769799be";
 
-        let repo = Repository::new("shixinhuang99/scafalra")?;
-        repo.cache(&server.url(), dir.path(), oid)?;
+		let repo = Repository::new("shixinhuang99/scafalra")?;
+		repo.cache(&server.url(), dir.path(), oid)?;
 
-        let repo_path = dir.path().join("shixinhuang99-scafalra-ea7c165");
+		let repo_path = dir.path().join("shixinhuang99-scafalra-ea7c165");
 
-        mock.assert();
-        assert!(repo_path.exists());
-        assert!(repo_path.is_dir());
-        assert!(!repo_path.with_extension("tar.gz").exists());
+		mock.assert();
+		assert!(repo_path.exists());
+		assert!(repo_path.is_dir());
+		assert!(!repo_path.with_extension("tar.gz").exists());
 
-        Ok(())
-    }
+		Ok(())
+	}
 }
