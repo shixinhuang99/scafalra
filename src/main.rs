@@ -2,11 +2,16 @@ mod cli;
 mod colorize;
 mod config;
 mod debug;
+mod error;
 mod github_api;
 mod repository;
 mod scafalra;
 mod store;
+mod toml_content;
 mod utils;
+
+#[cfg(test)]
+mod testing;
 
 use anyhow::Result;
 use clap::Parser;
@@ -15,12 +20,12 @@ use debug::set_debug;
 use scafalra::Scafalra;
 
 fn main() {
-	if let Err(err) = run() {
-		eprintln!("{}", err);
+	if let Err(err) = try_main() {
+		eprintln!("{:?}", err);
 	}
 }
 
-fn run() -> Result<()> {
+fn try_main() -> Result<()> {
 	let Some(home_dir) = home::home_dir() else {
 		anyhow::bail!("Impossible to get your home dir");
 	};

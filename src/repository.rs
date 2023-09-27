@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
 
-use crate::{debug, utils::build_proxy_agent};
+use crate::{debug, error::ScafalraError, utils::build_proxy_agent};
 
 static REPO_RE: Lazy<Regex> = Lazy::new(|| {
 	let re = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
@@ -33,9 +33,9 @@ pub enum Query {
 
 impl Repository {
 	pub fn new(input: &str) -> Result<Self> {
-		let caps = REPO_RE
-			.captures(input)
-			.ok_or(anyhow!("Could not parse the input: `{}`", input))?;
+		let caps = REPO_RE.captures(input).ok_or(anyhow!(
+			ScafalraError::RepositoryParse(input.to_string())
+		))?;
 
 		let owner = caps[1].to_string();
 		let name = caps[2].to_string();
@@ -78,46 +78,31 @@ impl Repository {
 
 		if tarball_path.exists() {
 			fs::remove_file(&tarball_path)
-				.with_context(|| "failed to remove the old tarball")?;
+				.context(ScafalraError::RemoveTarball)?;
 		}
 
-		download(url, &tarball_path)?;
+		download(url, &tarball_path).context(ScafalraError::DownloadTarball)?;
 
 		let temp_dir_path = cache_dir.join(oid);
 
-		unpack(&tarball_path, &temp_dir_path)?;
+		unpack(&tarball_path, &temp_dir_path)
+			.context(ScafalraError::UnPackTarball)?;
 
 		// There will only be one folder in this directory, which is the
 		// extracted repository
-		let extracted_dir = temp_dir_path
-			.read_dir()
-			.with_context(|| {
-				"failed to read entries within the temporary directory"
-			})?
-			.next()
-			.unwrap()
-			.with_context(|| "no any entries within the temporary directory")?;
+		let extracted_dir = temp_dir_path.read_dir()?.next().unwrap()?;
 
 		debug!("extracted directory: {:?}", extracted_dir);
 
 		if scaffold_path.exists() {
-			remove_dir_all(&scaffold_path).with_context(|| {
-				"failed to remove the scaffold directory when exists"
-			})?;
+			remove_dir_all(&scaffold_path)?;
 		}
 
-		fs::rename(extracted_dir.path(), &scaffold_path).with_context(
-			|| {
-				"failed to moveout the scaffold directory within temporary \
-				 diecrory"
-			},
-		)?;
+		fs::rename(extracted_dir.path(), &scaffold_path)?;
 
-		fs::remove_file(&tarball_path)
-			.with_context(|| "failed to remove the tarball")?;
+		fs::remove_file(&tarball_path)?;
 
-		remove_dir_all(temp_dir_path)
-			.with_context(|| "failed to remove the temporary directory")?;
+		remove_dir_all(temp_dir_path)?;
 
 		Ok(scaffold_path)
 	}
@@ -125,27 +110,20 @@ impl Repository {
 
 fn download(url: &str, file_path: &Path) -> Result<()> {
 	let agent = build_proxy_agent();
-	let response = agent
-		.get(url)
-		.call()
-		.with_context(|| "failed to request the tarbll")?;
-	let mut file = fs::File::create(file_path)
-		.with_context(|| "failed to create the tarball")?;
+	let response = agent.get(url).call()?;
+	let mut file = fs::File::create(file_path)?;
 
-	io::copy(&mut response.into_reader(), &mut file)
-		.with_context(|| "failed to write data into the tarball")?;
+	io::copy(&mut response.into_reader(), &mut file)?;
 
 	Ok(())
 }
 
 fn unpack(file_path: &Path, parent_dir: &Path) -> Result<()> {
-	let file = fs::File::open(file_path)
-		.with_context(|| "failed to open the tarball")?;
+	let file = fs::File::open(file_path)?;
 	let dec = GzDecoder::new(file);
 	let mut tar = tar::Archive::new(dec);
 
-	tar.unpack(parent_dir)
-		.with_context(|| "failed to unpack the tarball")?;
+	tar.unpack(parent_dir)?;
 
 	Ok(())
 }

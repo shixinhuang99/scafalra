@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
 	debug,
+	error::ScafalraError,
 	repository::{Query, Repository},
 	utils::build_proxy_agent,
 };
@@ -27,10 +28,10 @@ impl GraphQLQuery {
 }
 
 const QUERY_TEMPLATE: &str = r"
-query ($name: String!, $owner: String!, $oid: GitObjectID, $expression: String, $notDefaultBranch: Boolean!) {
+query ($name: String!, $owner: String!, $oid: GitObjectID, $expression: String, $isDefaultBranch: Boolean!) {
     repository(name: $name, owner: $owner) {
         url
-        object(oid: $oid, expression: $expression) @include(if: $notDefaultBranch) {
+        object(oid: $oid, expression: $expression) @skip(if: $isDefaultBranch) {
             ... on Commit {
                 oid
                 tarballUrl
@@ -53,8 +54,8 @@ struct Variable {
 	owner: String,
 	expression: Option<String>,
 	oid: Option<String>,
-	#[serde(rename = "notDefaultBranch")]
-	not_default_branch: bool,
+	#[serde(rename = "isDefaultBranch")]
+	is_default_branch: bool,
 }
 
 impl Variable {
@@ -70,26 +71,21 @@ impl Variable {
 			_ => (None, None),
 		};
 
-		let not_default_branch = !(expression.is_none() && oid.is_none());
+		let is_default_branch = expression.is_none() && oid.is_none();
 
 		Variable {
 			name: repo.name.clone(),
 			owner: repo.owner.clone(),
 			expression,
 			oid,
-			not_default_branch,
+			is_default_branch,
 		}
 	}
 }
 
 impl std::fmt::Display for Variable {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(
-			f,
-			"{}",
-			ureq::serde_json::to_string(self)
-				.expect("`Variable` should be serialized")
-		)
+		write!(f, "{}", ureq::serde_json::to_string(self).unwrap())
 	}
 }
 
@@ -123,7 +119,7 @@ impl GitHubApi {
 
 	pub fn request(&self, repo: &Repository) -> Result<GitHubApiResult> {
 		let Some(ref token) = self.token else {
-			anyhow::bail!("No GitHub personal access token configured");
+			anyhow::bail!(ScafalraError::NoToken);
 		};
 
 		let query = GraphQLQuery::new(repo);
@@ -136,20 +132,14 @@ impl GitHubApi {
 			.set("content-type", "application/json")
 			.set("user-agent", "scafalra")
 			.send_json(query)
-			.with_context(|| {
-				"failed to send the request or failed to serialize the request \
-				 body"
-			})?
+			.context(ScafalraError::GitHubApi)?
 			.into_json()
-			.with_context(|| {
-				"failed to got the response or failed to deserialize the \
-				 response body"
-			})?;
+			.context(ScafalraError::GitHubApi)?;
 
 		debug!("response: {:#?}", response);
 
 		let Some(data) = response.data else {
-			anyhow::bail!("GitHub GraphQL response errors");
+			anyhow::bail!(ScafalraError::GitHubApi);
 		};
 
 		let RepositoryData {
@@ -231,7 +221,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
 		assert_eq!(v.expression, None);
-		assert_eq!(v.not_default_branch, false);
+		assert_eq!(v.is_default_branch, true);
 	}
 
 	#[test]
@@ -245,7 +235,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
 		assert_eq!(v.expression, Some("refs/heads/foo".to_string()));
-		assert_eq!(v.not_default_branch, true);
+		assert_eq!(v.is_default_branch, false);
 	}
 
 	#[test]
@@ -259,7 +249,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
 		assert_eq!(v.expression, Some("refs/tags/foo".to_string()));
-		assert_eq!(v.not_default_branch, true);
+		assert_eq!(v.is_default_branch, false);
 	}
 
 	#[test]
@@ -273,7 +263,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, Some("foo".to_string()));
 		assert_eq!(v.expression, None);
-		assert_eq!(v.not_default_branch, true);
+		assert_eq!(v.is_default_branch, false);
 	}
 
 	#[test]
@@ -283,11 +273,11 @@ mod tests {
 		let data = r#"{
             "data": {
                 "repository": {
-                    "url": "https://github.com/shixinhuang99/scafalra",
+                    "url": "url",
                     "defaultBranchRef": {
                         "target": {
-                            "oid": "ea7c165bac336140bcf08f84758ab752769799be",
-                            "tarballUrl": "https://codeload.github.com/shixinhuang99/scafalra/legacy.tar.gz/ea7c165bac336140bcf08f84758ab752769799be"
+                            "oid": "oid",
+                            "tarballUrl": "tarballUrl"
                         }
                     }
                 }
@@ -308,12 +298,9 @@ mod tests {
 		let api_result = github_api.request(&build_repository())?;
 
 		mock.assert();
-		assert_eq!(api_result.oid, "ea7c165bac336140bcf08f84758ab752769799be");
-		assert_eq!(api_result.url, "https://github.com/shixinhuang99/scafalra");
-		assert_eq!(
-            api_result.tarball_url,
-            "https://codeload.github.com/shixinhuang99/scafalra/legacy.tar.gz/ea7c165bac336140bcf08f84758ab752769799be"
-        );
+		assert_eq!(api_result.oid, "oid");
+		assert_eq!(api_result.url, "url");
+		assert_eq!(api_result.tarball_url, "tarballUrl");
 
 		Ok(())
 	}

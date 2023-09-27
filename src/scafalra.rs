@@ -232,7 +232,7 @@ mod tests {
 	use tempfile::{tempdir, TempDir};
 
 	use super::{AddArgs, CreateArgs, Scafalra};
-	use crate::utils::scaffold_toml;
+	use crate::testing::scaffold_toml;
 
 	struct Paths {
 		cache_dir: PathBuf,

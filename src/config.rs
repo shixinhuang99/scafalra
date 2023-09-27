@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use crate::utils::TomlContent;
+use crate::toml_content::TomlContent;
 
 #[derive(Deserialize, Serialize, Default)]
 struct ConfigContent {

@@ -13,7 +13,7 @@ use tabled::{
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::utils::TomlContent;
+use crate::toml_content::TomlContent;
 
 mod log_symbols {
 	use once_cell::sync::Lazy;
@@ -235,7 +235,7 @@ mod tests {
 	use tempfile::{tempdir, TempDir};
 
 	use super::{Scaffold, ScaffoldMap, Store, StoreContent, TomlContent};
-	use crate::utils::scaffold_toml;
+	use crate::testing::scaffold_toml;
 
 	fn create_temp_file(with_content: bool) -> Result<(TempDir, PathBuf)> {
 		let temp_dir = tempdir()?;
