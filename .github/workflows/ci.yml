@@ -29,8 +29,14 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
+      - name: Install extra tool
+        run: |
+          cargo install taplo --locked
+
       - name: Fmt
-        run: cargo fmt --all -- --check
+        run: |
+          cargo fmt --all -- --check
+          taplo fmt --check
 
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
@@ -71,6 +77,10 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
+      - name: Install extra tool
+        run: |
+          cargo install cross --locked
+
       - name: Test code
         if: matrix.test
         run: |
@@ -86,5 +96,4 @@ jobs:
       - name: Test cross build
         if: matrix.cross
         run: |
-          cargo install cross
           cross build --target ${{ matrix.target }}
