@@ -31,7 +31,7 @@ jobs:
 
       - name: Install extra tool
         run: |
-          cargo install taplo-cli --locked
+          cargo install taplo-cli
 
       - name: Fmt
         run: |
@@ -79,7 +79,7 @@ jobs:
 
       - name: Install extra tool
         run: |
-          cargo install cross --locked
+          cargo install cross
 
       - name: Test code
         if: matrix.test
