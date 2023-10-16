@@ -64,12 +64,9 @@ pub struct MvArgs {
 #[derive(Args, Debug)]
 pub struct AddArgs {
 	/// owner/name/.../subdir?(branch|tag|commit)=...
-	///
-	/// If a subdir is provided, the last level of the subdir will be used as
-	/// the scaffold name
 	pub repository: String,
 
-	/// The depth to go when recursing repository(only support 0 or 1)
+	/// The depth to go when recursing repository
 	#[arg(
         short,
         long,
@@ -79,7 +76,8 @@ pub struct AddArgs {
     )]
 	pub depth: u8,
 
-	/// Specify scaffold name instead of repository name(conflicts with depth)
+	/// Specify scaffold name, if a subdir is provided, the last level of the
+	/// subdir will be used as the name
 	#[arg(short, long)]
 	pub name: Option<String>,
 }

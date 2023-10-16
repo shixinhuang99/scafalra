@@ -16,7 +16,7 @@ mod testing;
 use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Command};
-use debug::set_debug;
+use debug::trun_on_debug;
 use scafalra::Scafalra;
 
 fn main() {
@@ -33,7 +33,7 @@ fn try_main() -> Result<()> {
 	let cli = Cli::parse();
 
 	if cli.debug {
-		set_debug(cli.debug);
+		trun_on_debug(cli.debug);
 	}
 
 	let mut scafalra = Scafalra::new(&home_dir, None, cli.token.as_deref())?;

@@ -3,7 +3,7 @@ use std::{
 	path::{Path, PathBuf},
 };
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use flate2::read::GzDecoder;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -14,7 +14,7 @@ use crate::{debug, error::ScafalraError, utils::build_proxy_agent};
 static REPO_RE: Lazy<Regex> = Lazy::new(|| {
 	let re = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
 
-	Regex::new(re).expect("the regular expression should be created")
+	Regex::new(re).unwrap()
 });
 
 pub struct Repository {
@@ -77,16 +77,14 @@ impl Repository {
 		let tarball_path = scaffold_path.with_extension("tar.gz");
 
 		if tarball_path.exists() {
-			fs::remove_file(&tarball_path)
-				.context(ScafalraError::RemoveTarball)?;
+			fs::remove_file(&tarball_path)?;
 		}
 
-		download(url, &tarball_path).context(ScafalraError::DownloadTarball)?;
+		download(url, &tarball_path)?;
 
 		let temp_dir_path = cache_dir.join(oid);
 
-		unpack(&tarball_path, &temp_dir_path)
-			.context(ScafalraError::UnPackTarball)?;
+		unpack(&tarball_path, &temp_dir_path)?;
 
 		// There will only be one folder in this directory, which is the
 		// extracted repository

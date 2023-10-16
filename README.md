@@ -10,10 +10,9 @@ command-line interface tool for manage scaffolding
 cargo install scafalra
 ```
 
-### Download release binrary
+### Using binrary releases
 
-- Download the [latest release binary](https://github.com/shixinhuang99/scafalra/releases) for your system
-- Make it available globally on `PATH` environment variable
+Download the [latest release binary](https://github.com/shixinhuang99/scafalra/releases) for your system
 
 ## Prepare
 
@@ -47,8 +46,6 @@ Options:
   -h, --help           Print help
   -V, --version        Print version
 ```
-
-## Something else
 
 ### proxy support
 

@@ -29,14 +29,8 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Install extra tool
-        run: |
-          cargo install taplo-cli
-
       - name: Fmt
-        run: |
-          cargo fmt --all -- --check
-          taplo fmt --check
+        run: cargo fmt --all -- --check
 
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings

@@ -51,9 +51,9 @@ mod tests {
 	fn create_temp_file(with_content: bool) -> Result<(TempDir, PathBuf)> {
 		let temp_dir = tempdir()?;
 		let config_file_path = temp_dir.path().join("config.toml");
-		let mut file = fs::File::create(&config_file_path)?;
 
 		if with_content {
+			let mut file = fs::File::create(&config_file_path)?;
 			let content = "token = \"token\"\n";
 			file.write_all(content.as_bytes())?;
 		}
