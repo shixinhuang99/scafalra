@@ -34,12 +34,12 @@ where
 pub trait TomlContent: DeserializeOwned + Serialize + Default {
 	fn load(file: &Path) -> Result<Self> {
 		load_or_default(file, Self::default())
-			.context(ScafalraError::IOError(file.display().to_string()))
+			.context(ScafalraError::IO(file.display().to_string()))
 	}
 
 	fn save(&self, file: &Path) -> Result<()> {
 		save_content(file, self)
-			.context(ScafalraError::IOError(file.display().to_string()))
+			.context(ScafalraError::IO(file.display().to_string()))
 	}
 }
 
@@ -77,28 +77,34 @@ mod tests {
 	}
 
 	#[test]
-	fn test_load_file_exists() {
-		let (foo, _dir, _file_path) = Foo::build(true).unwrap();
+	fn test_load_file_exists() -> Result<()> {
+		let (foo, _dir, _file_path) = Foo::build(true)?;
 
 		assert_eq!(foo.bar, "bar");
+
+		Ok(())
 	}
 
 	#[test]
-	fn test_load_file_not_exists() {
-		let (foo, _dir, file_path) = Foo::build(false).unwrap();
+	fn test_load_file_not_exists() -> Result<()> {
+		let (foo, _dir, file_path) = Foo::build(false)?;
 
 		assert_eq!(foo.bar, "");
 		assert!(file_path.exists());
+
+		Ok(())
 	}
 
 	#[test]
-	fn test_save() {
-		let (mut foo, _dir, file_path) = Foo::build(true).unwrap();
+	fn test_save() -> Result<()> {
+		let (mut foo, _dir, file_path) = Foo::build(true)?;
 
 		foo.bar = "bar2".to_string();
-		foo.save(&file_path).unwrap();
+		foo.save(&file_path)?;
 
-		let content = fs::read_to_string(&file_path).unwrap();
-		assert_eq!(content, "bar = \"bar2\"\n")
+		let content = fs::read_to_string(&file_path)?;
+		assert_eq!(content, "bar = \"bar2\"\n");
+
+		Ok(())
 	}
 }

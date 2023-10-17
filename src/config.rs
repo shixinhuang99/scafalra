@@ -40,115 +40,57 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, io::Write, path::PathBuf};
+	use std::{fs, io::Write};
 
 	use anyhow::Result;
 	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
-	use super::{Config, ConfigContent, TomlContent};
+	use super::Config;
 
-	fn create_temp_file(with_content: bool) -> Result<(TempDir, PathBuf)> {
+	fn build(create_file: bool) -> Result<(Config, TempDir)> {
 		let temp_dir = tempdir()?;
-		let config_file_path = temp_dir.path().join("config.toml");
 
-		if with_content {
-			let mut file = fs::File::create(&config_file_path)?;
-			let content = "token = \"token\"\n";
-			file.write_all(content.as_bytes())?;
+		if create_file {
+			let file_path = temp_dir.path().join("config.toml");
+			let mut file = fs::File::create(file_path)?;
+			file.write_all(b"token = \"token\"\n")?;
 		}
 
-		Ok((temp_dir, config_file_path))
-	}
+		let config = Config::new(temp_dir.path())?;
 
-	fn build_config_content(
-		with_content: bool,
-	) -> Result<(ConfigContent, TempDir, PathBuf)> {
-		let (dir, file_path) = create_temp_file(with_content)?;
-		let cc = ConfigContent::load(&file_path)?;
-
-		Ok((cc, dir, file_path))
-	}
-
-	fn build_config(with_content: bool) -> Result<(Config, TempDir, PathBuf)> {
-		let (dir, file_path) = create_temp_file(with_content)?;
-		let config = Config::new(dir.path())?;
-
-		Ok((config, dir, file_path))
+		Ok((config, temp_dir))
 	}
 
 	#[test]
-	fn config_content_new_file_exists_with_content() -> Result<()> {
-		let (cc, _dir, _) = build_config_content(true)?;
+	fn test_config_new_not_exists() -> Result<()> {
+		let (config, dir) = build(false)?;
 
-		assert!(cc.token.is_some());
-		assert_eq!(cc.token.unwrap(), "token");
+		assert_eq!(config.path, dir.path());
+		assert_eq!(config.token(), None);
 
 		Ok(())
 	}
 
 	#[test]
-	fn config_content_new_file_exists_no_content() -> Result<()> {
-		let (cc, _dir, _) = build_config_content(false)?;
+	fn test_config_new_exists() -> Result<()> {
+		let (config, _dir) = build(true)?;
 
-		assert!(cc.token.is_none());
-
-		Ok(())
-	}
-
-	#[test]
-	fn config_content_new_file_not_exist() -> Result<()> {
-		let dir = tempdir()?;
-		let config_file_path = dir.path().join("config.toml");
-
-		let cc = ConfigContent::load(&config_file_path)?;
-
-		assert!(cc.token.is_none());
+		assert_eq!(config.token(), Some("token"));
 
 		Ok(())
 	}
 
 	#[test]
-	fn config_content_save() -> Result<()> {
-		let (mut cc, _dir, file_path) = build_config_content(true)?;
+	fn test_config_save() -> Result<()> {
+		let (mut config, _dir) = build(false)?;
 
-		cc.token = Some("123".to_string());
-		cc.save(&file_path)?;
+		config.set_token("token2");
+		config.save()?;
 
-		let content = fs::read_to_string(&file_path)?;
-		let expected_content = "token = \"123\"\n";
-		assert_eq!(content, expected_content);
+		let content = fs::read_to_string(&config.path)?;
 
-		Ok(())
-	}
-
-	#[test]
-	fn config_new_no_content() -> Result<()> {
-		let (config, _dir, file_path) = build_config(false)?;
-
-		assert_eq!(config.path, file_path);
-		assert_eq!(config.content.token, None);
-
-		Ok(())
-	}
-
-	#[test]
-	fn config_new_with_content() -> Result<()> {
-		let (config, _dir, file_path) = build_config(true)?;
-
-		assert_eq!(config.path, file_path);
-		assert_eq!(config.content.token, Some("token".to_string()));
-
-		Ok(())
-	}
-
-	#[test]
-	fn config_save_ok() -> Result<()> {
-		let (mut config, _dir, _) = build_config(true)?;
-
-		config.set_token("123");
-
-		assert_eq!(config.content.token, Some("123".to_string()));
+		assert_eq!(content, "token = \"token2\"\n");
 
 		Ok(())
 	}
