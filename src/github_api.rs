@@ -128,18 +128,21 @@ impl GitHubApi {
 
 		let response: GitHubApiResponse = agent
 			.post(&self.endpoint)
-			.set("authorization", format!("bearer {}", token).as_str())
+			.set("authorization", &format!("bearer {}", token))
 			.set("content-type", "application/json")
-			.set("user-agent", "scafalra")
+			.set(
+				"user-agent",
+				&format!("scafalra/{}", env!("CARGO_PKG_VERSION")),
+			)
 			.send_json(query)
-			.context(ScafalraError::GitHubApi)?
+			.context(ScafalraError::SerdeError)?
 			.into_json()
-			.context(ScafalraError::GitHubApi)?;
+			.context(ScafalraError::SerdeError)?;
 
 		debug!("response: {:#?}", response);
 
 		let Some(data) = response.data else {
-			anyhow::bail!(ScafalraError::GitHubApi);
+			anyhow::bail!(ScafalraError::GitHubApiError);
 		};
 
 		let RepositoryData {

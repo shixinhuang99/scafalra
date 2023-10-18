@@ -34,12 +34,12 @@ where
 pub trait TomlContent: DeserializeOwned + Serialize + Default {
 	fn load(file: &Path) -> Result<Self> {
 		load_or_default(file, Self::default())
-			.context(ScafalraError::IO(file.display().to_string()))
+			.context(ScafalraError::IOError(file.to_path_buf()))
 	}
 
 	fn save(&self, file: &Path) -> Result<()> {
 		save_content(file, self)
-			.context(ScafalraError::IO(file.display().to_string()))
+			.context(ScafalraError::IOError(file.to_path_buf()))
 	}
 }
 

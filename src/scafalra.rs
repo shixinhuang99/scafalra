@@ -76,17 +76,15 @@ impl Scafalra {
 	pub fn list(&self, args: ListArgs) {
 		debug!("args: {:#?}", args);
 
-		if self.store.scaffolds_len() == 0 {
-			return;
-		}
-
-		let res = if args.table {
+		let may_output = if args.table {
 			self.store.print_table()
 		} else {
 			self.store.print_grid()
 		};
 
-		println!("{}", res);
+		if let Some(output) = may_output {
+			println!("{}", output);
+		}
 	}
 
 	pub fn add(&mut self, args: AddArgs) -> Result<()> {
@@ -186,7 +184,7 @@ impl Scafalra {
 		debug!("target directory: {:?}", target_dir);
 
 		fs_extra::dir::copy(
-			scaffold.local,
+			&scaffold.local,
 			&target_dir,
 			&fs_extra::dir::CopyOptions::new().content_only(true),
 		)

@@ -66,7 +66,7 @@ mod tests {
 	fn test_config_new_not_exists() -> Result<()> {
 		let (config, dir) = build(false)?;
 
-		assert_eq!(config.path, dir.path());
+		assert_eq!(config.path, dir.path().join("config.toml"));
 		assert_eq!(config.token(), None);
 
 		Ok(())
