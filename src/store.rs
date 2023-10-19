@@ -90,11 +90,7 @@ impl Scaffold {
 	{
 		let local = PathBuf::from(local.as_ref()).display().to_string();
 
-		let quote = if cfg!(target_os = "windows") {
-			'\''
-		} else {
-			'"'
-		};
+		let quote = if local.contains('\\') { '\'' } else { '"' };
 
 		format!(
 			r#"[[scaffold]]
