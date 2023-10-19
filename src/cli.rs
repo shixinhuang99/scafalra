@@ -1,111 +1,109 @@
 use clap::{
-    builder::{PossibleValuesParser, TypedValueParser as _},
-    Args, Parser, Subcommand,
+	builder::{PossibleValuesParser, TypedValueParser as _},
+	Args, Parser, Subcommand,
 };
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
-    #[command(subcommand)]
-    pub command: Option<Command>,
+	#[command(subcommand)]
+	pub command: Option<Command>,
 
-    /// Use debug output
-    #[arg(long, global = true)]
-    pub debug: bool,
+	/// Use debug output
+	#[arg(long, global = true)]
+	pub debug: bool,
 
-    /// Specify the GitHub personal access token(classic)
-    #[arg(long, global = true)]
-    pub token: Option<String>,
+	/// Specify the GitHub personal access token(classic)
+	#[arg(long, global = true)]
+	pub token: Option<String>,
 
-    /// Display root dir of scafalra
-    #[arg(long)]
-    pub root_dir: bool,
+	/// Display root dir of scafalra
+	#[arg(long)]
+	pub root_dir: bool,
 }
 
 #[derive(Subcommand)]
 pub enum Command {
-    /// List all scaffolds
-    List(ListArgs),
+	/// List all scaffolds
+	List(ListArgs),
 
-    /// Remove specified scaffolds
-    Remove(RemoveArgs),
+	/// Remove specified scaffolds
+	Remove(RemoveArgs),
 
-    /// Rename a scaffold
-    Mv(MvArgs),
+	/// Rename a scaffold
+	Mv(MvArgs),
 
-    /// Add scaffolds from GitHub repository
-    Add(AddArgs),
+	/// Add scaffolds from GitHub repository
+	Add(AddArgs),
 
-    /// Copy the scaffold folder to the specified directory
-    Create(CreateArgs),
+	/// Copy the scaffold folder to the specified directory
+	Create(CreateArgs),
 
-    /// Configure or display your GitHub personal access token(classic)
-    Token(TokenArgs),
+	/// Configure or display your GitHub personal access token(classic)
+	Token(TokenArgs),
 }
 
 #[derive(Args, Debug)]
 pub struct ListArgs {
-    /// Output in table format
-    #[arg(short, long)]
-    pub table: bool,
+	/// Output in table format
+	#[arg(short, long)]
+	pub table: bool,
 }
 
 #[derive(Args, Debug)]
 pub struct RemoveArgs {
-    pub names: Vec<String>,
+	pub names: Vec<String>,
 }
 
 #[derive(Args, Debug)]
 pub struct MvArgs {
-    pub name: String,
-    pub new_name: String,
+	pub name: String,
+	pub new_name: String,
 }
 
 #[derive(Args, Debug)]
 pub struct AddArgs {
-    /// owner/name/.../subdir?(branch|tag|commit)=...
-    ///
-    /// If a subdir is provided, the last level of the subdir will be used as
-    /// the scaffold name
-    pub repository: String,
+	/// owner/name/.../subdir?(branch|tag|commit)=...
+	pub repository: String,
 
-    /// The depth to go when recursing repository(only support 0 or 1)
-    #[arg(
+	/// The depth to go when recursing repository
+	#[arg(
         short,
         long,
         default_value_t = 0,
         value_parser = PossibleValuesParser::new(["0", "1"])
             .map(|s| s.parse::<u8>().unwrap())
     )]
-    pub depth: u8,
+	pub depth: u8,
 
-    /// Specify scaffold name instead of repository name(conflicts with depth)
-    #[arg(short, long)]
-    pub name: Option<String>,
+	/// Specify scaffold name, if a subdir is provided, the last level of the
+	/// subdir will be used as the name
+	#[arg(short, long)]
+	pub name: Option<String>,
 }
 
 #[derive(Args, Debug)]
 pub struct CreateArgs {
-    /// Scaffold name
-    pub name: String,
+	/// Scaffold name
+	pub name: String,
 
-    /// Specified directory(defaults to the current directory)
-    pub directory: Option<String>,
+	/// Specified directory(defaults to the current directory)
+	pub directory: Option<String>,
 }
 
 #[derive(Args, Debug)]
 pub struct TokenArgs {
-    pub token: Option<String>,
+	pub token: Option<String>,
 }
 
 #[cfg(test)]
 mod tests {
-    use clap::CommandFactory;
+	use clap::CommandFactory;
 
-    use super::Cli;
+	use super::Cli;
 
-    #[test]
-    fn verify_cli() {
-        Cli::command().debug_assert();
-    }
+	#[test]
+	fn verify_cli() {
+		Cli::command().debug_assert();
+	}
 }
