@@ -1,5 +1,5 @@
 use std::{
-	fs,
+	env, fs,
 	path::{Component, Path, PathBuf},
 };
 
@@ -9,6 +9,7 @@ use crate::{
 	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
 	config::Config,
 	debug,
+	error::ScafalraError,
 	github_api::{GitHubApi, GitHubApiResult},
 	repository::Repository,
 	store::{Scaffold, Store},
@@ -33,7 +34,7 @@ impl Scafalra {
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)
-				.with_context(|| "failed to create cache directory")?;
+				.context(ScafalraError::IOError(cache_dir.clone()))?;
 		}
 
 		let config = Config::new(&root_dir)?;
@@ -55,7 +56,7 @@ impl Scafalra {
 		})
 	}
 
-	pub fn config_or_display_token(&mut self, args: TokenArgs) -> Result<()> {
+	pub fn set_or_display_token(&mut self, args: TokenArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
 		match args.token {
@@ -131,7 +132,7 @@ impl Scafalra {
 		if args.depth == 1 {
 			for entry in scaffold_path
 				.read_dir()
-				.with_context(|| "failed to read repository directories")?
+				.context(ScafalraError::IOError(scaffold_path.clone()))?
 			{
 				let entry = entry?;
 				let file_type = entry.file_type()?;
@@ -153,8 +154,6 @@ impl Scafalra {
 	}
 
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
-		use std::env::current_dir;
-
 		debug!("args: {:#?}", args);
 
 		println!("Creating `{}`", args.name);
@@ -165,20 +164,19 @@ impl Scafalra {
 			anyhow::bail!("No such scaffold `{}`", args.name);
 		};
 
-		let curr_dir = current_dir()
-			.with_context(|| "failed to get current working directory")?;
+		let cwd = env::current_dir()?;
 
-		debug!("current directory: {:?}", curr_dir);
+		debug!("current directory: {:?}", cwd);
 
 		let target_dir = if let Some(dir) = args.directory {
 			let dir_path = PathBuf::from(dir);
 			if dir_path.is_absolute() {
 				dir_path
 			} else {
-				curr_dir.join(dir_path)
+				cwd.join(dir_path)
 			}
 		} else {
-			curr_dir.join(args.name)
+			cwd.join(args.name)
 		};
 
 		debug!("target directory: {:?}", target_dir);
@@ -188,9 +186,7 @@ impl Scafalra {
 			&target_dir,
 			&fs_extra::dir::CopyOptions::new().content_only(true),
 		)
-		.with_context(|| {
-			"failed to copy the scaffold to the specified directory"
-		})?;
+		.context(ScafalraError::IOError(target_dir.clone()))?;
 
 		println!("Created in `{}`", target_dir.display());
 
@@ -230,7 +226,7 @@ mod tests {
 	use tempfile::{tempdir, TempDir};
 
 	use super::{AddArgs, CreateArgs, Scafalra};
-	use crate::testing::scaffold_toml;
+	use crate::store::Scaffold;
 
 	struct Paths {
 		cache_dir: PathBuf,
@@ -243,9 +239,9 @@ mod tests {
 		token: Option<&str>,
 		with_scaffold: bool,
 	) -> Result<(Scafalra, TempDir, Paths)> {
-		let dir = tempdir()?;
-		let dir_path = dir.path();
-		let root_dir = dir_path.join(".scafalra");
+		let temp_dir = tempdir()?;
+		let tempd_dir_path = temp_dir.path();
+		let root_dir = tempd_dir_path.join(".scafalra");
 		let cache_dir = root_dir.join("cache");
 		let store_file = root_dir.join("store.toml");
 		let config_file = root_dir.join("config.toml");
@@ -257,16 +253,16 @@ mod tests {
 			fs::File::create(scaffold_dir.join("a").join("foo.txt"))?;
 			fs::File::create(&store_file)?;
 
-			let content = scaffold_toml("bar", scaffold_dir);
+			let content = Scaffold::build_toml_str("bar", scaffold_dir);
 
 			fs::write(&store_file, content)?;
 		}
 
-		let sca = Scafalra::new(dir_path, endpoint, token)?;
+		let scafalra = Scafalra::new(tempd_dir_path, endpoint, token)?;
 
 		Ok((
-			sca,
-			dir,
+			scafalra,
+			temp_dir,
 			Paths {
 				cache_dir,
 				store_file,
@@ -320,11 +316,11 @@ mod tests {
 	}
 
 	#[test]
-	fn scafalra_new() -> Result<()> {
-		let (sca, _dir, paths) = build_scafalra(None, None, false)?;
+	fn test_scafalra_new() -> Result<()> {
+		let (scafalra, _dir, paths) = build_scafalra(None, None, false)?;
 
-		assert_eq!(sca.cache_dir, paths.cache_dir);
-		assert!(sca.cache_dir.exists());
+		assert_eq!(scafalra.cache_dir, paths.cache_dir);
+		assert!(scafalra.cache_dir.exists());
 		assert!(paths.store_file.exists());
 		assert!(paths.config_file.exists());
 
@@ -332,12 +328,12 @@ mod tests {
 	}
 
 	#[test]
-	fn scafalra_add_basic() -> Result<()> {
+	fn test_scafalra_add() -> Result<()> {
 		let (server, tarball_mock, api_mock) = build_server()?;
-		let (mut sca, _dir, paths) =
+		let (mut scafalra, _dir, paths) =
 			build_scafalra(Some(&server.url()), Some("token"), false)?;
 
-		sca.add(AddArgs {
+		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
 			depth: 0,
 			name: None,
@@ -349,7 +345,7 @@ mod tests {
 		let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
 		let store_content = fs::read_to_string(paths.store_file)?;
-		let expected = scaffold_toml("bar", &scaffold_dir);
+		let expected = Scaffold::build_toml_str("bar", &scaffold_dir);
 
 		assert_eq!(store_content, expected);
 		assert!(scaffold_dir.exists());
@@ -358,12 +354,12 @@ mod tests {
 	}
 
 	#[test]
-	fn scafalra_add_specified_name() -> Result<()> {
+	fn test_scafalra_add_specified_name() -> Result<()> {
 		let (server, tarball_mock, api_mock) = build_server()?;
-		let (mut sca, _dir, paths) =
+		let (mut scafalra, _dir, paths) =
 			build_scafalra(Some(&server.url()), Some("token"), false)?;
 
-		sca.add(AddArgs {
+		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
 			depth: 0,
 			name: Some("foo".to_string()),
@@ -375,7 +371,7 @@ mod tests {
 		let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
 		let store_content = fs::read_to_string(paths.store_file)?;
-		let expected = scaffold_toml("foo", &scaffold_dir);
+		let expected = Scaffold::build_toml_str("foo", &scaffold_dir);
 
 		assert_eq!(store_content, expected);
 		assert!(scaffold_dir.exists());
@@ -384,12 +380,12 @@ mod tests {
 	}
 
 	#[test]
-	fn scafalra_add_depth_1() -> Result<()> {
+	fn test_scafalra_add_depth_1() -> Result<()> {
 		let (server, tarball_mock, api_mock) = build_server()?;
-		let (mut sca, _dir, paths) =
+		let (mut scafalra, _dir, paths) =
 			build_scafalra(Some(&server.url()), Some("token"), false)?;
 
-		sca.add(AddArgs {
+		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
 			depth: 1,
 			name: Some("foo".to_string()),
@@ -403,10 +399,13 @@ mod tests {
 		let store_content = fs::read_to_string(paths.store_file)?;
 		let expected = format!(
 			"{}\n{}\n{}\n{}",
-			scaffold_toml("a", scaffold_dir.join("a")),
-			scaffold_toml("b", scaffold_dir.join("b")),
-			scaffold_toml("c", scaffold_dir.join("c")),
-			scaffold_toml("node_modules", scaffold_dir.join("node_modules")),
+			Scaffold::build_toml_str("a", scaffold_dir.join("a")),
+			Scaffold::build_toml_str("b", scaffold_dir.join("b")),
+			Scaffold::build_toml_str("c", scaffold_dir.join("c")),
+			Scaffold::build_toml_str(
+				"node_modules",
+				scaffold_dir.join("node_modules")
+			),
 		);
 
 		assert_eq!(store_content, expected);
@@ -416,12 +415,12 @@ mod tests {
 	}
 
 	#[test]
-	fn scafalra_add_subdir() -> Result<()> {
+	fn test_scafalra_add_subdir() -> Result<()> {
 		let (server, tarball_mock, api_mock) = build_server()?;
-		let (mut sca, _dir, paths) =
+		let (mut scafalra, _dir, paths) =
 			build_scafalra(Some(&server.url()), Some("token"), false)?;
 
-		sca.add(AddArgs {
+		scafalra.add(AddArgs {
 			repository: "foo/bar/a/a1".to_string(),
 			depth: 0,
 			name: None,
@@ -433,7 +432,8 @@ mod tests {
 		let scaffold_dir = paths.cache_dir.join("foo-bar-aaaaaaa");
 
 		let store_content = fs::read_to_string(paths.store_file)?;
-		let expected = scaffold_toml("a1", scaffold_dir.join("a").join("a1"));
+		let expected =
+			Scaffold::build_toml_str("a1", scaffold_dir.join("a").join("a1"));
 
 		assert_eq!(store_content, expected);
 		assert!(scaffold_dir.exists());
@@ -442,12 +442,12 @@ mod tests {
 	}
 
 	#[test]
-	fn scafalra_add_subdir_and_depth_1() -> Result<()> {
+	fn test_scafalra_add_subdir_and_depth_1() -> Result<()> {
 		let (server, tarball_mock, api_mock) = build_server()?;
-		let (mut sca, _dir, paths) =
+		let (mut scafalra, _dir, paths) =
 			build_scafalra(Some(&server.url()), Some("token"), false)?;
 
-		sca.add(AddArgs {
+		scafalra.add(AddArgs {
 			repository: "foo/bar/a".to_string(),
 			depth: 1,
 			name: None,
@@ -461,9 +461,9 @@ mod tests {
 		let store_content = fs::read_to_string(paths.store_file)?;
 		let expected = format!(
 			"{}\n{}\n{}",
-			scaffold_toml("a1", scaffold_dir.join("a").join("a1")),
-			scaffold_toml("a2", scaffold_dir.join("a").join("a2")),
-			scaffold_toml("a3", scaffold_dir.join("a").join("a3")),
+			Scaffold::build_toml_str("a1", scaffold_dir.join("a").join("a1")),
+			Scaffold::build_toml_str("a2", scaffold_dir.join("a").join("a2")),
+			Scaffold::build_toml_str("a3", scaffold_dir.join("a").join("a3")),
 		);
 
 		assert_eq!(store_content, expected);
@@ -473,12 +473,12 @@ mod tests {
 	}
 
 	#[test]
-	fn scafalra_create_basic() -> Result<()> {
-		let (sca, dir, _) = build_scafalra(None, None, true)?;
+	fn test_scafalra_create() -> Result<()> {
+		let (scafalra, dir, _) = build_scafalra(None, None, true)?;
 
 		let dir_path = dir.path();
 
-		sca.create(CreateArgs {
+		scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
@@ -492,10 +492,10 @@ mod tests {
 	}
 
 	#[test]
-	fn scafalra_create_not_found() -> Result<()> {
-		let (sca, _dir, _) = build_scafalra(None, None, false)?;
+	fn test_scafalra_create_not_found() -> Result<()> {
+		let (scafalra, _dir, _) = build_scafalra(None, None, false)?;
 
-		let res = sca.create(CreateArgs {
+		let res = scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			directory: None,
 		});

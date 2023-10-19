@@ -217,7 +217,7 @@ mod tests {
 	}
 
 	#[test]
-	fn variable_basic() {
+	fn test_variable_new() {
 		let v = Variable::new(&build_repository());
 
 		assert_eq!(&v.name, "scafalra");
@@ -228,7 +228,7 @@ mod tests {
 	}
 
 	#[test]
-	fn variable_query_branch() {
+	fn test_variable_query_branch() {
 		let v = Variable::new(&Repository {
 			query: Some(Query::Branch("foo".to_string())),
 			..build_repository()
@@ -242,7 +242,7 @@ mod tests {
 	}
 
 	#[test]
-	fn variable_query_tag() {
+	fn test_variable_query_tag() {
 		let v = Variable::new(&Repository {
 			query: Some(Query::Tag("foo".to_string())),
 			..build_repository()
@@ -256,7 +256,7 @@ mod tests {
 	}
 
 	#[test]
-	fn variable_query_commit() {
+	fn test_variable_query_commit() {
 		let v = Variable::new(&Repository {
 			query: Some(Query::Commit("foo".to_string())),
 			..build_repository()
@@ -270,7 +270,7 @@ mod tests {
 	}
 
 	#[test]
-	fn github_api_request_ok() -> Result<()> {
+	fn test_github_api_request() -> Result<()> {
 		let mut server = mockito::Server::new();
 
 		let data = r#"{
@@ -309,7 +309,7 @@ mod tests {
 	}
 
 	#[test]
-	fn github_api_request_no_token() {
+	fn test_github_api_request_no_token() {
 		let github_api = GitHubApi::new(None);
 		let api_result = github_api.request(&build_repository());
 

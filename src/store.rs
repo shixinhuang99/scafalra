@@ -50,7 +50,7 @@ struct StoreContent {
 
 impl TomlContent for StoreContent {}
 
-#[derive(Deserialize, Serialize, Clone, Tabled, Debug)]
+#[derive(Deserialize, Serialize, Clone, Tabled)]
 pub struct Scaffold {
 	pub name: String,
 	pub url: String,
@@ -84,7 +84,7 @@ impl Scaffold {
 	}
 
 	#[cfg(test)]
-	fn build_toml_str<T>(name: &str, local: T) -> String
+	pub fn build_toml_str<T>(name: &str, local: T) -> String
 	where
 		T: AsRef<Path>,
 	{

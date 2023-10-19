@@ -10,9 +10,6 @@ mod store;
 mod toml_content;
 mod utils;
 
-#[cfg(test)]
-mod testing;
-
 use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Command};
@@ -50,7 +47,7 @@ fn try_main() -> Result<()> {
 			Command::Mv(args) => scafalra.mv(args)?,
 			Command::Add(args) => scafalra.add(args)?,
 			Command::Create(args) => scafalra.create(args)?,
-			Command::Token(args) => scafalra.config_or_display_token(args)?,
+			Command::Token(args) => scafalra.set_or_display_token(args)?,
 		}
 	}
 
