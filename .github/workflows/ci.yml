@@ -21,7 +21,7 @@ jobs:
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2023-04-20
+          toolchain: nightly-2023-08-18
           components: clippy, rustfmt
 
       - name: Rust cache
@@ -44,7 +44,7 @@ jobs:
     name: tests (${{ matrix.target }})
 
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - os: macos-latest
@@ -71,6 +71,10 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
+      - name: Install extra tool
+        run: |
+          cargo install cross
+
       - name: Test code
         if: matrix.test
         run: |
@@ -86,5 +90,4 @@ jobs:
       - name: Test cross build
         if: matrix.cross
         run: |
-          cargo install cross
           cross build --target ${{ matrix.target }}
