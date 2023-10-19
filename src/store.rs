@@ -209,7 +209,7 @@ impl Store {
 			Some(scaffold) => {
 				self.scaffolds.insert(new_name.to_string(), scaffold);
 				self.changes.push_remove(name);
-				self.changes.push_add(name);
+				self.changes.push_add(new_name);
 			}
 			None => {
 				println!("No such scaffold `{}`", name);
@@ -294,7 +294,7 @@ mod tests {
 	#[test]
 	fn test_scaffolds_store_content_transform() {
 		let store_content = StoreContent {
-			scaffolds: (0..1)
+			scaffolds: (0..2)
 				.map(|v| {
 					Scaffold::new(
 						format!("scaffold-{}", v),
