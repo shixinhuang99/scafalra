@@ -9,4 +9,3 @@ wrap_comments = true
 reorder_impl_items = true
 format_strings = true
 hard_tabs = true
-tab_spaces = 4

@@ -96,7 +96,6 @@ pub struct GitHubApi {
 
 #[derive(Debug)]
 pub struct GitHubApiResult {
-	pub oid: String,
 	pub tarball_url: String,
 	pub url: String,
 }
@@ -151,19 +150,12 @@ impl GitHubApi {
 			url,
 		} = data.repository;
 
-		let (oid, tarball_url) = match object {
-			Some(val) => (val.oid, val.tarball_url),
-			None => (
-				default_branch_ref.target.oid,
-				default_branch_ref.target.tarball_url,
-			),
+		let tarball_url = match object {
+			Some(val) => val.tarball_url,
+			None => default_branch_ref.target.tarball_url,
 		};
 
-		Ok(GitHubApiResult {
-			oid,
-			tarball_url,
-			url,
-		})
+		Ok(GitHubApiResult { tarball_url, url })
 	}
 }
 
@@ -195,6 +187,7 @@ struct DefaultBranchRef {
 
 #[derive(Deserialize, Debug)]
 struct Target {
+	#[allow(dead_code)]
 	oid: String,
 	#[serde(rename = "tarballUrl")]
 	tarball_url: String,
@@ -301,7 +294,6 @@ mod tests {
 		let api_result = github_api.request(&build_repository())?;
 
 		mock.assert();
-		assert_eq!(api_result.oid, "oid");
 		assert_eq!(api_result.url, "url");
 		assert_eq!(api_result.tarball_url, "tarballUrl");
 
