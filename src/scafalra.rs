@@ -101,8 +101,12 @@ impl Scafalra {
 
 		let mut scaffold_path = repo.cache(&tarball_url, &self.cache_dir)?;
 
-		if let Some(subdir) = repo.subdir {
+		debug!("{}", scaffold_path);
+
+		if let Some(ref subdir) = repo.subdir {
 			scaffold_path.extend(subdir.iter());
+
+			debug!("{}", scaffold_path);
 
 			if let Some(name) = scaffold_path.file_name() {
 				scaffold_name = name.to_string();

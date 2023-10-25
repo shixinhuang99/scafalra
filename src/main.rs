@@ -34,8 +34,8 @@ fn try_main() -> Result<()> {
 
 	let cli = Cli::parse();
 
-	if cli.debug {
-		trun_on_debug(cli.debug);
+	if cli.debug || std::env::var("DEBUG").is_ok() {
+		trun_on_debug();
 	}
 
 	let mut scafalra = Scafalra::new(&home_dir, None, cli.token.as_deref())?;
