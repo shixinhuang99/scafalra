@@ -1,12 +1,9 @@
 use std::path::PathBuf;
 
-use camino::Utf8PathBuf;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ScafalraError {
-	#[error("Error accessing specified path: `{}`", .0)]
-	IOError(Utf8PathBuf),
 	#[error("No GitHub personal access token configured")]
 	NoToken,
 	#[error("Call to GitHub api error")]
