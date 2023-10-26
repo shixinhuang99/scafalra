@@ -1,8 +1,9 @@
-use std::{fs, io, sync::OnceLock};
+use std::{io, sync::OnceLock};
 
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use flate2::read::GzDecoder;
+use fs_err as fs;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
 

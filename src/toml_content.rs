@@ -1,46 +1,27 @@
-use std::fs;
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use camino::Utf8Path;
+use fs_err as fs;
 use serde::{de::DeserializeOwned, Serialize};
-
-use crate::error::ScafalraError;
-
-fn load_or_default<T>(file: &Utf8Path, defalut: T) -> Result<T>
-where
-	T: TomlContent,
-{
-	let content: T = {
-		if file.exists() {
-			toml::from_str(&fs::read_to_string(file)?)?
-		} else {
-			fs::File::create(file)?;
-			defalut
-		}
-	};
-
-	Ok(content)
-}
-
-fn save_content<T>(file: &Utf8Path, that: &T) -> Result<()>
-where
-	T: TomlContent,
-{
-	let content = toml::to_string_pretty(that)?;
-	fs::write(file, content)?;
-
-	Ok(())
-}
 
 pub trait TomlContent: DeserializeOwned + Serialize + Default {
 	fn load(file: &Utf8Path) -> Result<Self> {
-		load_or_default(file, Self::default())
-			.context(ScafalraError::IOError(file.to_path_buf()))
+		let content: Self = {
+			if file.exists() {
+				toml::from_str(&fs::read_to_string(file)?)?
+			} else {
+				fs::File::create(file)?;
+				Self::default()
+			}
+		};
+
+		Ok(content)
 	}
 
 	fn save(&self, file: &Utf8Path) -> Result<()> {
-		save_content(file, self)
-			.context(ScafalraError::IOError(file.to_path_buf()))
+		let content = toml::to_string_pretty(self)?;
+		fs::write(file, content)?;
+
+		Ok(())
 	}
 }
 

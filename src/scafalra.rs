@@ -1,7 +1,8 @@
-use std::{env, fs};
+use std::env;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
+use fs_err as fs;
 
 use crate::{
 	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
@@ -31,8 +32,7 @@ impl Scafalra {
 		let cache_dir = root_dir.join("cache");
 
 		if !cache_dir.exists() {
-			fs::create_dir_all(&cache_dir)
-				.context(ScafalraError::IOError(cache_dir.clone()))?;
+			fs::create_dir_all(&cache_dir)?;
 		}
 
 		let config = Config::new(&root_dir)?;
@@ -100,7 +100,7 @@ impl Scafalra {
 		let mut scaffold_path =
 			repo.cache(&api_result.tarball_url, &self.cache_dir)?;
 
-		debug!("{}", scaffold_path);
+		debug!("scaffold_path: {}", scaffold_path);
 
 		if let Some(ref subdir) = repo.subdir {
 			subdir
@@ -110,7 +110,7 @@ impl Scafalra {
 					scaffold_path.push(c);
 				});
 
-			debug!("{}", scaffold_path);
+			debug!("scaffold_path: {}", scaffold_path);
 
 			if let Some(name) = scaffold_path.file_name() {
 				scaffold_name = name.to_string();
@@ -126,10 +126,7 @@ impl Scafalra {
 		}
 
 		if args.depth == 1 {
-			for entry in scaffold_path
-				.read_dir_utf8()
-				.context(ScafalraError::IOError(scaffold_path.clone()))?
-			{
+			for entry in scaffold_path.read_dir_utf8()? {
 				let entry = entry?;
 				let file_type = entry.file_type()?;
 				let file_name = entry.file_name();
@@ -181,8 +178,7 @@ impl Scafalra {
 			anyhow::bail!("`{}` is already exists", dst);
 		}
 
-		dircpy::copy_dir(&scaffold.local, &dst)
-			.context(ScafalraError::IOError(dst.clone()))?;
+		dircpy::copy_dir(&scaffold.local, &dst)?;
 
 		println!("Created in `{}`", dst);
 

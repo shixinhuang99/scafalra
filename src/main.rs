@@ -10,6 +10,8 @@ mod store;
 mod toml_content;
 mod utils;
 
+use std::env;
+
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Parser;
@@ -34,7 +36,7 @@ fn try_main() -> Result<()> {
 
 	let cli = Cli::parse();
 
-	if cli.debug || std::env::var("DEBUG_LOG").is_ok() {
+	if cli.debug || env::var("DEBUG_LOG").is_ok() {
 		trun_on_debug();
 	}
 
