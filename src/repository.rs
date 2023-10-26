@@ -1,10 +1,7 @@
-use std::{
-	fs, io,
-	path::{Path, PathBuf},
-	sync::OnceLock,
-};
+use std::{fs, io, sync::OnceLock};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
+use camino::{Utf8Path, Utf8PathBuf};
 use flate2::read::GzDecoder;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
@@ -22,7 +19,7 @@ fn get_repo_re() -> &'static Regex {
 pub struct Repository {
 	pub owner: String,
 	pub name: String,
-	pub subdir: Option<String>,
+	pub subdir: Option<Utf8PathBuf>,
 	pub query: Option<Query>,
 }
 
@@ -42,7 +39,7 @@ impl Repository {
 		let owner = caps[1].to_string();
 		let name = caps[2].to_string();
 
-		let subdir = caps.get(3).map(|v| v.as_str().to_string());
+		let subdir = caps.get(3).map(|v| Utf8PathBuf::from(v.as_str()));
 		let query_kind = caps.get(4).map(|v| v.as_str());
 		let query_val = caps.get(5).map(|v| v.as_str().to_string());
 
@@ -64,52 +61,43 @@ impl Repository {
 	pub fn cache(
 		&self,
 		url: &str,
-		cache_dir: &Path,
-		oid: &str,
-	) -> Result<PathBuf> {
-		let scaffold_path = cache_dir.join(format!(
-			"{}-{}-{}",
-			self.owner,
-			self.name,
-			&oid[0..7]
-		));
+		cache_dir: &Utf8Path,
+	) -> Result<Utf8PathBuf> {
+		let temp_dir = cache_dir.join("t");
+		let tarball = temp_dir.with_extension("tar.gz");
 
-		debug!("scaffold directory: {:?}", scaffold_path);
+		download(url, &tarball)?;
 
-		let tarball_path = scaffold_path.with_extension("tar.gz");
+		unpack(&tarball, &temp_dir)?;
 
-		if tarball_path.exists() {
-			fs::remove_file(&tarball_path)?;
+		let Some(extracted_dir) = temp_dir.read_dir_utf8()?.next() else {
+			anyhow::bail!("Empty directory");
+		};
+
+		let extracted_dir = extracted_dir?.into_path();
+
+		debug!("extracted directory: {}", extracted_dir);
+
+		let scaffold_dir = Utf8PathBuf::from_iter([
+			cache_dir,
+			Utf8Path::new(&self.owner),
+			Utf8Path::new(&self.name),
+		]);
+
+		if scaffold_dir.exists() {
+			remove_dir_all(&scaffold_dir)?;
 		}
 
-		download(url, &tarball_path)
-			.context(ScafalraError::IOError(tarball_path.clone()))?;
+		dircpy::copy_dir(extracted_dir, &scaffold_dir)?;
 
-		let temp_dir_path = cache_dir.join(oid);
+		fs::remove_file(&tarball)?;
+		remove_dir_all(temp_dir)?;
 
-		unpack(&tarball_path, &temp_dir_path)?;
-
-		// There will only be one folder in this directory, which is the
-		// extracted repository
-		let extracted_dir = temp_dir_path.read_dir()?.next().unwrap()?;
-
-		debug!("extracted directory: {:?}", extracted_dir);
-
-		if scaffold_path.exists() {
-			remove_dir_all(&scaffold_path)?;
-		}
-
-		fs::rename(extracted_dir.path(), &scaffold_path)?;
-
-		fs::remove_file(&tarball_path)?;
-
-		remove_dir_all(temp_dir_path)?;
-
-		Ok(scaffold_path)
+		Ok(scaffold_dir)
 	}
 }
 
-fn download(url: &str, file_path: &Path) -> Result<()> {
+fn download(url: &str, file_path: &Utf8Path) -> Result<()> {
 	let agent = build_proxy_agent();
 	let response = agent.get(url).call()?;
 	let mut file = fs::File::create(file_path)?;
@@ -119,7 +107,7 @@ fn download(url: &str, file_path: &Path) -> Result<()> {
 	Ok(())
 }
 
-fn unpack(file_path: &Path, parent_dir: &Path) -> Result<()> {
+fn unpack(file_path: &Utf8Path, parent_dir: &Utf8Path) -> Result<()> {
 	let file = fs::File::open(file_path)?;
 	let dec = GzDecoder::new(file);
 	let mut tar = tar::Archive::new(dec);
@@ -134,6 +122,7 @@ mod tests {
 	use std::{fs, path::PathBuf};
 
 	use anyhow::Result;
+	use camino::Utf8Path;
 	use pretty_assertions::assert_eq;
 
 	use super::{get_repo_re, Query, Repository};
@@ -252,18 +241,20 @@ mod tests {
 			.with_body(data)
 			.create();
 
-		let dir = tempfile::tempdir()?;
-		let oid = "ea7c165bac336140bcf08f84758ab752769799be";
+		let temp_dir = tempfile::tempdir()?;
+		let temp_dir_path = Utf8Path::from_path(temp_dir.path()).unwrap();
 
 		let repo = Repository::new("shixinhuang99/scafalra")?;
-		repo.cache(&server.url(), dir.path(), oid)?;
-
-		let repo_path = dir.path().join("shixinhuang99-scafalra-ea7c165");
+		repo.cache(&server.url(), temp_dir_path)?;
 
 		mock.assert();
-		assert!(repo_path.exists());
-		assert!(repo_path.is_dir());
-		assert!(!repo_path.with_extension("tar.gz").exists());
+		assert!(
+			temp_dir_path
+				.join("shixinhuang99")
+				.join("scafalra")
+				.is_dir()
+		);
+		assert!(!temp_dir_path.join("t").exists());
 
 		Ok(())
 	}

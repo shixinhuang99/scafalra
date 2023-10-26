@@ -1,11 +1,12 @@
-use std::{fs, path::Path};
+use std::fs;
 
 use anyhow::{Context, Result};
+use camino::Utf8Path;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::error::ScafalraError;
 
-fn load_or_default<T>(file: &Path, defalut: T) -> Result<T>
+fn load_or_default<T>(file: &Utf8Path, defalut: T) -> Result<T>
 where
 	T: TomlContent,
 {
@@ -21,7 +22,7 @@ where
 	Ok(content)
 }
 
-fn save_content<T>(file: &Path, that: &T) -> Result<()>
+fn save_content<T>(file: &Utf8Path, that: &T) -> Result<()>
 where
 	T: TomlContent,
 {
@@ -32,12 +33,12 @@ where
 }
 
 pub trait TomlContent: DeserializeOwned + Serialize + Default {
-	fn load(file: &Path) -> Result<Self> {
+	fn load(file: &Utf8Path) -> Result<Self> {
 		load_or_default(file, Self::default())
 			.context(ScafalraError::IOError(file.to_path_buf()))
 	}
 
-	fn save(&self, file: &Path) -> Result<()> {
+	fn save(&self, file: &Utf8Path) -> Result<()> {
 		save_content(file, self)
 			.context(ScafalraError::IOError(file.to_path_buf()))
 	}
@@ -45,9 +46,10 @@ pub trait TomlContent: DeserializeOwned + Serialize + Default {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, io::Write, path::PathBuf};
+	use std::{fs, io::Write};
 
 	use anyhow::Result;
+	use camino::{Utf8Path, Utf8PathBuf};
 	use serde::{Deserialize, Serialize};
 	use tempfile::{tempdir, TempDir};
 
@@ -61,9 +63,11 @@ mod tests {
 	impl TomlContent for Foo {}
 
 	impl Foo {
-		fn build(create_file: bool) -> Result<(Self, TempDir, PathBuf)> {
+		fn build(create_file: bool) -> Result<(Self, TempDir, Utf8PathBuf)> {
 			let temp_dir = tempdir()?;
-			let file_path = temp_dir.path().join("foo.toml");
+			let file_path = Utf8Path::from_path(temp_dir.path())
+				.unwrap()
+				.join("foo.toml");
 
 			if create_file {
 				let mut file = fs::File::create(&file_path)?;

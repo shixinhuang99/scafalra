@@ -5,7 +5,8 @@ use std::{
 	slice::Iter,
 };
 
-use anyhow::{Context, Result};
+use anyhow::Result;
+use camino::{Utf8Path, Utf8PathBuf};
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
 use tabled::{
@@ -14,7 +15,7 @@ use tabled::{
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::{error::ScafalraError, toml_content::TomlContent};
+use crate::toml_content::TomlContent;
 
 struct Changes {
 	inner: Vec<String>,
@@ -64,10 +65,11 @@ pub struct Scaffold {
 const TEST_CREATED_AT: &str = "2023-05-19 00:00:00";
 
 impl Scaffold {
-	pub fn new<T, P>(name: T, url: T, local: P) -> Self
+	pub fn new<N, U, L>(name: N, url: U, local: L) -> Self
 	where
-		T: AsRef<str>,
-		P: AsRef<Path>,
+		N: AsRef<str>,
+		U: AsRef<str>,
+		L: AsRef<Path>,
 	{
 		#[cfg(not(test))]
 		let created_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
@@ -141,13 +143,13 @@ impl DerefMut for ScaffoldMap {
 }
 
 pub struct Store {
-	path: PathBuf,
+	path: Utf8PathBuf,
 	scaffolds: ScaffoldMap,
 	changes: Changes,
 }
 
 impl Store {
-	pub fn new(scafalra_dir: &Path) -> Result<Self> {
+	pub fn new(scafalra_dir: &Utf8Path) -> Result<Self> {
 		let path = scafalra_dir.join("store.toml");
 		let scaffolds = ScaffoldMap::from(StoreContent::load(&path)?);
 		let changes = Changes::new();
@@ -184,8 +186,7 @@ impl Store {
 
 	pub fn remove(&mut self, name: &str) -> Result<()> {
 		if let Some(scaffold) = self.scaffolds.get(name) {
-			remove_dir_all(&scaffold.local)
-				.context(ScafalraError::IOError(scaffold.local.clone()))?;
+			remove_dir_all(&scaffold.local)?;
 
 			self.changes.push_remove(name);
 
@@ -263,6 +264,7 @@ mod tests {
 	use std::{fs, io::Write};
 
 	use anyhow::Result;
+	use camino::Utf8Path;
 	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
@@ -274,15 +276,16 @@ mod tests {
 
 	fn build_store(create_file: bool) -> Result<(Store, TempDir)> {
 		let temp_dir = tempdir()?;
+		let temp_dir_path = Utf8Path::from_path(temp_dir.path()).unwrap();
 
 		if create_file {
-			let file_path = temp_dir.path().join("store.toml");
+			let file_path = temp_dir_path.join("store.toml");
 			let mut file = fs::File::create(file_path)?;
 			let content = Scaffold::build_toml_str("scaffold", "local");
 			file.write_all(content.as_bytes())?;
 		}
 
-		let store = Store::new(temp_dir.path())?;
+		let store = Store::new(temp_dir_path)?;
 
 		Ok((store, temp_dir))
 	}
@@ -292,11 +295,7 @@ mod tests {
 		let store_content = StoreContent {
 			scaffolds: (0..2)
 				.map(|v| {
-					Scaffold::new(
-						format!("scaffold-{}", v),
-						"url".to_string(),
-						"local",
-					)
+					Scaffold::new(format!("scaffold-{}", v), "url", "local")
 				})
 				.collect(),
 		};
@@ -382,12 +381,13 @@ mod tests {
 	#[test]
 	fn test_store_remove() -> Result<()> {
 		let (_, dir) = build_store(true)?;
+		let dir_path = Utf8Path::from_path(dir.path()).unwrap();
 
-		let local = dir.path().join("foo");
+		let local = dir_path.join("foo");
 		fs::create_dir(&local)?;
 		let content = Scaffold::build_toml_str("scaffold", &local);
-		fs::write(dir.path().join("store.toml"), content)?;
-		let mut store = Store::new(dir.path())?;
+		fs::write(dir_path.join("store.toml"), content)?;
+		let mut store = Store::new(dir_path)?;
 
 		assert!(local.exists());
 		store.remove("scaffold")?;
