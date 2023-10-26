@@ -8,7 +8,7 @@ use crate::{
 	config::Config,
 	debug,
 	error::ScafalraError,
-	github_api::{GitHubApi, GitHubApiResult},
+	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
 };
@@ -95,11 +95,10 @@ impl Scafalra {
 
 		let api_result = self.github_api.request(&repo)?;
 
-		let GitHubApiResult { url, tarball_url } = api_result;
-
 		let mut scaffold_name = args.name.unwrap_or(repo.name.clone());
 
-		let mut scaffold_path = repo.cache(&tarball_url, &self.cache_dir)?;
+		let mut scaffold_path =
+			repo.cache(&api_result.tarball_url, &self.cache_dir)?;
 
 		debug!("{}", scaffold_path);
 
@@ -116,7 +115,7 @@ impl Scafalra {
 		if args.depth == 0 {
 			self.store.add(Scaffold::new(
 				scaffold_name,
-				url.clone(),
+				api_result.url.clone(),
 				scaffold_path.clone(),
 			))
 		}
@@ -133,7 +132,7 @@ impl Scafalra {
 				if file_type.is_dir() && !file_name.starts_with('.') {
 					self.store.add(Scaffold::new(
 						file_name,
-						url.clone(),
+						api_result.url.clone(),
 						entry.path(),
 					))
 				}
@@ -153,8 +152,7 @@ impl Scafalra {
 		let scaffold = self.store.get(&args.name);
 
 		let Some(scaffold) = scaffold else {
-			println!("No such scaffold `{}`", args.name);
-			return Ok(());
+			anyhow::bail!("No such scaffold `{}`", args.name);
 		};
 
 		let cwd = Utf8PathBuf::from_path_buf(env::current_dir()?)
@@ -174,14 +172,8 @@ impl Scafalra {
 
 		debug!("target directory: {}", dst);
 
-		if !dst.is_dir() {
-			println!("`{}` is not a directory", dst);
-			return Ok(());
-		}
-
 		if dst.exists() {
-			println!("`{}` is already exists", dst);
-			return Ok(());
+			anyhow::bail!("`{}` is already exists", dst);
 		}
 
 		dircpy::copy_dir(&scaffold.local, &dst)
