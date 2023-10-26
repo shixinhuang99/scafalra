@@ -1,7 +1,7 @@
 use std::{env, fs};
 
 use anyhow::{Context, Result};
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
 
 use crate::{
 	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
@@ -103,7 +103,12 @@ impl Scafalra {
 		debug!("{}", scaffold_path);
 
 		if let Some(ref subdir) = repo.subdir {
-			scaffold_path.extend(subdir.iter());
+			subdir
+				.components()
+				.filter(|c| matches!(c, Utf8Component::Normal(_)))
+				.for_each(|c| {
+					scaffold_path.push(c);
+				});
 
 			debug!("{}", scaffold_path);
 

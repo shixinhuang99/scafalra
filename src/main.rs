@@ -34,7 +34,7 @@ fn try_main() -> Result<()> {
 
 	let cli = Cli::parse();
 
-	if cli.debug || std::env::var("DEBUG").is_ok() {
+	if cli.debug || std::env::var("DEBUG_LOG").is_ok() {
 		trun_on_debug();
 	}
 

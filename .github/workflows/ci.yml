@@ -10,6 +10,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
+  DEBUG_LOG: 1
 
 jobs:
   general-check:
@@ -79,7 +80,7 @@ jobs:
         if: matrix.test
         run: |
           rustup target add ${{ matrix.target }}
-          DEBUG=1 cargo test --target ${{ matrix.target }}
+          cargo test --target ${{ matrix.target }}
 
       - name: Test cargo build
         if: matrix.test == '' && matrix.cross == ''
