@@ -1,3 +1,4 @@
+use camino::Utf8PathBuf;
 use clap::{
 	builder::{PossibleValuesParser, TypedValueParser as _},
 	Args, Parser, Subcommand,
@@ -78,7 +79,7 @@ pub struct AddArgs {
 
 	/// Specify scaffold name, if a subdir is provided, the last level of the
 	/// subdir will be used as the name
-	#[arg(short, long)]
+	#[arg(long)]
 	pub name: Option<String>,
 }
 
@@ -88,7 +89,7 @@ pub struct CreateArgs {
 	pub name: String,
 
 	/// Specified directory(defaults to the current directory)
-	pub directory: Option<String>,
+	pub directory: Option<Utf8PathBuf>,
 }
 
 #[derive(Args, Debug)]

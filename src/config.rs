@@ -1,6 +1,5 @@
-use std::path::{Path, PathBuf};
-
 use anyhow::Result;
+use camino::{Utf8Path, Utf8PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::toml_content::TomlContent;
@@ -13,12 +12,12 @@ struct ConfigContent {
 impl TomlContent for ConfigContent {}
 
 pub struct Config {
-	path: PathBuf,
+	path: Utf8PathBuf,
 	content: ConfigContent,
 }
 
 impl Config {
-	pub fn new(scafalra_dir: &Path) -> Result<Self> {
+	pub fn new(scafalra_dir: &Utf8Path) -> Result<Self> {
 		let path = scafalra_dir.join("config.toml");
 		let content = ConfigContent::load(&path)?;
 
@@ -43,6 +42,7 @@ mod tests {
 	use std::{fs, io::Write};
 
 	use anyhow::Result;
+	use camino::Utf8Path;
 	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
@@ -50,14 +50,15 @@ mod tests {
 
 	fn build(create_file: bool) -> Result<(Config, TempDir)> {
 		let temp_dir = tempdir()?;
+		let temp_dir_path = Utf8Path::from_path(temp_dir.path()).unwrap();
 
 		if create_file {
-			let file_path = temp_dir.path().join("config.toml");
+			let file_path = temp_dir_path.join("config.toml");
 			let mut file = fs::File::create(file_path)?;
 			file.write_all(b"token = \"token\"\n")?;
 		}
 
-		let config = Config::new(temp_dir.path())?;
+		let config = Config::new(temp_dir_path)?;
 
 		Ok((config, temp_dir))
 	}

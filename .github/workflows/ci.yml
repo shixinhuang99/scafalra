@@ -10,6 +10,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: 0
+  DEBUG_LOG: 1
 
 jobs:
   general-check:
@@ -21,7 +22,7 @@ jobs:
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2023-08-18
+          toolchain: nightly-2023-10-06
           components: clippy, rustfmt
 
       - name: Rust cache

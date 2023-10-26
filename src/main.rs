@@ -11,9 +11,11 @@ mod toml_content;
 mod utils;
 
 use anyhow::Result;
+use camino::Utf8PathBuf;
 use clap::Parser;
 use cli::{Cli, Command};
 use debug::trun_on_debug;
+use error::ScafalraError;
 use scafalra::Scafalra;
 
 fn main() {
@@ -27,16 +29,19 @@ fn try_main() -> Result<()> {
 		anyhow::bail!("Impossible to get your home dir");
 	};
 
+	let home_dir = Utf8PathBuf::from_path_buf(home_dir)
+		.map_err(ScafalraError::NonUtf8Path)?;
+
 	let cli = Cli::parse();
 
-	if cli.debug {
-		trun_on_debug(cli.debug);
+	if cli.debug || std::env::var("DEBUG_LOG").is_ok() {
+		trun_on_debug();
 	}
 
 	let mut scafalra = Scafalra::new(&home_dir, None, cli.token.as_deref())?;
 
 	if cli.root_dir {
-		println!("{}", scafalra.root_dir.display());
+		println!("{}", scafalra.root_dir);
 		return Ok(());
 	}
 
