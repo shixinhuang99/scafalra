@@ -9,7 +9,10 @@ use crate::{
 	config::Config,
 	debug,
 	error::ScafalraError,
-	github_api::GitHubApi,
+	github_api::{
+		repo::{build_repo_query, RepoResponseData, RepoQueryResult},
+		GitHubApi,
+	},
 	repository::Repository,
 	store::{Scaffold, Store},
 };
@@ -93,12 +96,15 @@ impl Scafalra {
 
 		println!("Downloading `{}`", args.repository);
 
-		let api_result = self.github_api.request(&repo)?;
+		let repo_query_ret =
+			self.github_api.request::<RepoResponseData, RepoQueryResult>(
+				build_repo_query(&repo),
+			)?;
 
 		let mut scaffold_name = args.name.unwrap_or(repo.name.clone());
 
 		let mut scaffold_path =
-			repo.cache(&api_result.tarball_url, &self.cache_dir)?;
+			repo.cache(&repo_query_ret.tarball_url, &self.cache_dir)?;
 
 		debug!("scaffold_path: {}", scaffold_path);
 
@@ -120,7 +126,7 @@ impl Scafalra {
 		if args.depth == 0 {
 			self.store.add(Scaffold::new(
 				scaffold_name,
-				api_result.url.clone(),
+				repo_query_ret.url.clone(),
 				scaffold_path.clone(),
 			))
 		}
@@ -134,7 +140,7 @@ impl Scafalra {
 				if file_type.is_dir() && !file_name.starts_with('.') {
 					self.store.add(Scaffold::new(
 						file_name,
-						api_result.url.clone(),
+						repo_query_ret.url.clone(),
 						entry.path(),
 					))
 				}

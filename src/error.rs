@@ -6,12 +6,10 @@ use thiserror::Error;
 pub enum ScafalraError {
 	#[error("No GitHub personal access token configured")]
 	NoToken,
-	#[error("Call to GitHub api error")]
-	GitHubApiError,
+	#[error("Call to GitHub api error: {}", .0)]
+	GitHubApiError(String),
 	#[error("Could not parse the input: `{}`", .0)]
 	RepositoryParseError(String),
-	#[error("Serialization or deserialization errors")]
-	SerdeError,
 	#[error("`{}` it is not valid UTF-8 path", .0.display())]
 	NonUtf8Path(PathBuf),
 }
