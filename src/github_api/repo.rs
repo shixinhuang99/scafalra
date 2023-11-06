@@ -23,12 +23,12 @@ query ($name: String!, $owner: String!, $oid: GitObjectID, $expression: String, 
 }";
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 struct RepoVariables {
 	name: String,
 	owner: String,
 	expression: Option<String>,
 	oid: Option<String>,
-	#[serde(rename = "isDefaultBranch")]
 	is_default_branch: bool,
 }
 
@@ -71,9 +71,9 @@ pub struct RepoResponseData {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct RepositoryData {
 	url: String,
-	#[serde(rename = "defaultBranchRef")]
 	default_branch_ref: DefaultBranchRef,
 	object: Option<Target>,
 }
@@ -84,8 +84,8 @@ struct DefaultBranchRef {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct Target {
-	#[serde(rename = "tarballUrl")]
 	tarball_url: String,
 }
 
@@ -102,7 +102,7 @@ impl From<RepoResponseData> for RepoQueryResult {
 			None => default_branch_ref.target.tarball_url,
 		};
 
-		RepoQueryResult { tarball_url, url }
+		Self { tarball_url, url }
 	}
 }
 

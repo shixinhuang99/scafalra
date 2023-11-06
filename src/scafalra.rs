@@ -10,7 +10,7 @@ use crate::{
 	debug,
 	error::ScafalraError,
 	github_api::{
-		repo::{build_repo_query, RepoResponseData, RepoQueryResult},
+		repo::{build_repo_query, RepoQueryResult, RepoResponseData},
 		GitHubApi,
 	},
 	repository::Repository,
@@ -96,10 +96,11 @@ impl Scafalra {
 
 		println!("Downloading `{}`", args.repository);
 
-		let repo_query_ret =
-			self.github_api.request::<RepoResponseData, RepoQueryResult>(
-				build_repo_query(&repo),
-			)?;
+		let repo_query_ret = self
+			.github_api
+			.request::<RepoResponseData, RepoQueryResult>(build_repo_query(
+				&repo,
+			))?;
 
 		let mut scaffold_name = args.name.unwrap_or(repo.name.clone());
 

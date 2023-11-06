@@ -34,7 +34,7 @@ impl ToJson for ReleaseVariables {}
 
 #[derive(Debug)]
 pub struct ReleaseQueryResult {
-	pub release_assets_url: String,
+	pub release_assets_url: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -43,14 +43,14 @@ pub struct ReleaseResponseData {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct RepositoryData {
-	#[serde(rename = "latestRelease")]
 	latest_release: LatestRelease,
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct LatestRelease {
-	#[serde(rename = "releaseAssets")]
 	release_assets: ReleaseAssets,
 }
 
@@ -60,14 +60,47 @@ struct ReleaseAssets {
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 struct Node {
-	#[serde(rename = "downloadUrl")]
 	download_url: String,
 }
 
 impl From<ReleaseResponseData> for ReleaseQueryResult {
 	fn from(value: ReleaseResponseData) -> Self {
-		!unimplemented!()
+		let target = if cfg!(all(target_arch = "aarch64", target_os = "macos"))
+		{
+			Some("aarch64-apple-darwin")
+		} else if cfg!(all(target_arch = "x86_64", target_os = "macos")) {
+			Some("x86_64-apple-darwin")
+		} else if cfg!(all(target_arch = "aarch64", target_os = "linux")) {
+			Some("aarch64-unknown-linux-gnu")
+		} else if cfg!(all(target_arch = "x86_64", target_os = "linux")) {
+			Some("x86_64-unknown-linux-gnu")
+		} else if cfg!(all(target_arch = "aarch64", target_os = "windows")) {
+			Some("aarch64-pc-windows-msvc")
+		} else if cfg!(all(target_arch = "x86_64", target_os = "windows")) {
+			Some("x86_64-pc-windows-msvc")
+		} else {
+			None
+		};
+
+		if let Some(target) = target {
+			let node = value
+				.repository
+				.latest_release
+				.release_assets
+				.nodes
+				.iter()
+				.find(|v| v.download_url.contains(target));
+
+			return Self {
+				release_assets_url: node.map(|v| v.download_url.clone()),
+			};
+		}
+
+		Self {
+			release_assets_url: None,
+		}
 	}
 }
 
