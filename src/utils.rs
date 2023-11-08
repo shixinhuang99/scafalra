@@ -15,3 +15,11 @@ pub fn build_proxy_agent() -> Agent {
 
 	agent.build()
 }
+
+pub fn get_self_target() -> &'static str {
+	env!("TARGET")
+}
+
+pub fn get_self_version() -> &'static str {
+	env!("CARGO_PKG_VERSION")
+}

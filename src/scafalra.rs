@@ -5,12 +5,16 @@ use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 
 use crate::{
-	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
+	cli::{
+		AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs,
+		UpdateArgs,
+	},
 	config::Config,
 	debug,
 	error::ScafalraError,
 	github_api::{
-		repo::{build_repo_query, RepoQueryResult, RepoResponseData},
+		release::{build_release_query, Release, ReleaseResponseData},
+		repo::{build_repo_query, RepoInfo, RepoResponseData},
 		GitHubApi,
 	},
 	repository::Repository,
@@ -94,18 +98,17 @@ impl Scafalra {
 
 		let repo = Repository::new(&args.repository)?;
 
-		println!("Downloading `{}`", args.repository);
+		println!("Downloading `{}` ...", args.repository);
 
-		let repo_query_ret = self
+		let repo_info: RepoInfo = self
 			.github_api
-			.request::<RepoResponseData, RepoQueryResult>(build_repo_query(
-				&repo,
-			))?;
+			.request::<RepoResponseData>(build_repo_query(&repo))?
+			.into();
 
 		let mut scaffold_name = args.name.unwrap_or(repo.name.clone());
 
 		let mut scaffold_path =
-			repo.cache(&repo_query_ret.tarball_url, &self.cache_dir)?;
+			repo.cache(&repo_info.tarball_url, &self.cache_dir)?;
 
 		debug!("scaffold_path: {}", scaffold_path);
 
@@ -127,7 +130,7 @@ impl Scafalra {
 		if args.depth == 0 {
 			self.store.add(Scaffold::new(
 				scaffold_name,
-				repo_query_ret.url.clone(),
+				repo_info.url.clone(),
 				scaffold_path.clone(),
 			))
 		}
@@ -141,7 +144,7 @@ impl Scafalra {
 				if file_type.is_dir() && !file_name.starts_with('.') {
 					self.store.add(Scaffold::new(
 						file_name,
-						repo_query_ret.url.clone(),
+						repo_info.url.clone(),
 						entry.path(),
 					))
 				}
@@ -155,8 +158,6 @@ impl Scafalra {
 
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
-
-		println!("Creating `{}`", args.name);
 
 		let scaffold = self.store.get(&args.name);
 
@@ -212,6 +213,26 @@ impl Scafalra {
 		self.store.save()?;
 
 		Ok(())
+	}
+
+	pub fn update(&self, args: UpdateArgs) -> Result<()> {
+		debug!("args: {:#?}", args);
+
+		let release: Release = self
+			.github_api
+			.request::<ReleaseResponseData>(build_release_query())?
+			.into();
+
+		if !release.can_update {
+			println!("It's already the latest version");
+			return Ok(());
+		}
+
+		if args.check {
+			println!("scafalra {} available", release.version);
+		}
+
+		todo!();
 	}
 }
 

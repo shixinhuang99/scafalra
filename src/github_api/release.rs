@@ -1,18 +1,20 @@
+use semver::Version;
 use serde::{Deserialize, Serialize};
 
 use super::gql_query_response::{GraphQLQuery, ToJson};
+use crate::utils::{get_self_target, get_self_version};
 
 const RELEASE_QUERY: &str = r"
 query ($name: String!, $owner: String!) {
-	repository(name: $name, owner: $owner) {
-	  latestRelease {
-		releaseAssets(first: 6) {
-		  nodes {
-			downloadUrl
-		  }
-		}
-	  }
-	}
+    repository(name: $name, owner: $owner) {
+        latestRelease {
+            releaseAssets(first: 6) {
+                nodes {
+                    downloadUrl
+                }
+            }
+        }
+    }
 }";
 
 #[derive(Serialize)]
@@ -33,8 +35,10 @@ impl ReleaseVariables {
 impl ToJson for ReleaseVariables {}
 
 #[derive(Debug)]
-pub struct ReleaseQueryResult {
-	pub release_assets_url: Option<String>,
+pub struct Release {
+	pub assets_url: String,
+	pub can_update: bool,
+	pub version: Version,
 }
 
 #[derive(Deserialize, Debug)]
@@ -65,41 +69,36 @@ struct Node {
 	download_url: String,
 }
 
-impl From<ReleaseResponseData> for ReleaseQueryResult {
+fn parse_ver(ver: &str) -> Version {
+	Version::parse(ver).expect("Must be a valid SemVer")
+}
+
+impl From<ReleaseResponseData> for Release {
 	fn from(value: ReleaseResponseData) -> Self {
-		let target = if cfg!(all(target_arch = "aarch64", target_os = "macos"))
-		{
-			Some("aarch64-apple-darwin")
-		} else if cfg!(all(target_arch = "x86_64", target_os = "macos")) {
-			Some("x86_64-apple-darwin")
-		} else if cfg!(all(target_arch = "aarch64", target_os = "linux")) {
-			Some("aarch64-unknown-linux-gnu")
-		} else if cfg!(all(target_arch = "x86_64", target_os = "linux")) {
-			Some("x86_64-unknown-linux-gnu")
-		} else if cfg!(all(target_arch = "aarch64", target_os = "windows")) {
-			Some("aarch64-pc-windows-msvc")
-		} else if cfg!(all(target_arch = "x86_64", target_os = "windows")) {
-			Some("x86_64-pc-windows-msvc")
-		} else {
-			None
-		};
+		let target = get_self_target();
 
-		if let Some(target) = target {
-			let node = value
-				.repository
-				.latest_release
-				.release_assets
-				.nodes
-				.iter()
-				.find(|v| v.download_url.contains(target));
+		let node = value
+			.repository
+			.latest_release
+			.release_assets
+			.nodes
+			.iter()
+			.find(|v| v.download_url.contains(target))
+			.expect("Should find a matching release");
 
-			return Self {
-				release_assets_url: node.map(|v| v.download_url.clone()),
-			};
-		}
+		let Node { download_url } = node;
+		let self_ver = parse_ver(get_self_version());
+		let release_ver = parse_ver(
+			download_url
+				.split('-')
+				.nth(1)
+				.expect("Release assets' names must adhere to the format"),
+		);
 
 		Self {
-			release_assets_url: None,
+			assets_url: download_url.clone(),
+			can_update: release_ver > self_ver,
+			version: release_ver,
 		}
 	}
 }

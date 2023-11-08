@@ -60,7 +60,7 @@ impl RepoVariables {
 impl ToJson for RepoVariables {}
 
 #[derive(Debug)]
-pub struct RepoQueryResult {
+pub struct RepoInfo {
 	pub tarball_url: String,
 	pub url: String,
 }
@@ -89,7 +89,7 @@ struct Target {
 	tarball_url: String,
 }
 
-impl From<RepoResponseData> for RepoQueryResult {
+impl From<RepoResponseData> for RepoInfo {
 	fn from(value: RepoResponseData) -> Self {
 		let RepositoryData {
 			default_branch_ref,
@@ -108,4 +108,73 @@ impl From<RepoResponseData> for RepoQueryResult {
 
 pub fn build_repo_query(repo: &Repository) -> GraphQLQuery {
 	GraphQLQuery::new(REPO_QUERY, RepoVariables::new(repo).to_json())
+}
+
+#[cfg(test)]
+mod tests {
+	use pretty_assertions::assert_eq;
+
+	use super::{Query, RepoVariables, Repository};
+
+	fn build_repository() -> Repository {
+		Repository {
+			owner: "shixinhuang99".to_string(),
+			name: "scafalra".to_string(),
+			subdir: None,
+			query: None,
+		}
+	}
+
+	#[test]
+	fn test_variable_new() {
+		let v = RepoVariables::new(&build_repository());
+
+		assert_eq!(&v.name, "scafalra");
+		assert_eq!(&v.owner, "shixinhuang99");
+		assert_eq!(v.oid, None);
+		assert_eq!(v.expression, None);
+		assert_eq!(v.is_default_branch, true);
+	}
+
+	#[test]
+	fn test_variable_query_branch() {
+		let v = RepoVariables::new(&Repository {
+			query: Some(Query::Branch("foo".to_string())),
+			..build_repository()
+		});
+
+		assert_eq!(&v.name, "scafalra");
+		assert_eq!(&v.owner, "shixinhuang99");
+		assert_eq!(v.oid, None);
+		assert_eq!(v.expression, Some("refs/heads/foo".to_string()));
+		assert_eq!(v.is_default_branch, false);
+	}
+
+	#[test]
+	fn test_variable_query_tag() {
+		let v = RepoVariables::new(&Repository {
+			query: Some(Query::Tag("foo".to_string())),
+			..build_repository()
+		});
+
+		assert_eq!(&v.name, "scafalra");
+		assert_eq!(&v.owner, "shixinhuang99");
+		assert_eq!(v.oid, None);
+		assert_eq!(v.expression, Some("refs/tags/foo".to_string()));
+		assert_eq!(v.is_default_branch, false);
+	}
+
+	#[test]
+	fn test_variable_query_commit() {
+		let v = RepoVariables::new(&Repository {
+			query: Some(Query::Commit("foo".to_string())),
+			..build_repository()
+		});
+
+		assert_eq!(&v.name, "scafalra");
+		assert_eq!(&v.owner, "shixinhuang99");
+		assert_eq!(v.oid, Some("foo".to_string()));
+		assert_eq!(v.expression, None);
+		assert_eq!(v.is_default_branch, false);
+	}
 }

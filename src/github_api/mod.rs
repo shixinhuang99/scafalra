@@ -7,7 +7,11 @@ use gql_query_response::{GraphQLQuery, GraphQLResponse};
 use serde::de::DeserializeOwned;
 use ureq::Agent;
 
-use crate::{debug, error::ScafalraError, utils::build_proxy_agent};
+use crate::{
+	debug,
+	error::ScafalraError,
+	utils::{build_proxy_agent, get_self_version},
+};
 
 pub struct GitHubApi {
 	token: Option<String>,
@@ -34,10 +38,9 @@ impl GitHubApi {
 		self.token = Some(token.to_string());
 	}
 
-	pub fn request<T, P>(&self, query: GraphQLQuery) -> Result<P>
+	pub fn request<T>(&self, query: GraphQLQuery) -> Result<T>
 	where
 		T: DeserializeOwned + std::fmt::Debug,
-		P: std::convert::From<T>,
 	{
 		let Some(ref token) = self.token else {
 			anyhow::bail!(ScafalraError::NoToken);
@@ -48,10 +51,7 @@ impl GitHubApi {
 			.post(&self.endpoint)
 			.set("authorization", &format!("bearer {}", token))
 			.set("content-type", "application/json")
-			.set(
-				"user-agent",
-				&format!("scafalra/{}", env!("CARGO_PKG_VERSION")),
-			)
+			.set("user-agent", &format!("scafalra/{}", get_self_version()))
 			.send_json(query)?
 			.into_json()?;
 
@@ -65,161 +65,174 @@ impl GitHubApi {
 			));
 		}
 
-		let data = data.unwrap();
-
-		Ok(data.into())
+		data.ok_or(anyhow::anyhow!("No response data"))
 	}
 }
 
-// #[cfg(test)]
-// mod tests {
-// 	use anyhow::Result;
-// 	use pretty_assertions::assert_eq;
+#[cfg(test)]
+mod tests {
+	use anyhow::Result;
+	use pretty_assertions::assert_eq;
 
-// 	use super::{GitHubApi, Query, Repository, Variable};
+	use super::{
+		release::{build_release_query, Release, ReleaseResponseData},
+		repo::{build_repo_query, RepoInfo, RepoResponseData},
+		GitHubApi, GraphQLQuery,
+	};
+	use crate::repository::Repository;
 
-// 	fn build_repository() -> Repository {
-// 		Repository {
-// 			owner: "shixinhuang99".to_string(),
-// 			name: "scafalra".to_string(),
-// 			subdir: None,
-// 			query: None,
-// 		}
-// 	}
+	fn mock_repo_query() -> GraphQLQuery {
+		let repo = Repository {
+			owner: "shixinhuang99".to_string(),
+			name: "scafalra".to_string(),
+			subdir: None,
+			query: None,
+		};
+		build_repo_query(&repo)
+	}
 
-// 	#[test]
-// 	fn test_variable_new() {
-// 		let v = Variable::new(&build_repository());
+	#[test]
+	fn test_repo_query() -> Result<()> {
+		let mut server = mockito::Server::new();
 
-// 		assert_eq!(&v.name, "scafalra");
-// 		assert_eq!(&v.owner, "shixinhuang99");
-// 		assert_eq!(v.oid, None);
-// 		assert_eq!(v.expression, None);
-// 		assert_eq!(v.is_default_branch, true);
-// 	}
+		let data = r#"{
+            "data": {
+                "repository": {
+                    "url": "url",
+                    "defaultBranchRef": {
+                        "target": {
+                            "tarballUrl": "tarballUrl"
+                        }
+                    }
+                }
+            }
+        }"#;
 
-// 	#[test]
-// 	fn test_variable_query_branch() {
-// 		let v = Variable::new(&Repository {
-// 			query: Some(Query::Branch("foo".to_string())),
-// 			..build_repository()
-// 		});
+		let mock = server
+			.mock("POST", "/")
+			.with_status(200)
+			.with_header("content-type", "application/json")
+			.with_body(data)
+			.create();
 
-// 		assert_eq!(&v.name, "scafalra");
-// 		assert_eq!(&v.owner, "shixinhuang99");
-// 		assert_eq!(v.oid, None);
-// 		assert_eq!(v.expression, Some("refs/heads/foo".to_string()));
-// 		assert_eq!(v.is_default_branch, false);
-// 	}
+		let mut github_api = GitHubApi::new(Some(&server.url()));
 
-// 	#[test]
-// 	fn test_variable_query_tag() {
-// 		let v = Variable::new(&Repository {
-// 			query: Some(Query::Tag("foo".to_string())),
-// 			..build_repository()
-// 		});
+		github_api.set_token("token");
 
-// 		assert_eq!(&v.name, "scafalra");
-// 		assert_eq!(&v.owner, "shixinhuang99");
-// 		assert_eq!(v.oid, None);
-// 		assert_eq!(v.expression, Some("refs/tags/foo".to_string()));
-// 		assert_eq!(v.is_default_branch, false);
-// 	}
+		let repo_info: RepoInfo = github_api
+			.request::<RepoResponseData>(mock_repo_query())?
+			.into();
 
-// 	#[test]
-// 	fn test_variable_query_commit() {
-// 		let v = Variable::new(&Repository {
-// 			query: Some(Query::Commit("foo".to_string())),
-// 			..build_repository()
-// 		});
+		mock.assert();
+		assert_eq!(repo_info.url, "url");
+		assert_eq!(repo_info.tarball_url, "tarballUrl");
 
-// 		assert_eq!(&v.name, "scafalra");
-// 		assert_eq!(&v.owner, "shixinhuang99");
-// 		assert_eq!(v.oid, Some("foo".to_string()));
-// 		assert_eq!(v.expression, None);
-// 		assert_eq!(v.is_default_branch, false);
-// 	}
+		Ok(())
+	}
 
-// 	#[test]
-// 	fn test_github_api_request() -> Result<()> {
-// 		let mut server = mockito::Server::new();
+	#[test]
+	fn test_github_api_request_no_token() {
+		let github_api = GitHubApi::new(None);
+		let api_result =
+			github_api.request::<RepoResponseData>(mock_repo_query());
 
-// 		let data = r#"{
-//             "data": {
-//                 "repository": {
-//                     "url": "url",
-//                     "defaultBranchRef": {
-//                         "target": {
-//                             "tarballUrl": "tarballUrl"
-//                         }
-//                     }
-//                 }
-//             }
-//         }"#;
+		assert!(api_result.is_err());
+	}
 
-// 		let mock = server
-// 			.mock("POST", "/")
-// 			.with_status(200)
-// 			.with_header("content-type", "application/json")
-// 			.with_body(data)
-// 			.create();
+	#[test]
+	fn test_github_api_request_error() -> Result<()> {
+		let mut server = mockito::Server::new();
 
-// 		let mut github_api = GitHubApi::new(Some(&server.url()));
+		let data = r#"{
+            "data": {
+                "repository": null,
+            },
+			"errors": [
+				{
+					"message": "Could not resolve to a Repository with the name 'foo/bar'."
+				}
+			]
+        }"#;
 
-// 		github_api.set_token("token");
+		let mock = server
+			.mock("POST", "/")
+			.with_status(200)
+			.with_header("content-type", "application/json")
+			.with_body(data)
+			.create();
 
-// 		let api_result = github_api.request(&build_repository())?;
+		let mut github_api = GitHubApi::new(Some(&server.url()));
 
-// 		mock.assert();
-// 		assert_eq!(api_result.url, "url");
-// 		assert_eq!(api_result.tarball_url, "tarballUrl");
+		github_api.set_token("token");
 
-// 		Ok(())
-// 	}
+		let api_result = github_api.request::<RepoResponseData>(
+			build_repo_query(&Repository {
+				owner: "foo".to_string(),
+				name: "bar".to_string(),
+				subdir: None,
+				query: None,
+			}),
+		);
 
-// 	#[test]
-// 	fn test_github_api_request_no_token() {
-// 		let github_api = GitHubApi::new(None);
-// 		let api_result = github_api.request(&build_repository());
+		mock.assert();
+		assert!(api_result.is_err());
 
-// 		assert!(api_result.is_err());
-// 	}
+		Ok(())
+	}
 
-// 	#[test]
-// 	fn test_github_api_request_error() -> Result<()> {
-// 		let mut server = mockito::Server::new();
+	#[test]
+	fn test_release_query() -> Result<()> {
+		let mut server = mockito::Server::new();
 
-// 		let data = r#"{
-//             "data": {
-//                 "repository": null,
-//             },
-// 			"errors": [
-// 				{
-// 					"message": "Could not resolve to a Repository with the name 'foo/bar'."
-// 				}
-// 			]
-//         }"#;
+		let data = r#"{
+			"data": {
+				"repository": {
+					"latestRelease": {
+						"releaseAssets": {
+							"nodes": [
+								{
+									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
+								},
+								{
+									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-x86_64-pc-windows-msvc.zip"
+								},
+								{
+									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-aarch64-apple-darwin.tar.gz"
+								},
+								{
+									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-x86_64-apple-darwin.tar.gz"
+								},
+								{
+									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-aarch64-unknown-linux-gnu.tar.gz"
+								},
+								{
+									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-aarch64-pc-windows-msvc.zip"
+								},
+							]
+						}
+					}
+				}
+			}
+		}"#;
 
-// 		let mock = server
-// 			.mock("POST", "/")
-// 			.with_status(200)
-// 			.with_header("content-type", "application/json")
-// 			.with_body(data)
-// 			.create();
+		let mock = server
+			.mock("POST", "/")
+			.with_status(200)
+			.with_header("content-type", "application/json")
+			.with_body(data)
+			.create();
 
-// 		let mut github_api = GitHubApi::new(Some(&server.url()));
+		let mut github_api = GitHubApi::new(Some(&server.url()));
 
-// 		github_api.set_token("token");
+		github_api.set_token("token");
 
-// 		let api_result = github_api.request(&Repository {
-// 			owner: "foo".to_string(),
-// 			name: "bar".to_string(),
-// 			..build_repository()
-// 		});
+		let release: Release = github_api
+			.request::<ReleaseResponseData>(build_release_query())?
+			.into();
 
-// 		mock.assert();
-// 		assert!(api_result.is_err());
+		mock.assert();
+		assert_eq!(release.version.to_string(), "0.6.0");
 
-// 		Ok(())
-// 	}
-// }
+		Ok(())
+	}
+}
