@@ -58,11 +58,10 @@ jobs:
             test: true
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
+            cross: true
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             test: true
-          - os: windows-latest
-            target: aarch64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v3
@@ -84,7 +83,12 @@ jobs:
           cargo test --target ${{ matrix.target }}
 
       - name: Test cargo build
-        if: matrix.test == ''
+        if: matrix.test == '' && matrix.cross == ''
         run: |
           rustup target add ${{ matrix.target }}
           cargo build --target ${{ matrix.target }}
+
+      - name: Test cross build
+        if: matrix.cross
+        run: |
+          cross build --target ${{ matrix.target }}
