@@ -3,24 +3,7 @@ use serde::{Deserialize, Serialize};
 use super::gql_query_response::{GraphQLQuery, ToJson};
 use crate::repository::{Query, Repository};
 
-const REPO_QUERY: &str = r"
-query ($name: String!, $owner: String!, $oid: GitObjectID, $expression: String, $isDefaultBranch: Boolean!) {
-    repository(name: $name, owner: $owner) {
-        url
-        object(oid: $oid, expression: $expression) @skip(if: $isDefaultBranch) {
-            ... on Commit {
-                tarballUrl
-            }
-        }
-        defaultBranchRef {
-            target {
-                ... on Commit {
-                    tarballUrl
-                }
-            }
-        }
-    }
-}";
+const REPO_GQL: &str = include_str!("repo.gql");
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -107,7 +90,7 @@ impl From<RepoResponseData> for RepoInfo {
 }
 
 pub fn build_repo_query(repo: &Repository) -> GraphQLQuery {
-	GraphQLQuery::new(REPO_QUERY, RepoVariables::new(repo).to_json())
+	GraphQLQuery::new(REPO_GQL, RepoVariables::new(repo).to_json())
 }
 
 #[cfg(test)]

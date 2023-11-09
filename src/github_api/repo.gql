@@ -1,0 +1,23 @@
+query (
+  $name: String!
+  $owner: String!
+  $oid: GitObjectID
+  $expression: String
+  $isDefaultBranch: Boolean!
+) {
+  repository(name: $name, owner: $owner) {
+    url
+    object(oid: $oid, expression: $expression) @skip(if: $isDefaultBranch) {
+      ... on Commit {
+        tarballUrl
+      }
+    }
+    defaultBranchRef {
+      target {
+        ... on Commit {
+          tarballUrl
+        }
+      }
+    }
+  }
+}

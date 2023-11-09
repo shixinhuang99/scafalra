@@ -4,18 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::gql_query_response::{GraphQLQuery, ToJson};
 use crate::utils::{get_self_target, get_self_version};
 
-const RELEASE_QUERY: &str = r"
-query ($name: String!, $owner: String!) {
-    repository(name: $name, owner: $owner) {
-        latestRelease {
-            releaseAssets(first: 6) {
-                nodes {
-                    downloadUrl
-                }
-            }
-        }
-    }
-}";
+const RELEASE_GQL: &str = include_str!("release.gql");
 
 #[derive(Serialize)]
 struct ReleaseVariables {
@@ -104,5 +93,5 @@ impl From<ReleaseResponseData> for Release {
 }
 
 pub fn build_release_query() -> GraphQLQuery {
-	GraphQLQuery::new(RELEASE_QUERY, ReleaseVariables::new().to_json())
+	GraphQLQuery::new(RELEASE_GQL, ReleaseVariables::new().to_json())
 }

@@ -246,8 +246,11 @@ mod tests {
 	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
-	use super::{AddArgs, CreateArgs, Scafalra};
-	use crate::store::Scaffold;
+	use super::Scafalra;
+	use crate::{
+		cli::{AddArgs, CreateArgs},
+		store::Scaffold,
+	};
 
 	struct Paths {
 		cache_dir: Utf8PathBuf,

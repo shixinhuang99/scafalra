@@ -95,18 +95,7 @@ mod tests {
 	fn test_repo_query() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = r#"{
-            "data": {
-                "repository": {
-                    "url": "url",
-                    "defaultBranchRef": {
-                        "target": {
-                            "tarballUrl": "tarballUrl"
-                        }
-                    }
-                }
-            }
-        }"#;
+		let data = include_str!("../../assets/repo-query-response.json");
 
 		let mock = server
 			.mock("POST", "/")
@@ -143,16 +132,7 @@ mod tests {
 	fn test_github_api_request_error() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = r#"{
-            "data": {
-                "repository": null,
-            },
-			"errors": [
-				{
-					"message": "Could not resolve to a Repository with the name 'foo/bar'."
-				}
-			]
-        }"#;
+		let data = include_str!("../../assets/repo-query-error.json");
 
 		let mock = server
 			.mock("POST", "/")
@@ -184,36 +164,7 @@ mod tests {
 	fn test_release_query() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = r#"{
-			"data": {
-				"repository": {
-					"latestRelease": {
-						"releaseAssets": {
-							"nodes": [
-								{
-									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-x86_64-unknown-linux-gnu.tar.gz"
-								},
-								{
-									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-x86_64-pc-windows-msvc.zip"
-								},
-								{
-									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-aarch64-apple-darwin.tar.gz"
-								},
-								{
-									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-x86_64-apple-darwin.tar.gz"
-								},
-								{
-									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-aarch64-unknown-linux-gnu.tar.gz"
-								},
-								{
-									"downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-aarch64-pc-windows-msvc.zip"
-								},
-							]
-						}
-					}
-				}
-			}
-		}"#;
+		let data = include_str!("../../assets/release-query-response.json");
 
 		let mock = server
 			.mock("POST", "/")
