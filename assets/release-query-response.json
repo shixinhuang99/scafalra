@@ -18,9 +18,6 @@
             },
             {
               "downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-aarch64-unknown-linux-gnu.tar.gz"
-            },
-            {
-              "downloadUrl": "https://github.com/shixinhuang99/scafalra/releases/download/0.6.0/scafalra-0.6.0-aarch64-pc-windows-msvc.zip"
             }
           ]
         }
