@@ -16,15 +16,6 @@ impl GraphQLQuery {
 	}
 }
 
-pub trait ToJson
-where
-	Self: Serialize,
-{
-	fn to_json(&self) -> String {
-		ureq::serde_json::to_string(self).unwrap()
-	}
-}
-
 #[derive(Deserialize, Debug)]
 pub struct GraphQLResponse<T>
 where
@@ -37,4 +28,13 @@ where
 #[derive(Deserialize, Debug)]
 pub struct GraphQLError {
 	pub message: String,
+}
+
+pub trait ToJson
+where
+	Self: Serialize,
+{
+	fn to_json(&self) -> String {
+		ureq::serde_json::to_string(self).unwrap()
+	}
 }

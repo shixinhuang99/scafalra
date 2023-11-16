@@ -1,11 +1,11 @@
-mod gql_query_response;
+mod gql;
 mod release;
 mod repo;
 
 use std::cell::RefCell;
 
 use anyhow::Result;
-use gql_query_response::{GraphQLQuery, GraphQLResponse};
+use gql::{GraphQLQuery, GraphQLResponse};
 use release::{build_release_query, Release, ReleaseResponseData};
 use repo::{build_repo_query, RepoInfo, RepoResponseData};
 use serde::de::DeserializeOwned;

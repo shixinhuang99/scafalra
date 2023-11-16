@@ -1,7 +1,7 @@
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use super::gql_query_response::{GraphQLQuery, ToJson};
+use super::gql::{GraphQLQuery, ToJson};
 use crate::utils::{get_self_target, get_self_version};
 
 const RELEASE_GQL: &str = include_str!("release.gql");

@@ -1,13 +1,16 @@
-use std::{io, sync::OnceLock};
+use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
-use flate2::read::GzDecoder;
 use fs_err as fs;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
 
-use crate::{debug, error::ScafalraError, utils::build_proxy_agent};
+use crate::{
+	debug,
+	error::ScafalraError,
+	utils::{download, tar_unpack},
+};
 
 static REPO_RE: OnceLock<Regex> = OnceLock::new();
 
@@ -69,7 +72,7 @@ impl Repository {
 
 		download(url, &tarball)?;
 
-		unpack(&tarball, &temp_dir)?;
+		tar_unpack(&tarball, &temp_dir)?;
 
 		let Some(extracted_dir) = temp_dir.read_dir_utf8()?.next() else {
 			anyhow::bail!("Empty directory");
@@ -96,26 +99,6 @@ impl Repository {
 
 		Ok(scaffold_dir)
 	}
-}
-
-fn download(url: &str, file_path: &Utf8Path) -> Result<()> {
-	let agent = build_proxy_agent();
-	let response = agent.get(url).call()?;
-	let mut file = fs::File::create(file_path)?;
-
-	io::copy(&mut response.into_reader(), &mut file)?;
-
-	Ok(())
-}
-
-fn unpack(file_path: &Utf8Path, parent_dir: &Utf8Path) -> Result<()> {
-	let file = fs::File::open(file_path)?;
-	let dec = GzDecoder::new(file);
-	let mut tar = tar::Archive::new(dec);
-
-	tar.unpack(parent_dir)?;
-
-	Ok(())
 }
 
 #[cfg(test)]

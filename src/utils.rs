@@ -1,5 +1,9 @@
-use std::env;
+use std::{env, io};
 
+use anyhow::Result;
+use camino::Utf8Path;
+use flate2::read::GzDecoder;
+use fs_err as fs;
 use ureq::{Agent, AgentBuilder, Proxy};
 
 pub fn build_proxy_agent() -> Agent {
@@ -22,4 +26,33 @@ pub fn get_self_target() -> &'static str {
 
 pub fn get_self_version() -> &'static str {
 	env!("CARGO_PKG_VERSION")
+}
+
+pub fn download(url: &str, file_path: &Utf8Path) -> Result<()> {
+	let agent = build_proxy_agent();
+	let response = agent.get(url).call()?;
+	let mut file = fs::File::create(file_path)?;
+
+	io::copy(&mut response.into_reader(), &mut file)?;
+
+	Ok(())
+}
+
+pub fn tar_unpack(file_path: &Utf8Path, dst: &Utf8Path) -> Result<()> {
+	let file = fs::File::open(file_path)?;
+	let dec = GzDecoder::new(file);
+	let mut tar = tar::Archive::new(dec);
+
+	tar.unpack(dst)?;
+
+	Ok(())
+}
+
+#[cfg(windows)]
+pub fn zip_unpack(file_path: &Utf8Path, dst: &Utf8Path) -> Result<()> {
+	let file = fs::File::open(file_path)?;
+	let mut archive = zip::ZipArchive::new(file)?;
+	archive.extract(dst)?;
+
+	Ok(())
 }

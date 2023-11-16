@@ -4,6 +4,8 @@ use anyhow::Result;
 use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 
+#[cfg(windows)]
+use crate::utils::zip_unpack;
 use crate::{
 	cli::{
 		AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs,
@@ -15,6 +17,7 @@ use crate::{
 	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
+	utils::{download, tar_unpack},
 };
 
 pub struct Scafalra {
@@ -23,6 +26,7 @@ pub struct Scafalra {
 	config: Config,
 	store: Store,
 	github_api: GitHubApi,
+	update_dir: Utf8PathBuf,
 }
 
 impl Scafalra {
@@ -33,6 +37,7 @@ impl Scafalra {
 	) -> Result<Self> {
 		let root_dir = home_dir.join(".scafalra");
 		let cache_dir = root_dir.join("cache");
+		let update_dir = root_dir.join("update");
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)?;
@@ -54,6 +59,7 @@ impl Scafalra {
 			config,
 			store,
 			github_api,
+			update_dir,
 		})
 	}
 
@@ -220,9 +226,50 @@ impl Scafalra {
 
 		if args.check {
 			println!("Scafalra {} available", release.version);
+			return Ok(());
 		}
 
-		todo!();
+		if !self.update_dir.exists() {
+			fs::create_dir(&self.update_dir)?;
+		}
+
+		let self_exe_name = std::env::current_exe()?
+			.with_extension("")
+			.file_name()
+			.unwrap()
+			.to_string_lossy()
+			.to_string();
+
+		let mut archive = self.update_dir.join(self_exe_name);
+
+		#[cfg(unix)]
+		{
+			archive.set_extension("tar.gz");
+			download(&release.assets_url, &archive)?;
+			tar_unpack(&archive, &self.update_dir)?;
+		}
+
+		#[cfg(windows)]
+		{
+			archive.set_extension("zip");
+			download(&release.assets_url, &archive)?;
+			zip_unpack(&archive, &self.update_dir)?;
+		}
+
+		let new_executable = self
+			.update_dir
+			.join("scafalra")
+			.with_extension(std::env::consts::EXE_EXTENSION);
+
+		if !new_executable.is_file() {
+			anyhow::bail!("Invalid executable for update");
+		}
+
+		self_replace::self_replace(new_executable)?;
+
+		remove_dir_all::remove_dir_all(&self.update_dir)?;
+
+		Ok(())
 	}
 }
 
