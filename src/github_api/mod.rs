@@ -1,20 +1,25 @@
 mod gql_query_response;
-pub mod release;
-pub mod repo;
+mod release;
+mod repo;
+
+use std::cell::RefCell;
 
 use anyhow::Result;
 use gql_query_response::{GraphQLQuery, GraphQLResponse};
+use release::{build_release_query, Release, ReleaseResponseData};
+use repo::{build_repo_query, RepoInfo, RepoResponseData};
 use serde::de::DeserializeOwned;
 use ureq::Agent;
 
 use crate::{
 	debug,
 	error::ScafalraError,
+	repository::Repository,
 	utils::{build_proxy_agent, get_self_version},
 };
 
 pub struct GitHubApi {
-	token: Option<String>,
+	token: RefCell<Option<String>>,
 	endpoint: String,
 	agent: Agent,
 }
@@ -28,21 +33,21 @@ impl GitHubApi {
 		let agent = build_proxy_agent();
 
 		Self {
-			token: None,
+			token: RefCell::new(None),
 			endpoint,
 			agent,
 		}
 	}
 
-	pub fn set_token(&mut self, token: &str) {
-		self.token = Some(token.to_string());
+	pub fn set_token(&self, token: &str) {
+		self.token.replace(Some(token.to_string()));
 	}
 
-	pub fn request<T>(&self, query: GraphQLQuery) -> Result<T>
+	fn request<T>(&self, query: GraphQLQuery) -> Result<T>
 	where
 		T: DeserializeOwned + std::fmt::Debug,
 	{
-		let Some(ref token) = self.token else {
+		let Some(ref token) = *self.token.borrow() else {
 			anyhow::bail!(ScafalraError::NoToken);
 		};
 
@@ -67,6 +72,22 @@ impl GitHubApi {
 
 		data.ok_or(anyhow::anyhow!("No response data"))
 	}
+
+	pub fn query_repository(&self, repo: &Repository) -> Result<RepoInfo> {
+		let repo_info: RepoInfo = self
+			.request::<RepoResponseData>(build_repo_query(repo))?
+			.into();
+
+		Ok(repo_info)
+	}
+
+	pub fn query_release(&self) -> Result<Release> {
+		let release: Release = self
+			.request::<ReleaseResponseData>(build_release_query())?
+			.into();
+
+		Ok(release)
+	}
 }
 
 #[cfg(test)]
@@ -74,21 +95,16 @@ mod tests {
 	use anyhow::Result;
 	use pretty_assertions::assert_eq;
 
-	use super::{
-		release::{build_release_query, Release, ReleaseResponseData},
-		repo::{build_repo_query, RepoInfo, RepoResponseData},
-		GitHubApi, GraphQLQuery,
-	};
+	use super::GitHubApi;
 	use crate::repository::Repository;
 
-	fn mock_repo_query() -> GraphQLQuery {
-		let repo = Repository {
+	fn mock_repo() -> Repository {
+		Repository {
 			owner: "shixinhuang99".to_string(),
 			name: "scafalra".to_string(),
 			subdir: None,
 			query: None,
-		};
-		build_repo_query(&repo)
+		}
 	}
 
 	#[test]
@@ -104,13 +120,11 @@ mod tests {
 			.with_body(data)
 			.create();
 
-		let mut github_api = GitHubApi::new(Some(&server.url()));
+		let github_api = GitHubApi::new(Some(&server.url()));
 
 		github_api.set_token("token");
 
-		let repo_info: RepoInfo = github_api
-			.request::<RepoResponseData>(mock_repo_query())?
-			.into();
+		let repo_info = github_api.query_repository(&mock_repo())?;
 
 		mock.assert();
 		assert_eq!(repo_info.url, "url");
@@ -122,8 +136,7 @@ mod tests {
 	#[test]
 	fn test_github_api_request_no_token() {
 		let github_api = GitHubApi::new(None);
-		let api_result =
-			github_api.request::<RepoResponseData>(mock_repo_query());
+		let api_result = github_api.query_repository(&mock_repo());
 
 		assert!(api_result.is_err());
 	}
@@ -141,18 +154,16 @@ mod tests {
 			.with_body(data)
 			.create();
 
-		let mut github_api = GitHubApi::new(Some(&server.url()));
+		let github_api = GitHubApi::new(Some(&server.url()));
 
 		github_api.set_token("token");
 
-		let api_result = github_api.request::<RepoResponseData>(
-			build_repo_query(&Repository {
-				owner: "foo".to_string(),
-				name: "bar".to_string(),
-				subdir: None,
-				query: None,
-			}),
-		);
+		let api_result = github_api.query_repository(&Repository {
+			owner: "foo".to_string(),
+			name: "bar".to_string(),
+			subdir: None,
+			query: None,
+		});
 
 		mock.assert();
 		assert!(api_result.is_err());
@@ -173,13 +184,11 @@ mod tests {
 			.with_body(data)
 			.create();
 
-		let mut github_api = GitHubApi::new(Some(&server.url()));
+		let github_api = GitHubApi::new(Some(&server.url()));
 
 		github_api.set_token("token");
 
-		let release: Release = github_api
-			.request::<ReleaseResponseData>(build_release_query())?
-			.into();
+		let release = github_api.query_release()?;
 
 		mock.assert();
 		assert_eq!(release.version.to_string(), "0.6.0");

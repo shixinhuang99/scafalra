@@ -32,7 +32,7 @@ pub enum Query {
 }
 
 impl Repository {
-	pub fn new(input: &str) -> Result<Self> {
+	pub fn parse(input: &str) -> Result<Self> {
 		let caps = get_repo_re().captures(input).ok_or(anyhow!(
 			ScafalraError::RepositoryParseError(input.to_string())
 		))?;
@@ -209,7 +209,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_new() -> Result<()> {
-		let repo = Repository::new("foo/bar/path/to/dir?branch=main")?;
+		let repo = Repository::parse("foo/bar/path/to/dir?branch=main")?;
 
 		assert_eq!(repo.owner, "foo");
 		assert_eq!(repo.name, "bar");
@@ -221,7 +221,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_new_err() {
-		let repo = Repository::new("foo");
+		let repo = Repository::parse("foo");
 		assert!(repo.is_err());
 	}
 
@@ -245,7 +245,7 @@ mod tests {
 		let temp_dir = tempfile::tempdir()?;
 		let temp_dir_path = Utf8Path::from_path(temp_dir.path()).unwrap();
 
-		let repo = Repository::new("shixinhuang99/scafalra")?;
+		let repo = Repository::parse("shixinhuang99/scafalra")?;
 		repo.cache(&server.url(), temp_dir_path)?;
 
 		mock.assert();

@@ -12,11 +12,7 @@ use crate::{
 	config::Config,
 	debug,
 	error::ScafalraError,
-	github_api::{
-		release::{build_release_query, Release, ReleaseResponseData},
-		repo::{build_repo_query, RepoInfo, RepoResponseData},
-		GitHubApi,
-	},
+	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
 };
@@ -44,7 +40,7 @@ impl Scafalra {
 
 		let config = Config::new(&root_dir)?;
 		let store = Store::new(&root_dir)?;
-		let mut github_api = GitHubApi::new(endpoint);
+		let github_api = GitHubApi::new(endpoint);
 
 		let token = token.or_else(|| config.token());
 
@@ -96,14 +92,11 @@ impl Scafalra {
 	pub fn add(&mut self, args: AddArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let repo = Repository::new(&args.repository)?;
+		let repo = Repository::parse(&args.repository)?;
 
 		println!("Downloading `{}` ...", args.repository);
 
-		let repo_info: RepoInfo = self
-			.github_api
-			.request::<RepoResponseData>(build_repo_query(&repo))?
-			.into();
+		let repo_info = self.github_api.query_repository(&repo)?;
 
 		let mut scaffold_name = args.name.unwrap_or(repo.name.clone());
 
@@ -218,10 +211,7 @@ impl Scafalra {
 	pub fn update(&self, args: UpdateArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let release: Release = self
-			.github_api
-			.request::<ReleaseResponseData>(build_release_query())?
-			.into();
+		let release = self.github_api.query_release()?;
 
 		if !release.can_update {
 			println!("It's already the latest version");
@@ -229,7 +219,7 @@ impl Scafalra {
 		}
 
 		if args.check {
-			println!("scafalra {} available", release.version);
+			println!("Scafalra {} available", release.version);
 		}
 
 		todo!();
