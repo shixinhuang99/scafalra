@@ -219,6 +219,8 @@ impl Scafalra {
 
 		let release = self.github_api.query_release()?;
 
+		debug!("release: {:#?}", release);
+
 		if !release.can_update {
 			println!("It's already the latest version");
 			return Ok(());
@@ -386,7 +388,8 @@ mod tests {
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(mock_release_response_json(&server.url(), &higher_ver));
+			.with_body(mock_release_response_json(&server.url(), &higher_ver))
+			.create();
 
 		let download_mock = server
 			.mock(
@@ -410,7 +413,8 @@ mod tests {
 				} else {
 					"scafalra-update-unix.tar.gz"
 				},
-			]));
+			]))
+			.create();
 
 		Ok((server, query_release_mock, download_mock))
 	}
@@ -607,19 +611,14 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_update_check() -> Result<()> {
-		let (server, query_release_mock, download_mock) =
-			mock_server_for_update()?;
+		let (server, query_release_mock, _) = mock_server_for_update()?;
 		let (scafalra, _tmpdir, _) =
 			mock_scafalra(Some(&server.url()), Some("token"), false)?;
 
-		let query_release_mock = query_release_mock.expect(1).create();
-		let download_mock = download_mock.expect(0).create();
-
 		scafalra.update(UpdateArgs { check: true })?;
-		assert!(!scafalra.update_dir.exists());
 
 		query_release_mock.assert();
-		download_mock.assert();
+		assert!(!scafalra.update_dir.exists());
 
 		Ok(())
 	}
@@ -631,18 +630,17 @@ mod tests {
 		let (scafalra, _tmpdir, _) =
 			mock_scafalra(Some(&server.url()), Some("token"), false)?;
 
-		let query_release_mock = query_release_mock.expect(1).create();
-		let download_mock = download_mock.expect(1).create();
-
 		scafalra.update(UpdateArgs { check: false })?;
-		let excutable = scafalra
-			.update_dir
-			.join("scafalra")
-			.with_extension(std::env::consts::EXE_EXTENSION);
-		assert!(excutable.is_file());
 
 		query_release_mock.assert();
 		download_mock.assert();
+		assert!(
+			scafalra
+				.update_dir
+				.join("scafalra")
+				.with_extension(std::env::consts::EXE_EXTENSION)
+				.is_file()
+		);
 
 		Ok(())
 	}
