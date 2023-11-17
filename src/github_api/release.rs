@@ -139,5 +139,8 @@ pub fn mock_release_response_json(url: &str, ver: &str) -> String {
 				format!("{}/scafalra-{}-{}", url, ver, v.download_url)
 		});
 
-	ureq::serde_json::to_string::<ReleaseResponseData>(&data).unwrap()
+	let data =
+		ureq::serde_json::to_string::<ReleaseResponseData>(&data).unwrap();
+
+	format!(r#"{{ "data": {} }}"#, data)
 }
