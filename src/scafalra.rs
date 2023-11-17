@@ -251,10 +251,24 @@ impl Scafalra {
 			zip_unpack(&archive, &self.update_dir)?;
 		}
 
-		let new_executable = self
-			.update_dir
-			.join("scafalra")
-			.with_extension(env::consts::EXE_EXTENSION);
+		let mut new_executable: Option<Utf8PathBuf> = None;
+
+		for entry in self.update_dir.read_dir_utf8()? {
+			let entry = entry?;
+			if entry.file_type()?.is_dir() {
+				new_executable = Some(
+					entry
+						.path()
+						.join("scafalra")
+						.with_extension(env::consts::EXE_EXTENSION),
+				);
+				break;
+			}
+		}
+
+		let Some(new_executable) = new_executable else {
+			anyhow::bail!("Excutable not found for update");
+		};
 
 		if !new_executable.is_file() {
 			anyhow::bail!("Invalid executable for update");
@@ -263,8 +277,9 @@ impl Scafalra {
 		#[cfg(not(test))]
 		{
 			self_replace::self_replace(new_executable)?;
-			remove_dir_all::remove_dir_all(&self.update_dir)?;
 		}
+
+		remove_dir_all::remove_dir_all(&self.update_dir)?;
 
 		Ok(())
 	}
@@ -639,13 +654,7 @@ mod tests {
 
 		query_release_mock.assert();
 		download_mock.assert();
-		assert!(
-			scafalra
-				.update_dir
-				.join("scafalra")
-				.with_extension(std::env::consts::EXE_EXTENSION)
-				.is_file()
-		);
+		assert!(!scafalra.update_dir.exists());
 
 		Ok(())
 	}
