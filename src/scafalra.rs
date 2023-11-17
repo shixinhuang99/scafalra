@@ -394,8 +394,13 @@ mod tests {
 		let download_mock = server
 			.mock(
 				"GET",
-				format!("/scafalra-{}-{}", higher_ver, get_self_target())
-					.as_str(),
+				format!(
+					"/scafalra-{}-{}{}",
+					higher_ver,
+					get_self_target(),
+					if cfg!(windows) { ".zip" } else { ".tar.gz" }
+				)
+				.as_str(),
 			)
 			.with_status(200)
 			.with_header(
