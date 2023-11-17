@@ -6,6 +6,8 @@ use std::cell::RefCell;
 
 use anyhow::Result;
 use gql::{GraphQLQuery, GraphQLResponse};
+#[cfg(test)]
+pub use release::mock_release_response_json;
 use release::{build_release_query, Release, ReleaseResponseData};
 use repo::{build_repo_query, RepoInfo, RepoResponseData};
 use serde::de::DeserializeOwned;

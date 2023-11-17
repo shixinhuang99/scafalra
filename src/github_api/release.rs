@@ -30,29 +30,29 @@ pub struct Release {
 	pub version: Version,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct ReleaseResponseData {
 	repository: RepositoryData,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct RepositoryData {
 	latest_release: LatestRelease,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct LatestRelease {
 	release_assets: ReleaseAssets,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct ReleaseAssets {
 	nodes: Vec<Node>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Node {
 	download_url: String,
@@ -94,4 +94,50 @@ impl From<ReleaseResponseData> for Release {
 
 pub fn build_release_query() -> GraphQLQuery {
 	GraphQLQuery::new(RELEASE_GQL, ReleaseVariables::new().to_json())
+}
+
+#[cfg(test)]
+pub fn mock_release_response_json(url: &str, ver: &str) -> String {
+	let mut data = ReleaseResponseData {
+		repository: RepositoryData {
+			latest_release: LatestRelease {
+				release_assets: ReleaseAssets {
+					nodes: vec![
+						Node {
+							download_url: "x86_64-unknown-linux-gnu.tar.gz"
+								.to_string(),
+						},
+						Node {
+							download_url: "x86_64-pc-windows-msvc.zip"
+								.to_string(),
+						},
+						Node {
+							download_url: "aarch64-apple-darwin.tar.gz"
+								.to_string(),
+						},
+						Node {
+							download_url: "x86_64-apple-darwin.tar.gz"
+								.to_string(),
+						},
+						Node {
+							download_url: "aarch64-unknown-linux-gnu.tar.gz"
+								.to_string(),
+						},
+					],
+				},
+			},
+		},
+	};
+
+	data.repository
+		.latest_release
+		.release_assets
+		.nodes
+		.iter_mut()
+		.for_each(|v| {
+			v.download_url =
+				format!("{}/scafalra-{}-{}", url, ver, v.download_url)
+		});
+
+	ureq::serde_json::to_string::<ReleaseResponseData>(&data).unwrap()
 }
