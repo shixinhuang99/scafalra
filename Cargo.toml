@@ -36,7 +36,7 @@ toml = "0.8.0"
 ureq = { version = "2.6.2", features = ["json"] }
 
 [target.'cfg(windows)'.dependencies]
-zip = { version = "0.6.6", default-features = false }
+zip = "0.6.6"
 
 [dev-dependencies]
 mockito = "1.0.2"
