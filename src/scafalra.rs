@@ -632,7 +632,7 @@ mod tests {
 			mock_scafalra(Some(&server.url()), Some("token"), false)?;
 
 		let query_release_mock = query_release_mock.expect(1).create();
-		let download_mock = download_mock.expect(0).create();
+		let download_mock = download_mock.expect(1).create();
 
 		scafalra.update(UpdateArgs { check: false })?;
 		let excutable = scafalra
