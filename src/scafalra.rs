@@ -4,14 +4,22 @@ use anyhow::Result;
 use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 
+#[cfg(unix)]
+use crate::utils::tar_unpack;
+#[cfg(windows)]
+use crate::utils::zip_unpack;
 use crate::{
-	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
+	cli::{
+		AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs,
+		UninstallArgs, UpdateArgs,
+	},
 	config::Config,
 	debug,
 	error::ScafalraError,
 	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
+	utils::download,
 };
 
 pub struct Scafalra {
@@ -20,6 +28,7 @@ pub struct Scafalra {
 	config: Config,
 	store: Store,
 	github_api: GitHubApi,
+	update_dir: Utf8PathBuf,
 }
 
 impl Scafalra {
@@ -30,6 +39,7 @@ impl Scafalra {
 	) -> Result<Self> {
 		let root_dir = home_dir.join(".scafalra");
 		let cache_dir = root_dir.join("cache");
+		let update_dir = root_dir.join("update");
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)?;
@@ -37,7 +47,7 @@ impl Scafalra {
 
 		let config = Config::new(&root_dir)?;
 		let store = Store::new(&root_dir)?;
-		let mut github_api = GitHubApi::new(endpoint);
+		let github_api = GitHubApi::new(endpoint);
 
 		let token = token.or_else(|| config.token());
 
@@ -51,6 +61,7 @@ impl Scafalra {
 			config,
 			store,
 			github_api,
+			update_dir,
 		})
 	}
 
@@ -89,16 +100,16 @@ impl Scafalra {
 	pub fn add(&mut self, args: AddArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let repo = Repository::new(&args.repository)?;
+		let repo = Repository::parse(&args.repository)?;
 
-		println!("Downloading `{}`", args.repository);
+		println!("Downloading `{}` ...", args.repository);
 
-		let api_result = self.github_api.request(&repo)?;
+		let repo_info = self.github_api.query_repository(&repo)?;
 
 		let mut scaffold_name = args.name.unwrap_or(repo.name.clone());
 
 		let mut scaffold_path =
-			repo.cache(&api_result.tarball_url, &self.cache_dir)?;
+			repo.cache(&repo_info.tarball_url, &self.cache_dir)?;
 
 		debug!("scaffold_path: {}", scaffold_path);
 
@@ -120,7 +131,7 @@ impl Scafalra {
 		if args.depth == 0 {
 			self.store.add(Scaffold::new(
 				scaffold_name,
-				api_result.url.clone(),
+				repo_info.url.clone(),
 				scaffold_path.clone(),
 			))
 		}
@@ -134,7 +145,7 @@ impl Scafalra {
 				if file_type.is_dir() && !file_name.starts_with('.') {
 					self.store.add(Scaffold::new(
 						file_name,
-						api_result.url.clone(),
+						repo_info.url.clone(),
 						entry.path(),
 					))
 				}
@@ -148,8 +159,6 @@ impl Scafalra {
 
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
-
-		println!("Creating `{}`", args.name);
 
 		let scaffold = self.store.get(&args.name);
 
@@ -206,6 +215,91 @@ impl Scafalra {
 
 		Ok(())
 	}
+
+	pub fn update(&self, args: UpdateArgs) -> Result<()> {
+		debug!("args: {:#?}", args);
+
+		let release = self.github_api.query_release()?;
+
+		debug!("release: {:#?}", release);
+
+		if !release.can_update {
+			println!("It's already the latest version");
+			return Ok(());
+		}
+
+		if args.check {
+			println!("Scafalra {} available", release.version);
+			return Ok(());
+		}
+
+		if !self.update_dir.exists() {
+			fs::create_dir_all(&self.update_dir)?;
+		}
+
+		let mut archive = self.update_dir.join("t");
+
+		#[cfg(unix)]
+		{
+			archive.set_extension("tar.gz");
+			download(&release.assets_url, &archive)?;
+			tar_unpack(&archive, &self.update_dir)?;
+		}
+
+		#[cfg(windows)]
+		{
+			archive.set_extension("zip");
+			download(&release.assets_url, &archive)?;
+			zip_unpack(&archive, &self.update_dir)?;
+		}
+
+		let mut new_executable: Option<Utf8PathBuf> = None;
+
+		for entry in self.update_dir.read_dir_utf8()? {
+			let entry = entry?;
+			if entry.file_type()?.is_dir() {
+				new_executable = Some(
+					entry
+						.path()
+						.join("scafalra")
+						.with_extension(env::consts::EXE_EXTENSION),
+				);
+				break;
+			}
+		}
+
+		let Some(new_executable) = new_executable else {
+			anyhow::bail!("Excutable not found for update");
+		};
+
+		if !new_executable.is_file() {
+			anyhow::bail!("Invalid executable for update");
+		}
+
+		#[cfg(not(test))]
+		{
+			self_replace::self_replace(new_executable)?;
+		}
+
+		remove_dir_all::remove_dir_all(&self.update_dir)?;
+
+		Ok(())
+	}
+
+	pub fn uninstall(&self, args: UninstallArgs) -> Result<()> {
+		debug!("args: {:#?}", args);
+
+		if !args.keep_data {
+			remove_dir_all::remove_dir_all(&self.root_dir)?;
+		}
+
+		#[cfg(not(test))]
+		{
+			self_replace::self_delete()?;
+		}
+
+		Ok(())
+	}
 }
 
 #[cfg(test)]
@@ -218,8 +312,13 @@ mod tests {
 	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
-	use super::{AddArgs, CreateArgs, Scafalra};
-	use crate::store::Scaffold;
+	use super::Scafalra;
+	use crate::{
+		cli::{AddArgs, CreateArgs, UninstallArgs, UpdateArgs},
+		github_api::mock_release_response_json,
+		store::Scaffold,
+		utils::{get_self_target, get_self_version},
+	};
 
 	struct Paths {
 		cache_dir: Utf8PathBuf,
@@ -227,7 +326,7 @@ mod tests {
 		config_file: Utf8PathBuf,
 	}
 
-	fn build_scafalra(
+	fn mock_scafalra(
 		endpoint: Option<&str>,
 		token: Option<&str>,
 		with_scaffold: bool,
@@ -264,7 +363,7 @@ mod tests {
 		))
 	}
 
-	fn build_server() -> Result<(ServerGuard, Mock, Mock)> {
+	fn mock_server() -> Result<(ServerGuard, Mock, Mock)> {
 		use std::io::Read;
 
 		let mut server = mockito::Server::new();
@@ -308,9 +407,58 @@ mod tests {
 		Ok((server, tarball_mock, api_mock))
 	}
 
+	fn mock_server_for_update() -> Result<(ServerGuard, Mock, Mock)> {
+		let mut server = mockito::Server::new();
+
+		let higher_ver = {
+			let mut v = semver::Version::parse(get_self_version()).unwrap();
+			v.major += 1;
+			v.to_string()
+		};
+
+		let query_release_mock = server
+			.mock("POST", "/")
+			.with_status(200)
+			.with_header("content-type", "application/json")
+			.with_body(mock_release_response_json(&server.url(), &higher_ver))
+			.create();
+
+		let download_mock = server
+			.mock(
+				"GET",
+				format!(
+					"/scafalra-{}-{}{}",
+					higher_ver,
+					get_self_target(),
+					if cfg!(windows) { ".zip" } else { ".tar.gz" }
+				)
+				.as_str(),
+			)
+			.with_status(200)
+			.with_header(
+				"content-type",
+				if cfg!(windows) {
+					"application/zip"
+				} else {
+					"application/gzip"
+				},
+			)
+			.with_body_from_file(PathBuf::from_iter([
+				"assets",
+				if cfg!(windows) {
+					"scafalra-update-windows.zip"
+				} else {
+					"scafalra-update-unix.tar.gz"
+				},
+			]))
+			.create();
+
+		Ok((server, query_release_mock, download_mock))
+	}
+
 	#[test]
 	fn test_scafalra_new() -> Result<()> {
-		let (scafalra, _dir, paths) = build_scafalra(None, None, false)?;
+		let (scafalra, _dir, paths) = mock_scafalra(None, None, false)?;
 
 		assert_eq!(scafalra.cache_dir, paths.cache_dir);
 		assert!(scafalra.cache_dir.exists());
@@ -322,9 +470,9 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add() -> Result<()> {
-		let (server, tarball_mock, api_mock) = build_server()?;
+		let (server, tarball_mock, api_mock) = mock_server()?;
 		let (mut scafalra, _dir, paths) =
-			build_scafalra(Some(&server.url()), Some("token"), false)?;
+			mock_scafalra(Some(&server.url()), Some("token"), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
@@ -348,9 +496,9 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_specified_name() -> Result<()> {
-		let (server, tarball_mock, api_mock) = build_server()?;
+		let (server, tarball_mock, api_mock) = mock_server()?;
 		let (mut scafalra, _dir, paths) =
-			build_scafalra(Some(&server.url()), Some("token"), false)?;
+			mock_scafalra(Some(&server.url()), Some("token"), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
@@ -374,9 +522,9 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_depth_1() -> Result<()> {
-		let (server, tarball_mock, api_mock) = build_server()?;
+		let (server, tarball_mock, api_mock) = mock_server()?;
 		let (mut scafalra, _dir, paths) =
-			build_scafalra(Some(&server.url()), Some("token"), false)?;
+			mock_scafalra(Some(&server.url()), Some("token"), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
@@ -409,9 +557,9 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_subdir() -> Result<()> {
-		let (server, tarball_mock, api_mock) = build_server()?;
+		let (server, tarball_mock, api_mock) = mock_server()?;
 		let (mut scafalra, _dir, paths) =
-			build_scafalra(Some(&server.url()), Some("token"), false)?;
+			mock_scafalra(Some(&server.url()), Some("token"), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar/a/a1".to_string(),
@@ -436,9 +584,9 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_subdir_and_depth_1() -> Result<()> {
-		let (server, tarball_mock, api_mock) = build_server()?;
+		let (server, tarball_mock, api_mock) = mock_server()?;
 		let (mut scafalra, _dir, paths) =
-			build_scafalra(Some(&server.url()), Some("token"), false)?;
+			mock_scafalra(Some(&server.url()), Some("token"), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar/a".to_string(),
@@ -467,7 +615,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_create() -> Result<()> {
-		let (scafalra, dir, _) = build_scafalra(None, None, true)?;
+		let (scafalra, dir, _) = mock_scafalra(None, None, true)?;
 
 		let dir_path = Utf8Path::from_path(dir.path()).unwrap();
 
@@ -486,7 +634,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_create_not_found() -> Result<()> {
-		let (scafalra, _dir, _) = build_scafalra(None, None, false)?;
+		let (scafalra, _dir, _) = mock_scafalra(None, None, false)?;
 
 		let res = scafalra.create(CreateArgs {
 			name: "bar".to_string(),
@@ -494,6 +642,58 @@ mod tests {
 		});
 
 		assert!(res.is_err());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_update_check() -> Result<()> {
+		let (server, query_release_mock, _) = mock_server_for_update()?;
+		let (scafalra, _tmpdir, _) =
+			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+
+		scafalra.update(UpdateArgs { check: true })?;
+
+		query_release_mock.assert();
+		assert!(!scafalra.update_dir.exists());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_update() -> Result<()> {
+		let (server, query_release_mock, download_mock) =
+			mock_server_for_update()?;
+		let (scafalra, _tmpdir, _) =
+			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+
+		scafalra.update(UpdateArgs { check: false })?;
+
+		query_release_mock.assert();
+		download_mock.assert();
+		assert!(!scafalra.update_dir.exists());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_uninstall() -> Result<()> {
+		let (scafalra, _dir, _) = mock_scafalra(None, None, true)?;
+
+		scafalra.uninstall(UninstallArgs { keep_data: false })?;
+
+		assert!(!scafalra.root_dir.exists());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_uninstall_keep_data() -> Result<()> {
+		let (scafalra, _dir, _) = mock_scafalra(None, None, true)?;
+
+		scafalra.uninstall(UninstallArgs { keep_data: true })?;
+
+		assert!(scafalra.root_dir.exists());
 
 		Ok(())
 	}

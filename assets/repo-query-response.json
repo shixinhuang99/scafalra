@@ -1,0 +1,12 @@
+{
+  "data": {
+    "repository": {
+      "url": "url",
+      "defaultBranchRef": {
+        "target": {
+          "tarballUrl": "tarballUrl"
+        }
+      }
+    }
+  }
+}

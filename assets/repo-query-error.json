@@ -1,0 +1,10 @@
+{
+  "data": {
+    "repository": null
+  },
+  "errors": [
+    {
+      "message": "Could not resolve to a Repository with the name 'foo/bar'."
+    }
+  ]
+}
