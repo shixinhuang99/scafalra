@@ -15,7 +15,6 @@ use crate::{
 	},
 	config::Config,
 	debug,
-	error::ScafalraError,
 	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
@@ -166,8 +165,14 @@ impl Scafalra {
 			anyhow::bail!("No such scaffold `{}`", args.name);
 		};
 
-		let cwd = Utf8PathBuf::from_path_buf(env::current_dir()?)
-			.map_err(ScafalraError::NonUtf8Path)?;
+		let cwd = Utf8PathBuf::from_path_buf(env::current_dir()?).map_err(
+			|err_path| {
+				anyhow::anyhow!(
+					"Current working directory `{}` it is not valid UTF-8 path",
+					err_path.display()
+				)
+			},
+		)?;
 
 		debug!("current directory: {}", cwd);
 
