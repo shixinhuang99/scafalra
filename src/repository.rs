@@ -1,13 +1,16 @@
-use std::{io, sync::OnceLock};
+use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
-use flate2::read::GzDecoder;
 use fs_err as fs;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
 
-use crate::{debug, error::ScafalraError, utils::build_proxy_agent};
+use crate::{
+	debug,
+	error::ScafalraError,
+	utils::{download, tar_unpack},
+};
 
 static REPO_RE: OnceLock<Regex> = OnceLock::new();
 
@@ -32,7 +35,7 @@ pub enum Query {
 }
 
 impl Repository {
-	pub fn new(input: &str) -> Result<Self> {
+	pub fn parse(input: &str) -> Result<Self> {
 		let caps = get_repo_re().captures(input).ok_or(anyhow!(
 			ScafalraError::RepositoryParseError(input.to_string())
 		))?;
@@ -69,7 +72,7 @@ impl Repository {
 
 		download(url, &tarball)?;
 
-		unpack(&tarball, &temp_dir)?;
+		tar_unpack(&tarball, &temp_dir)?;
 
 		let Some(extracted_dir) = temp_dir.read_dir_utf8()?.next() else {
 			anyhow::bail!("Empty directory");
@@ -96,26 +99,6 @@ impl Repository {
 
 		Ok(scaffold_dir)
 	}
-}
-
-fn download(url: &str, file_path: &Utf8Path) -> Result<()> {
-	let agent = build_proxy_agent();
-	let response = agent.get(url).call()?;
-	let mut file = fs::File::create(file_path)?;
-
-	io::copy(&mut response.into_reader(), &mut file)?;
-
-	Ok(())
-}
-
-fn unpack(file_path: &Utf8Path, parent_dir: &Utf8Path) -> Result<()> {
-	let file = fs::File::open(file_path)?;
-	let dec = GzDecoder::new(file);
-	let mut tar = tar::Archive::new(dec);
-
-	tar.unpack(parent_dir)?;
-
-	Ok(())
 }
 
 #[cfg(test)]
@@ -209,7 +192,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_new() -> Result<()> {
-		let repo = Repository::new("foo/bar/path/to/dir?branch=main")?;
+		let repo = Repository::parse("foo/bar/path/to/dir?branch=main")?;
 
 		assert_eq!(repo.owner, "foo");
 		assert_eq!(repo.name, "bar");
@@ -221,7 +204,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_new_err() {
-		let repo = Repository::new("foo");
+		let repo = Repository::parse("foo");
 		assert!(repo.is_err());
 	}
 
@@ -245,7 +228,7 @@ mod tests {
 		let temp_dir = tempfile::tempdir()?;
 		let temp_dir_path = Utf8Path::from_path(temp_dir.path()).unwrap();
 
-		let repo = Repository::new("shixinhuang99/scafalra")?;
+		let repo = Repository::parse("shixinhuang99/scafalra")?;
 		repo.cache(&server.url(), temp_dir_path)?;
 
 		mock.assert();

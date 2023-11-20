@@ -42,6 +42,12 @@ pub enum Command {
 
 	/// Configure or display your GitHub personal access token(classic)
 	Token(TokenArgs),
+
+	/// Update self
+	Update(UpdateArgs),
+
+	/// Uninstall self
+	Uninstall(UninstallArgs),
 }
 
 #[derive(Args, Debug)]
@@ -95,6 +101,20 @@ pub struct CreateArgs {
 #[derive(Args, Debug)]
 pub struct TokenArgs {
 	pub token: Option<String>,
+}
+
+#[derive(Args, Debug)]
+pub struct UpdateArgs {
+	/// Check for updates to self
+	#[arg(long)]
+	pub check: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct UninstallArgs {
+	/// Keep the data
+	#[arg(long)]
+	pub keep_data: bool,
 }
 
 #[cfg(test)]
