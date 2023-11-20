@@ -45,6 +45,9 @@ pub enum Command {
 
 	/// Update self
 	Update(UpdateArgs),
+
+	/// Uninstall self
+	Uninstall(UninstallArgs),
 }
 
 #[derive(Args, Debug)]
@@ -105,6 +108,13 @@ pub struct UpdateArgs {
 	/// Check for updates to self
 	#[arg(long)]
 	pub check: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct UninstallArgs {
+	/// Keep the data
+	#[arg(long)]
+	pub keep_data: bool,
 }
 
 #[cfg(test)]

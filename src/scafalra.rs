@@ -4,12 +4,14 @@ use anyhow::Result;
 use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 
+#[cfg(unix)]
+use crate::utils::tar_unpack;
 #[cfg(windows)]
 use crate::utils::zip_unpack;
 use crate::{
 	cli::{
 		AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs,
-		UpdateArgs,
+		UninstallArgs, UpdateArgs,
 	},
 	config::Config,
 	debug,
@@ -17,7 +19,7 @@ use crate::{
 	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
-	utils::{download, tar_unpack},
+	utils::download,
 };
 
 pub struct Scafalra {
@@ -283,6 +285,21 @@ impl Scafalra {
 
 		Ok(())
 	}
+
+	pub fn uninstall(&self, args: UninstallArgs) -> Result<()> {
+		debug!("args: {:#?}", args);
+
+		if !args.keep_data {
+			remove_dir_all::remove_dir_all(&self.root_dir)?;
+		}
+
+		#[cfg(not(test))]
+		{
+			self_replace::self_delete()?;
+		}
+
+		Ok(())
+	}
 }
 
 #[cfg(test)]
@@ -297,7 +314,7 @@ mod tests {
 
 	use super::Scafalra;
 	use crate::{
-		cli::{AddArgs, CreateArgs, UpdateArgs},
+		cli::{AddArgs, CreateArgs, UninstallArgs, UpdateArgs},
 		github_api::mock_release_response_json,
 		store::Scaffold,
 		utils::{get_self_target, get_self_version},
@@ -655,6 +672,28 @@ mod tests {
 		query_release_mock.assert();
 		download_mock.assert();
 		assert!(!scafalra.update_dir.exists());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_uninstall() -> Result<()> {
+		let (scafalra, _dir, _) = mock_scafalra(None, None, true)?;
+
+		scafalra.uninstall(UninstallArgs { keep_data: false })?;
+
+		assert!(!scafalra.root_dir.exists());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_uninstall_keep_data() -> Result<()> {
+		let (scafalra, _dir, _) = mock_scafalra(None, None, true)?;
+
+		scafalra.uninstall(UninstallArgs { keep_data: true })?;
+
+		assert!(scafalra.root_dir.exists());
 
 		Ok(())
 	}
