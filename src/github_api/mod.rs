@@ -15,7 +15,6 @@ use ureq::Agent;
 
 use crate::{
 	debug,
-	error::ScafalraError,
 	repository::Repository,
 	utils::{build_proxy_agent, get_self_version},
 };
@@ -50,7 +49,7 @@ impl GitHubApi {
 		T: DeserializeOwned + std::fmt::Debug,
 	{
 		let Some(ref token) = *self.token.borrow() else {
-			anyhow::bail!(ScafalraError::NoToken);
+			anyhow::bail!("No GitHub personal access token configured");
 		};
 
 		let response: GraphQLResponse<T> = self
@@ -67,9 +66,14 @@ impl GitHubApi {
 		let GraphQLResponse { data, errors } = response;
 
 		if let Some(errors) = errors {
-			anyhow::bail!(ScafalraError::GitHubApiError(
-				errors[0].message.clone()
-			));
+			if errors.is_empty() {
+				anyhow::bail!("Call to GitHub api error");
+			} else {
+				anyhow::bail!(
+					"Call to GitHub api error: {}",
+					errors[0].message
+				);
+			}
 		}
 
 		data.ok_or(anyhow::anyhow!("No response data"))

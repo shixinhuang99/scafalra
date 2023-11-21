@@ -2,7 +2,6 @@ mod cli;
 mod colorize;
 mod config;
 mod debug;
-mod error;
 mod github_api;
 mod repository;
 mod scafalra;
@@ -17,7 +16,6 @@ use camino::Utf8PathBuf;
 use clap::Parser;
 use cli::{Cli, Command};
 use debug::trun_on_debug;
-use error::ScafalraError;
 use scafalra::Scafalra;
 
 fn main() {
@@ -27,12 +25,16 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-	let Some(home_dir) = home::home_dir() else {
-		anyhow::bail!("Impossible to get your home dir");
-	};
-
-	let home_dir = Utf8PathBuf::from_path_buf(home_dir)
-		.map_err(ScafalraError::NonUtf8Path)?;
+	let home_dir = Utf8PathBuf::from_path_buf(
+		home::home_dir()
+			.ok_or(anyhow::anyhow!("Impossible to get your home directory"))?,
+	)
+	.map_err(|err_path| {
+		anyhow::anyhow!(
+			"Home directory `{}` it is not valid UTF-8 path",
+			err_path.display()
+		)
+	})?;
 
 	let cli = Cli::parse();
 
