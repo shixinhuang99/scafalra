@@ -15,7 +15,7 @@ use tabled::{
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::toml_content::TomlContent;
+use crate::json_content::JsonContent;
 
 struct Changes {
 	inner: Vec<String>,
@@ -23,19 +23,19 @@ struct Changes {
 
 impl Changes {
 	fn new() -> Self {
-		Self { inner: vec![] }
+		Self { inner: Vec::new() }
 	}
 
 	fn push_add(&mut self, name: &str) {
 		use crate::colorize::Colorize;
 
-		self.inner.push(format!("{} {}", "+".success(), name))
+		self.inner.push(format!("{} {}", "+".success(), name));
 	}
 
 	fn push_remove(&mut self, name: &str) {
 		use crate::colorize::Colorize;
 
-		self.inner.push(format!("{} {}", "-".error(), name))
+		self.inner.push(format!("{} {}", "-".error(), name));
 	}
 
 	fn iter(&self) -> Iter<'_, String> {
@@ -45,11 +45,10 @@ impl Changes {
 
 #[derive(Deserialize, Serialize, Default)]
 struct StoreContent {
-	#[serde(rename = "scaffold", default)]
 	scaffolds: Vec<Scaffold>,
 }
 
-impl TomlContent for StoreContent {}
+impl JsonContent for StoreContent {}
 
 #[derive(Deserialize, Serialize, Clone, Tabled)]
 pub struct Scaffold {
@@ -61,10 +60,10 @@ pub struct Scaffold {
 	pub created_at: String,
 }
 
-#[cfg(test)]
-const TEST_CREATED_AT: &str = "2023-05-19 00:00:00";
-
 impl Scaffold {
+	#[cfg(test)]
+	const TEST_CREATED_AT: &'static str = "2023-05-19 00:00:00";
+
 	pub fn new<N, U, L>(name: N, url: U, local: L) -> Self
 	where
 		N: AsRef<str>,
@@ -75,7 +74,7 @@ impl Scaffold {
 		let created_at = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
 
 		#[cfg(test)]
-		let created_at = TEST_CREATED_AT.to_string();
+		let created_at = Self::TEST_CREATED_AT.to_string();
 
 		Self {
 			name: String::from(name.as_ref()),
@@ -101,7 +100,11 @@ url = "url"
 local = {}{}{}
 created_at = "{}"
 "#,
-			name, quote, local, quote, TEST_CREATED_AT
+			name,
+			quote,
+			local,
+			quote,
+			Self::TEST_CREATED_AT
 		)
 	}
 }
@@ -149,8 +152,10 @@ pub struct Store {
 }
 
 impl Store {
+	const FILE_NAME: &'static str = "store.json";
+
 	pub fn new(scafalra_dir: &Utf8Path) -> Result<Self> {
-		let path = scafalra_dir.join("store.toml");
+		let path = scafalra_dir.join(Self::FILE_NAME);
 		let scaffolds = ScaffoldMap::from(StoreContent::load(&path)?);
 		let changes = Changes::new();
 
@@ -470,9 +475,9 @@ mod tests {
 
 		#[rustfmt::skip]
 		let expected = " name       | url | created at          \n\
-                        ------------+-----+---------------------\n \
-                         scaffold-0 | url | 2023-05-19 00:00:00 \n \
-                         scaffold-1 | url | 2023-05-19 00:00:00 ";
+						------------+-----+---------------------\n \
+						 scaffold-0 | url | 2023-05-19 00:00:00 \n \
+						 scaffold-1 | url | 2023-05-19 00:00:00 ";
 
 		assert_eq!(store.print_table().unwrap(), expected);
 
