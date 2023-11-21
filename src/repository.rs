@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use camino::{Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 use regex::Regex;
@@ -8,7 +8,6 @@ use remove_dir_all::remove_dir_all;
 
 use crate::{
 	debug,
-	error::ScafalraError,
 	utils::{download, tar_unpack},
 };
 
@@ -36,9 +35,9 @@ pub enum Query {
 
 impl Repository {
 	pub fn parse(input: &str) -> Result<Self> {
-		let caps = get_repo_re().captures(input).ok_or(anyhow!(
-			ScafalraError::RepositoryParseError(input.to_string())
-		))?;
+		let caps = get_repo_re()
+			.captures(input)
+			.ok_or(anyhow::anyhow!("Could not parse the input: `{}`", input))?;
 
 		let owner = caps[1].to_string();
 		let name = caps[2].to_string();
