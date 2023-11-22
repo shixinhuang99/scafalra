@@ -31,14 +31,18 @@ pub struct Scafalra {
 }
 
 impl Scafalra {
+	const ROOT_DIR_NAME: &'static str = ".scafalra";
+	const CACHE_DIR_NAME: &'static str = "cache";
+	const UPDATE_DIR_NAME: &'static str = "update";
+
 	pub fn new(
 		home_dir: &Utf8Path,
 		endpoint: Option<&str>,
 		token: Option<&str>,
 	) -> Result<Self> {
-		let root_dir = home_dir.join(".scafalra");
-		let cache_dir = root_dir.join("cache");
-		let update_dir = root_dir.join("update");
+		let root_dir = home_dir.join(Scafalra::ROOT_DIR_NAME);
+		let cache_dir = root_dir.join(Scafalra::CACHE_DIR_NAME);
+		let update_dir = root_dir.join(Scafalra::UPDATE_DIR_NAME);
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)?;
@@ -192,7 +196,7 @@ impl Scafalra {
 			anyhow::bail!("`{}` is already exists", dst);
 		}
 
-		dircpy::copy_dir(&scaffold.local, &dst)?;
+		dircpy::copy_dir(&scaffold.path, &dst)?;
 
 		println!("Created in `{}`", dst);
 
@@ -281,8 +285,7 @@ impl Scafalra {
 			anyhow::bail!("Invalid executable for update");
 		}
 
-		#[cfg(not(test))]
-		{
+		if cfg!(not(test)) {
 			self_replace::self_replace(new_executable)?;
 		}
 
@@ -298,8 +301,7 @@ impl Scafalra {
 			remove_dir_all::remove_dir_all(&self.root_dir)?;
 		}
 
-		#[cfg(not(test))]
-		{
+		if cfg!(not(test)) {
 			self_replace::self_delete()?;
 		}
 
@@ -321,7 +323,7 @@ mod tests {
 	use crate::{
 		cli::{AddArgs, CreateArgs, UninstallArgs, UpdateArgs},
 		github_api::mock_release_response_json,
-		store::Scaffold,
+		store::{mock_store_json, Scaffold},
 		utils::{get_self_target, get_self_version},
 	};
 
