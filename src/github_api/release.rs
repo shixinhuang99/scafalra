@@ -1,8 +1,11 @@
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use super::gql::{GraphQLQuery, ToJson};
-use crate::utils::{get_self_target, get_self_version};
+use super::gql::GraphQLQuery;
+use crate::{
+	json::ToJson,
+	utils::{get_self_target, get_self_version},
+};
 
 const RELEASE_GQL: &str = include_str!("release.gql");
 
@@ -139,8 +142,7 @@ pub fn mock_release_response_json(url: &str, ver: &str) -> String {
 				format!("{}/scafalra-{}-{}", url, ver, v.download_url)
 		});
 
-	let data =
-		ureq::serde_json::to_string::<ReleaseResponseData>(&data).unwrap();
+	let data = serde_json::to_string::<ReleaseResponseData>(&data).unwrap();
 
 	format!(r#"{{ "data": {} }}"#, data)
 }

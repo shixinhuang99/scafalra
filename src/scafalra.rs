@@ -31,14 +31,18 @@ pub struct Scafalra {
 }
 
 impl Scafalra {
+	const ROOT_DIR_NAME: &'static str = ".scafalra";
+	const CACHE_DIR_NAME: &'static str = "cache";
+	const UPDATE_DIR_NAME: &'static str = "update";
+
 	pub fn new(
 		home_dir: &Utf8Path,
 		endpoint: Option<&str>,
 		token: Option<&str>,
 	) -> Result<Self> {
-		let root_dir = home_dir.join(".scafalra");
-		let cache_dir = root_dir.join("cache");
-		let update_dir = root_dir.join("update");
+		let root_dir = home_dir.join(Self::ROOT_DIR_NAME);
+		let cache_dir = root_dir.join(Self::CACHE_DIR_NAME);
+		let update_dir = root_dir.join(Self::UPDATE_DIR_NAME);
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)?;
@@ -192,7 +196,7 @@ impl Scafalra {
 			anyhow::bail!("`{}` is already exists", dst);
 		}
 
-		dircpy::copy_dir(&scaffold.local, &dst)?;
+		dircpy::copy_dir(&scaffold.path, &dst)?;
 
 		println!("Created in `{}`", dst);
 
@@ -281,8 +285,7 @@ impl Scafalra {
 			anyhow::bail!("Invalid executable for update");
 		}
 
-		#[cfg(not(test))]
-		{
+		if cfg!(not(test)) {
 			self_replace::self_replace(new_executable)?;
 		}
 
@@ -298,8 +301,7 @@ impl Scafalra {
 			remove_dir_all::remove_dir_all(&self.root_dir)?;
 		}
 
-		#[cfg(not(test))]
-		{
+		if cfg!(not(test)) {
 			self_replace::self_delete()?;
 		}
 
@@ -312,7 +314,6 @@ mod tests {
 	use std::{fs, path::PathBuf};
 
 	use anyhow::Result;
-	use camino::{Utf8Path, Utf8PathBuf};
 	use mockito::{Mock, ServerGuard};
 	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
@@ -321,51 +322,33 @@ mod tests {
 	use crate::{
 		cli::{AddArgs, CreateArgs, UninstallArgs, UpdateArgs},
 		github_api::mock_release_response_json,
-		store::Scaffold,
+		store::{mock_store_json, Store},
+		utf8_path::Utf8PathBufExt,
 		utils::{get_self_target, get_self_version},
 	};
 
-	struct Paths {
-		cache_dir: Utf8PathBuf,
-		store_file: Utf8PathBuf,
-		config_file: Utf8PathBuf,
-	}
-
 	fn mock_scafalra(
-		endpoint: Option<&str>,
-		token: Option<&str>,
-		with_scaffold: bool,
-	) -> Result<(Scafalra, TempDir, Paths)> {
+		endpoint: &str,
+		init_content: bool,
+	) -> Result<(Scafalra, TempDir)> {
 		let temp_dir = tempdir()?;
-		let tempd_dir_path = Utf8Path::from_path(temp_dir.path()).unwrap();
-		let root_dir = tempd_dir_path.join(".scafalra");
-		let cache_dir = root_dir.join("cache");
-		let store_file = root_dir.join("store.toml");
-		let config_file = root_dir.join("config.toml");
+		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
 
-		if with_scaffold {
-			let scaffold_dir = cache_dir.join("scaffold_dir");
-			fs::create_dir_all(&scaffold_dir)?;
-			fs::create_dir(scaffold_dir.join("a"))?;
-			fs::File::create(scaffold_dir.join("a").join("foo.txt"))?;
-			fs::File::create(&store_file)?;
-
-			let content = Scaffold::build_toml_str("bar", scaffold_dir);
-
-			fs::write(&store_file, content)?;
+		if init_content {
+			let root_dir = temp_dir_path.join(Scafalra::ROOT_DIR_NAME);
+			let cache_dir = root_dir.join(Scafalra::CACHE_DIR_NAME);
+			let store_file = root_dir.join(Store::FILE_NAME);
+			let foo_dir = cache_dir.join("foo");
+			let bar_dir = foo_dir.join("bar");
+			fs::create_dir_all(&bar_dir)?;
+			fs::write(bar_dir.join("baz.txt"), "")?;
+			fs::write(store_file, mock_store_json(vec![("bar", bar_dir)]))?;
 		}
 
-		let scafalra = Scafalra::new(tempd_dir_path, endpoint, token)?;
+		let scafalra =
+			Scafalra::new(&temp_dir_path, Some(endpoint), Some("token"))?;
 
-		Ok((
-			scafalra,
-			temp_dir,
-			Paths {
-				cache_dir,
-				store_file,
-				config_file,
-			},
-		))
+		Ok((scafalra, temp_dir))
 	}
 
 	fn mock_server() -> Result<(ServerGuard, Mock, Mock)> {
@@ -463,12 +446,11 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_new() -> Result<()> {
-		let (scafalra, _dir, paths) = mock_scafalra(None, None, false)?;
+		let (scafalra, _dir) = mock_scafalra("", false)?;
 
-		assert_eq!(scafalra.cache_dir, paths.cache_dir);
 		assert!(scafalra.cache_dir.exists());
-		assert!(paths.store_file.exists());
-		assert!(paths.config_file.exists());
+		assert!(scafalra.store.path.exists());
+		assert!(scafalra.config.path.exists());
 
 		Ok(())
 	}
@@ -476,8 +458,7 @@ mod tests {
 	#[test]
 	fn test_scafalra_add() -> Result<()> {
 		let (server, tarball_mock, api_mock) = mock_server()?;
-		let (mut scafalra, _dir, paths) =
-			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
@@ -488,13 +469,12 @@ mod tests {
 		tarball_mock.assert();
 		api_mock.assert();
 
-		let scaffold_dir = paths.cache_dir.join("foo").join("bar");
+		let store_content = fs::read_to_string(&scafalra.store.path)?;
+		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let expected = mock_store_json(vec![("bar", &bar_dir)]);
 
-		let store_content = fs::read_to_string(paths.store_file)?;
-		let expected = Scaffold::build_toml_str("bar", &scaffold_dir);
-
+		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
-		assert!(scaffold_dir.exists());
 
 		Ok(())
 	}
@@ -502,8 +482,7 @@ mod tests {
 	#[test]
 	fn test_scafalra_add_specified_name() -> Result<()> {
 		let (server, tarball_mock, api_mock) = mock_server()?;
-		let (mut scafalra, _dir, paths) =
-			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
@@ -514,13 +493,12 @@ mod tests {
 		tarball_mock.assert();
 		api_mock.assert();
 
-		let scaffold_dir = paths.cache_dir.join("foo").join("bar");
+		let store_content = fs::read_to_string(&scafalra.store.path)?;
+		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let expected = mock_store_json(vec![("foo", &bar_dir)]);
 
-		let store_content = fs::read_to_string(paths.store_file)?;
-		let expected = Scaffold::build_toml_str("foo", &scaffold_dir);
-
+		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
-		assert!(scaffold_dir.exists());
 
 		Ok(())
 	}
@@ -528,8 +506,7 @@ mod tests {
 	#[test]
 	fn test_scafalra_add_depth_1() -> Result<()> {
 		let (server, tarball_mock, api_mock) = mock_server()?;
-		let (mut scafalra, _dir, paths) =
-			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
@@ -540,22 +517,17 @@ mod tests {
 		tarball_mock.assert();
 		api_mock.assert();
 
-		let scaffold_dir = paths.cache_dir.join("foo").join("bar");
+		let store_content = fs::read_to_string(&scafalra.store.path)?;
+		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let expected = mock_store_json(vec![
+			("a", bar_dir.join("a")),
+			("b", bar_dir.join("b")),
+			("c", bar_dir.join("c")),
+			("node_modules", bar_dir.join("node_modules")),
+		]);
 
-		let store_content = fs::read_to_string(paths.store_file)?;
-		let expected = format!(
-			"{}\n{}\n{}\n{}",
-			Scaffold::build_toml_str("a", scaffold_dir.join("a")),
-			Scaffold::build_toml_str("b", scaffold_dir.join("b")),
-			Scaffold::build_toml_str("c", scaffold_dir.join("c")),
-			Scaffold::build_toml_str(
-				"node_modules",
-				scaffold_dir.join("node_modules")
-			),
-		);
-
+		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
-		assert!(scaffold_dir.exists());
 
 		Ok(())
 	}
@@ -563,8 +535,7 @@ mod tests {
 	#[test]
 	fn test_scafalra_add_subdir() -> Result<()> {
 		let (server, tarball_mock, api_mock) = mock_server()?;
-		let (mut scafalra, _dir, paths) =
-			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar/a/a1".to_string(),
@@ -575,14 +546,17 @@ mod tests {
 		tarball_mock.assert();
 		api_mock.assert();
 
-		let scaffold_dir = paths.cache_dir.join("foo").join("bar");
+		let store_content = fs::read_to_string(&scafalra.store.path)?;
+		let a1_dir = scafalra
+			.cache_dir
+			.join("foo")
+			.join("bar")
+			.join("a")
+			.join("a1");
+		let expected = mock_store_json(vec![("a1", &a1_dir)]);
 
-		let store_content = fs::read_to_string(paths.store_file)?;
-		let expected =
-			Scaffold::build_toml_str("a1", scaffold_dir.join("a").join("a1"));
-
+		assert!(a1_dir.exists());
 		assert_eq!(store_content, expected);
-		assert!(scaffold_dir.exists());
 
 		Ok(())
 	}
@@ -590,8 +564,7 @@ mod tests {
 	#[test]
 	fn test_scafalra_add_subdir_and_depth_1() -> Result<()> {
 		let (server, tarball_mock, api_mock) = mock_server()?;
-		let (mut scafalra, _dir, paths) =
-			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
 			repository: "foo/bar/a".to_string(),
@@ -602,51 +575,53 @@ mod tests {
 		tarball_mock.assert();
 		api_mock.assert();
 
-		let scaffold_dir = paths.cache_dir.join("foo").join("bar");
+		let store_content = fs::read_to_string(&scafalra.store.path)?;
+		let a_dir = scafalra.cache_dir.join("foo").join("bar").join("a");
+		let a1_dir = a_dir.join("a1");
+		let a2_dir = a_dir.join("a2");
+		let a3_dir = a_dir.join("a3");
+		let expected = mock_store_json(vec![
+			("a1", &a1_dir),
+			("a2", &a2_dir),
+			("a3", &a3_dir),
+		]);
 
-		let store_content = fs::read_to_string(paths.store_file)?;
-		let expected = format!(
-			"{}\n{}\n{}",
-			Scaffold::build_toml_str("a1", scaffold_dir.join("a").join("a1")),
-			Scaffold::build_toml_str("a2", scaffold_dir.join("a").join("a2")),
-			Scaffold::build_toml_str("a3", scaffold_dir.join("a").join("a3")),
-		);
-
+		assert!(a1_dir.exists());
+		assert!(a2_dir.exists());
+		assert!(a3_dir.exists());
 		assert_eq!(store_content, expected);
-		assert!(scaffold_dir.exists());
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_create() -> Result<()> {
-		let (scafalra, dir, _) = mock_scafalra(None, None, true)?;
+		let (scafalra, temp_dir) = mock_scafalra("", true)?;
 
-		let dir_path = Utf8Path::from_path(dir.path()).unwrap();
+		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
 
 		scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
-			directory: Some(dir_path.join("bar")),
+			directory: Some(temp_dir_path.join("bar")),
 		})?;
 
-		assert!(dir_path.exists());
-		assert!(dir_path.join("bar").join("a").join("foo.txt").exists());
+		assert!(temp_dir_path.join("bar").join("baz.txt").exists());
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_create_not_found() -> Result<()> {
-		let (scafalra, _dir, _) = mock_scafalra(None, None, false)?;
+		let (scafalra, _dir) = mock_scafalra("", false)?;
 
-		let res = scafalra.create(CreateArgs {
+		let ret = scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			directory: None,
 		});
 
-		assert!(res.is_err());
+		assert!(ret.is_err());
 
 		Ok(())
 	}
@@ -654,8 +629,7 @@ mod tests {
 	#[test]
 	fn test_scafalra_update_check() -> Result<()> {
 		let (server, query_release_mock, _) = mock_server_for_update()?;
-		let (scafalra, _tmpdir, _) =
-			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.update(UpdateArgs { check: true })?;
 
@@ -669,8 +643,7 @@ mod tests {
 	fn test_scafalra_update() -> Result<()> {
 		let (server, query_release_mock, download_mock) =
 			mock_server_for_update()?;
-		let (scafalra, _tmpdir, _) =
-			mock_scafalra(Some(&server.url()), Some("token"), false)?;
+		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.update(UpdateArgs { check: false })?;
 
@@ -683,7 +656,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_uninstall() -> Result<()> {
-		let (scafalra, _dir, _) = mock_scafalra(None, None, true)?;
+		let (scafalra, _temp_dir) = mock_scafalra("", false)?;
 
 		scafalra.uninstall(UninstallArgs { keep_data: false })?;
 
@@ -694,7 +667,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_uninstall_keep_data() -> Result<()> {
-		let (scafalra, _dir, _) = mock_scafalra(None, None, true)?;
+		let (scafalra, _temp_dir) = mock_scafalra("", false)?;
 
 		scafalra.uninstall(UninstallArgs { keep_data: true })?;
 

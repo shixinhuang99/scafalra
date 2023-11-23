@@ -3,10 +3,11 @@ mod colorize;
 mod config;
 mod debug;
 mod github_api;
+mod json;
 mod repository;
 mod scafalra;
 mod store;
-mod toml_content;
+mod utf8_path;
 mod utils;
 
 use std::env;

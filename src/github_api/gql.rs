@@ -29,12 +29,3 @@ where
 pub struct GraphQLError {
 	pub message: String,
 }
-
-pub trait ToJson
-where
-	Self: Serialize,
-{
-	fn to_json(&self) -> String {
-		ureq::serde_json::to_string(self).unwrap()
-	}
-}
