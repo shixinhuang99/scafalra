@@ -34,6 +34,7 @@ mod tests {
 
 	use anyhow::Result;
 	use camino::Utf8PathBuf;
+	use pretty_assertions::assert_eq;
 	use serde::{Deserialize, Serialize};
 	use tempfile::{tempdir, TempDir};
 
@@ -53,7 +54,7 @@ mod tests {
 			temp_dir.path().join("foo.json").into_utf8_path_buf()?;
 
 		if create_file {
-			fs::write(&file_path, "{\n\"bar\": \"bar\"\n}")?;
+			fs::write(&file_path, "{\n  \"bar\": \"bar\"\n}")?;
 		}
 
 		let foo = Foo::load(&file_path)?;
@@ -88,7 +89,7 @@ mod tests {
 		foo.save(&file_path)?;
 
 		let content = fs::read_to_string(&file_path)?;
-		assert_eq!(content, "{\n\"bar\" = \"bar2\"\n}\n");
+		assert_eq!(content, "{\n  \"bar\": \"bar2\"\n}");
 
 		Ok(())
 	}

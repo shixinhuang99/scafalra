@@ -57,7 +57,7 @@ mod tests {
 		if create_file {
 			fs::write(
 				temp_dir_path.join(Config::FILE_NAME),
-				"{\n\"token\": \"token\"\n}",
+				"{\n  \"token\": \"token\"}",
 			)?;
 		}
 
@@ -92,7 +92,7 @@ mod tests {
 		config.save()?;
 
 		let content = fs::read_to_string(&config.path)?;
-		assert_eq!(content, "{\n\"token\": \"token2\"\n}");
+		assert_eq!(content, "{\n  \"token\": \"token2\"}");
 
 		Ok(())
 	}
