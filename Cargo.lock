@@ -1849,8 +1849,6 @@ dependencies = [
  "once_cell",
  "rustls",
  "rustls-webpki 0.100.3",
- "serde",
- "serde_json",
  "url",
  "webpki-roots",
 ]

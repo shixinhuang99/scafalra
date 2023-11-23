@@ -2,7 +2,7 @@ use anyhow::Result;
 use camino::{Utf8Path, Utf8PathBuf};
 use serde::{Deserialize, Serialize};
 
-use crate::json_content::JsonContent;
+use crate::json::JsonContent;
 
 #[derive(Deserialize, Serialize, Default)]
 struct ConfigContent {
@@ -57,7 +57,7 @@ mod tests {
 		if create_file {
 			fs::write(
 				temp_dir_path.join(Config::FILE_NAME),
-				"{\n  \"token\": \"token\"}",
+				"{\n  \"token\": \"token\"\n}",
 			)?;
 		}
 
@@ -92,7 +92,7 @@ mod tests {
 		config.save()?;
 
 		let content = fs::read_to_string(&config.path)?;
-		assert_eq!(content, "{\n  \"token\": \"token2\"}");
+		assert_eq!(content, "{\n  \"token\": \"token2\"\n}");
 
 		Ok(())
 	}

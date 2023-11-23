@@ -28,6 +28,15 @@ where
 	}
 }
 
+pub trait ToJson
+where
+	Self: Serialize,
+{
+	fn to_json(&self) -> String {
+		serde_json::to_string(self).unwrap()
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::fs;

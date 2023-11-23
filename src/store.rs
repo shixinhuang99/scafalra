@@ -15,7 +15,7 @@ use tabled::{
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::json_content::JsonContent;
+use crate::json::JsonContent;
 
 #[derive(Deserialize, Serialize, Clone, Tabled)]
 pub struct Scaffold {

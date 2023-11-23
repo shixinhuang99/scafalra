@@ -3,7 +3,7 @@ mod colorize;
 mod config;
 mod debug;
 mod github_api;
-mod json_content;
+mod json;
 mod repository;
 mod scafalra;
 mod store;

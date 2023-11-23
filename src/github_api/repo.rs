@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use super::gql::{GraphQLQuery, ToJson};
-use crate::repository::{Query, Repository};
+use super::gql::GraphQLQuery;
+use crate::{
+	json::ToJson,
+	repository::{Query, Repository},
+};
 
 const REPO_GQL: &str = include_str!("repo.gql");
 
