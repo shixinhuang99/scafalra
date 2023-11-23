@@ -12,12 +12,12 @@ struct ConfigContent {
 impl JsonContent for ConfigContent {}
 
 pub struct Config {
-	path: Utf8PathBuf,
+	pub path: Utf8PathBuf,
 	content: ConfigContent,
 }
 
 impl Config {
-	const FILE_NAME: &'static str = "config.json";
+	pub const FILE_NAME: &'static str = "config.json";
 
 	pub fn new(scafalra_dir: &Utf8Path) -> Result<Self> {
 		let path = scafalra_dir.join(Self::FILE_NAME);

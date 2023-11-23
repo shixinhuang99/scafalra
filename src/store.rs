@@ -131,13 +131,13 @@ impl Changes {
 }
 
 pub struct Store {
-	path: Utf8PathBuf,
+	pub path: Utf8PathBuf,
 	scaffolds: ScaffoldMap,
 	changes: Changes,
 }
 
 impl Store {
-	const FILE_NAME: &'static str = "store.json";
+	pub const FILE_NAME: &'static str = "store.json";
 
 	pub fn new(scafalra_dir: &Utf8Path) -> Result<Self> {
 		let path = scafalra_dir.join(Self::FILE_NAME);
