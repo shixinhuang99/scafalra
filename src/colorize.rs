@@ -35,7 +35,6 @@ pub trait Colorize: Sized + Display {
 }
 
 impl Colorize for &str {}
-
 impl Colorize for String {}
 
 #[cfg(test)]

@@ -52,14 +52,15 @@ impl GitHubApi {
 			anyhow::bail!("No GitHub personal access token configured");
 		};
 
-		let response: GraphQLResponse<T> = self
-			.agent
-			.post(&self.endpoint)
-			.set("authorization", &format!("bearer {}", token))
-			.set("content-type", "application/json")
-			.set("user-agent", &format!("scafalra/{}", get_self_version()))
-			.send_json(query)?
-			.into_json()?;
+		let response: GraphQLResponse<T> = serde_json::from_reader(
+			self.agent
+				.post(&self.endpoint)
+				.set("authorization", &format!("bearer {}", token))
+				.set("content-type", "application/json")
+				.set("user-agent", &format!("scafalra/{}", get_self_version()))
+				.send_bytes(&serde_json::to_vec(&query)?)?
+				.into_reader(),
+		)?;
 
 		debug!("response: {:#?}", response);
 
