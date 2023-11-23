@@ -366,7 +366,7 @@ mod tests {
 
 	#[test]
 	fn test_store_remove() -> Result<()> {
-		let (mut store, dir, foo_path) = mock_store(true)?;
+		let (mut store, _dir, foo_path) = mock_store(true)?;
 
 		store.remove("foo")?;
 
