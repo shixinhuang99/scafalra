@@ -30,7 +30,7 @@ where
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, io::Write};
+	use std::fs;
 
 	use anyhow::Result;
 	use camino::Utf8PathBuf;
@@ -49,11 +49,11 @@ mod tests {
 
 	fn mock_foo(create_file: bool) -> Result<(Foo, TempDir, Utf8PathBuf)> {
 		let temp_dir = tempdir()?;
-		let file_path = temp_dir.path().into_utf8_path_buf()?;
+		let file_path =
+			temp_dir.path().join("foo.json").into_utf8_path_buf()?;
 
 		if create_file {
-			let mut file = fs::File::create(&file_path)?;
-			file.write_all(b"{\n\"bar\": \"bar\"\n}\n")?;
+			fs::write(&file_path, "{\n\"bar\": \"bar\"\n}")?;
 		}
 
 		let foo = Foo::load(&file_path)?;

@@ -254,6 +254,7 @@ mod tests {
 	use std::fs;
 
 	use anyhow::Result;
+	use camino::Utf8PathBuf;
 	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
@@ -264,19 +265,21 @@ mod tests {
 		Scaffold::new(name, "url", "path")
 	}
 
-	fn mock_store(init_content: bool) -> Result<(Store, TempDir)> {
+	fn mock_store(init_content: bool) -> Result<(Store, TempDir, Utf8PathBuf)> {
 		let temp_dir = tempdir()?;
 		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
+		let foo_path = temp_dir_path.join("foo");
 
 		if init_content {
-			let file_path = temp_dir_path.join(Store::FILE_NAME);
-			let content = mock_store_json(vec![("foo", "path")]);
-			fs::write(file_path, content)?;
+			let store_file = temp_dir_path.join(Store::FILE_NAME);
+			fs::create_dir(&foo_path)?;
+			let content = mock_store_json(vec![("foo", &foo_path)]);
+			fs::write(store_file, content)?;
 		}
 
 		let store = Store::new(&temp_dir_path)?;
 
-		Ok((store, temp_dir))
+		Ok((store, temp_dir, foo_path))
 	}
 
 	#[test]
@@ -303,7 +306,7 @@ mod tests {
 
 	#[test]
 	fn test_store_new_file_not_exists() -> Result<()> {
-		let (store, _dir) = mock_store(false)?;
+		let (store, _dir, _) = mock_store(false)?;
 
 		assert_eq!(store.scaffolds.len(), 0);
 		assert_eq!(store.changes.inner.len(), 0);
@@ -313,22 +316,22 @@ mod tests {
 
 	#[test]
 	fn test_store_new_file_exists() -> Result<()> {
-		let (store, _dir) = mock_store(true)?;
+		let (store, _dir, _) = mock_store(true)?;
 
 		assert_eq!(store.scaffolds.len(), 1);
-		assert!(store.scaffolds.contains_key("scaffold"));
+		assert!(store.scaffolds.contains_key("foo"));
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_store_save() -> Result<()> {
-		let (store, _dir) = mock_store(true)?;
+		let (store, _dir, foo_path) = mock_store(true)?;
 
 		store.save()?;
 
 		let content = fs::read_to_string(store.path)?;
-		let expected_content = mock_store_json(vec![("foo", "path")]);
+		let expected_content = mock_store_json(vec![("foo", &foo_path)]);
 
 		assert_eq!(content, expected_content);
 
@@ -337,7 +340,7 @@ mod tests {
 
 	#[test]
 	fn test_store_add() -> Result<()> {
-		let (mut store, _dir) = mock_store(false)?;
+		let (mut store, _dir, _) = mock_store(false)?;
 
 		store.add(mock_scaffold("foo"));
 
@@ -350,7 +353,7 @@ mod tests {
 
 	#[test]
 	fn test_store_add_same() -> Result<()> {
-		let (mut store, _dir) = mock_store(true)?;
+		let (mut store, _dir, _) = mock_store(true)?;
 
 		store.add(mock_scaffold("foo"));
 
@@ -363,20 +366,11 @@ mod tests {
 
 	#[test]
 	fn test_store_remove() -> Result<()> {
-		let (_, dir) = mock_store(false)?;
-		let temp_dir_path = dir.path().into_utf8_path_buf()?;
-
-		let scaffold_path = temp_dir_path.join("foo");
-		fs::create_dir(&scaffold_path)?;
-		fs::write(
-			temp_dir_path.join(Store::FILE_NAME),
-			mock_store_json(vec![("foo", &scaffold_path)]),
-		)?;
-		let mut store = Store::new(&temp_dir_path)?;
+		let (mut store, dir, foo_path) = mock_store(true)?;
 
 		store.remove("foo")?;
 
-		assert!(!scaffold_path.exists());
+		assert!(!foo_path.exists());
 		assert_eq!(store.scaffolds.len(), 0);
 		assert_eq!(store.changes.inner, vec!["- foo"]);
 
@@ -385,9 +379,9 @@ mod tests {
 
 	#[test]
 	fn test_store_remove_not_found() -> Result<()> {
-		let (mut store, _dir) = mock_store(true)?;
+		let (mut store, _dir, _) = mock_store(true)?;
 
-		store.remove("foo")?;
+		store.remove("bar")?;
 
 		assert_eq!(store.changes.inner.len(), 0);
 
@@ -396,7 +390,7 @@ mod tests {
 
 	#[test]
 	fn test_store_rename() -> Result<()> {
-		let (mut store, _dir) = mock_store(true)?;
+		let (mut store, _dir, _) = mock_store(true)?;
 		store.rename("foo", "bar");
 
 		assert_eq!(store.scaffolds.len(), 1);
@@ -409,7 +403,7 @@ mod tests {
 
 	#[test]
 	fn store_rename_exists_or_not_found() -> Result<()> {
-		let (mut store, _dir) = mock_store(true)?;
+		let (mut store, _dir, _) = mock_store(true)?;
 
 		store.rename("foo", "foo");
 
@@ -426,7 +420,7 @@ mod tests {
 
 	#[test]
 	fn test_print_grid() -> Result<()> {
-		let (mut store, _dir) = mock_store(false)?;
+		let (mut store, _dir, _) = mock_store(false)?;
 
 		assert_eq!(store.print_grid(), None);
 
@@ -444,7 +438,7 @@ mod tests {
 
 	#[test]
 	fn test_print_table() -> Result<()> {
-		let (mut store, _dir) = mock_store(false)?;
+		let (mut store, _dir, _) = mock_store(false)?;
 
 		assert_eq!(store.print_table(), None);
 

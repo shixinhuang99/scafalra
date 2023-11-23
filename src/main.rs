@@ -7,7 +7,6 @@ mod json_content;
 mod repository;
 mod scafalra;
 mod store;
-mod toml_content;
 mod utf8_path;
 mod utils;
 

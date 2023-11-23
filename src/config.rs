@@ -41,7 +41,7 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, io::Write};
+	use std::fs;
 
 	use anyhow::Result;
 	use pretty_assertions::assert_eq;
@@ -55,9 +55,10 @@ mod tests {
 		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
 
 		if create_file {
-			let file_path = temp_dir_path.join(Config::FILE_NAME);
-			let mut file = fs::File::create(file_path)?;
-			file.write_all(b"{\n\"token\": \"token\"\n}\n")?;
+			fs::write(
+				temp_dir_path.join(Config::FILE_NAME),
+				"{\n\"token\": \"token\"\n}",
+			)?;
 		}
 
 		let config = Config::new(&temp_dir_path)?;
@@ -91,7 +92,7 @@ mod tests {
 		config.save()?;
 
 		let content = fs::read_to_string(&config.path)?;
-		assert_eq!(content, "{\n\"token\": \"token2\"\n}\n");
+		assert_eq!(content, "{\n\"token\": \"token2\"\n}");
 
 		Ok(())
 	}

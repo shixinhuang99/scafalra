@@ -339,9 +339,10 @@ mod tests {
 			let cache_dir = root_dir.join(Scafalra::CACHE_DIR_NAME);
 			let store_file = root_dir.join(Store::FILE_NAME);
 			let foo_dir = cache_dir.join("foo");
-			fs::create_dir_all(foo_dir.join("bar"))?;
-			fs::write(foo_dir.join("bar").join("baz.txt"), "")?;
-			fs::write(store_file, mock_store_json(vec![("bar", foo_dir)]))?;
+			let bar_dir = foo_dir.join("bar");
+			fs::create_dir_all(&bar_dir)?;
+			fs::write(bar_dir.join("baz.txt"), "")?;
+			fs::write(store_file, mock_store_json(vec![("bar", bar_dir)]))?;
 		}
 
 		let scafalra =
@@ -578,7 +579,7 @@ mod tests {
 		let a_dir = scafalra.cache_dir.join("foo").join("bar").join("a");
 		let a1_dir = a_dir.join("a1");
 		let a2_dir = a_dir.join("a2");
-		let a3_dir = a1_dir.join("a3");
+		let a3_dir = a_dir.join("a3");
 		let expected = mock_store_json(vec![
 			("a1", &a1_dir),
 			("a2", &a2_dir),
@@ -606,13 +607,7 @@ mod tests {
 			directory: Some(temp_dir_path.join("bar")),
 		})?;
 
-		assert!(
-			temp_dir_path
-				.join("foo")
-				.join("bar")
-				.join("baz.txt")
-				.exists()
-		);
+		assert!(temp_dir_path.join("bar").join("baz.txt").exists());
 
 		Ok(())
 	}
