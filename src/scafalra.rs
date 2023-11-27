@@ -18,16 +18,17 @@ use crate::{
 	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
+	utf8_path::Utf8PathBufExt,
 	utils::download,
 };
 
 pub struct Scafalra {
 	pub root_dir: Utf8PathBuf,
 	cache_dir: Utf8PathBuf,
+	update_dir: Utf8PathBuf,
 	config: Config,
 	store: Store,
 	github_api: GitHubApi,
-	update_dir: Utf8PathBuf,
 }
 
 impl Scafalra {
@@ -52,9 +53,7 @@ impl Scafalra {
 		let store = Store::new(&root_dir)?;
 		let github_api = GitHubApi::new(endpoint);
 
-		let token = token.or_else(|| config.token());
-
-		if let Some(token) = token {
+		if let Some(token) = token.or_else(|| config.token()) {
 			github_api.set_token(token);
 		}
 
@@ -163,20 +162,11 @@ impl Scafalra {
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let scaffold = self.store.get(&args.name);
-
-		let Some(scaffold) = scaffold else {
+		let Some(scaffold) = self.store.get(&args.name) else {
 			anyhow::bail!("No such scaffold `{}`", args.name);
 		};
 
-		let cwd = Utf8PathBuf::from_path_buf(env::current_dir()?).map_err(
-			|err_path| {
-				anyhow::anyhow!(
-					"Current working directory `{}` it is not valid UTF-8 path",
-					err_path.display()
-				)
-			},
-		)?;
+		let cwd = env::current_dir()?.into_utf8_path_buf()?;
 
 		debug!("current directory: {}", cwd);
 
@@ -321,7 +311,7 @@ mod tests {
 	use super::Scafalra;
 	use crate::{
 		cli::{AddArgs, CreateArgs, UninstallArgs, UpdateArgs},
-		github_api::mock_release_response_json,
+		github_api::{mock_release_response_json, mock_repo_response_json},
 		store::{mock_store_json, Store},
 		utf8_path::Utf8PathBufExt,
 		utils::{get_self_target, get_self_version},
@@ -351,51 +341,27 @@ mod tests {
 		Ok((scafalra, temp_dir))
 	}
 
-	fn mock_server() -> Result<(ServerGuard, Mock, Mock)> {
-		use std::io::Read;
-
+	fn mock_repo_server() -> Result<(ServerGuard, Mock, Mock)> {
 		let mut server = mockito::Server::new();
 
-		let file_path = PathBuf::from_iter(["assets", "scafalra-test.tar.gz"]);
-		let mut file = fs::File::open(file_path)?;
-		let mut tarball_data = Vec::new();
-		file.read_to_end(&mut tarball_data)?;
-
-		let tarball_mock = server
-			.mock("GET", "/tarball")
-			.with_status(200)
-			.with_header("content-type", "application/x-gzip")
-			.with_body(tarball_data)
-			.create();
-
-		let api_data = format!(
-			r#"{{
-                "data": {{
-                    "repository": {{
-                        "url": "url",
-                        "defaultBranchRef": {{
-                            "target": {{
-                                "oid": "aaaaaaa",
-                                "tarballUrl": "{}/tarball"
-                            }}
-                        }}
-                    }}
-                }}
-            }}"#,
-			server.url()
-		);
-
-		let api_mock = server
+		let query_repo_mock = server
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(api_data)
+			.with_body(mock_repo_response_json(&server.url()))
 			.create();
 
-		Ok((server, tarball_mock, api_mock))
+		let downlowd_mock = server
+			.mock("GET", "/tarball")
+			.with_status(200)
+			.with_header("content-type", "application/gzip")
+			.with_body_from_file("assets/scafalra-test.tar.gz")
+			.create();
+
+		Ok((server, query_repo_mock, downlowd_mock))
 	}
 
-	fn mock_server_for_update() -> Result<(ServerGuard, Mock, Mock)> {
+	fn mock_release_server() -> Result<(ServerGuard, Mock, Mock)> {
 		let mut server = mockito::Server::new();
 
 		let higher_ver = {
@@ -457,7 +423,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add() -> Result<()> {
-		let (server, tarball_mock, api_mock) = mock_server()?;
+		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
 		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
@@ -466,11 +432,11 @@ mod tests {
 			name: None,
 		})?;
 
-		tarball_mock.assert();
-		api_mock.assert();
+		query_repo_mock.assert();
+		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join("foo/bar");
 		let expected = mock_store_json(vec![("bar", &bar_dir)]);
 
 		assert!(bar_dir.exists());
@@ -481,7 +447,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_specified_name() -> Result<()> {
-		let (server, tarball_mock, api_mock) = mock_server()?;
+		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
 		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
@@ -490,11 +456,11 @@ mod tests {
 			name: Some("foo".to_string()),
 		})?;
 
-		tarball_mock.assert();
-		api_mock.assert();
+		query_repo_mock.assert();
+		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join("foo/bar");
 		let expected = mock_store_json(vec![("foo", &bar_dir)]);
 
 		assert!(bar_dir.exists());
@@ -505,7 +471,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_depth_1() -> Result<()> {
-		let (server, tarball_mock, api_mock) = mock_server()?;
+		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
 		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
@@ -514,11 +480,11 @@ mod tests {
 			name: Some("foo".to_string()),
 		})?;
 
-		tarball_mock.assert();
-		api_mock.assert();
+		query_repo_mock.assert();
+		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join("foo/bar");
 		let expected = mock_store_json(vec![
 			("a", bar_dir.join("a")),
 			("b", bar_dir.join("b")),
@@ -534,7 +500,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_subdir() -> Result<()> {
-		let (server, tarball_mock, api_mock) = mock_server()?;
+		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
 		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
@@ -543,16 +509,11 @@ mod tests {
 			name: None,
 		})?;
 
-		tarball_mock.assert();
-		api_mock.assert();
+		query_repo_mock.assert();
+		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a1_dir = scafalra
-			.cache_dir
-			.join("foo")
-			.join("bar")
-			.join("a")
-			.join("a1");
+		let a1_dir = scafalra.cache_dir.join("foo/bar/a/a1");
 		let expected = mock_store_json(vec![("a1", &a1_dir)]);
 
 		assert!(a1_dir.exists());
@@ -563,7 +524,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_subdir_and_depth_1() -> Result<()> {
-		let (server, tarball_mock, api_mock) = mock_server()?;
+		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
 		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.add(AddArgs {
@@ -572,11 +533,11 @@ mod tests {
 			name: None,
 		})?;
 
-		tarball_mock.assert();
-		api_mock.assert();
+		query_repo_mock.assert();
+		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a_dir = scafalra.cache_dir.join("foo").join("bar").join("a");
+		let a_dir = scafalra.cache_dir.join("foo/bar/a");
 		let a1_dir = a_dir.join("a1");
 		let a2_dir = a_dir.join("a2");
 		let a3_dir = a_dir.join("a3");
@@ -607,7 +568,7 @@ mod tests {
 			directory: Some(temp_dir_path.join("bar")),
 		})?;
 
-		assert!(temp_dir_path.join("bar").join("baz.txt").exists());
+		assert!(temp_dir_path.join("bar/baz.txt").exists());
 
 		Ok(())
 	}
@@ -628,7 +589,7 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_update_check() -> Result<()> {
-		let (server, query_release_mock, _) = mock_server_for_update()?;
+		let (server, query_release_mock, _) = mock_release_server()?;
 		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.update(UpdateArgs { check: true })?;
@@ -642,7 +603,7 @@ mod tests {
 	#[test]
 	fn test_scafalra_update() -> Result<()> {
 		let (server, query_release_mock, download_mock) =
-			mock_server_for_update()?;
+			mock_release_server()?;
 		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
 
 		scafalra.update(UpdateArgs { check: false })?;

@@ -9,6 +9,8 @@ use gql::{GraphQLQuery, GraphQLResponse};
 #[cfg(test)]
 pub use release::mock_release_response_json;
 use release::{build_release_query, Release, ReleaseResponseData};
+#[cfg(test)]
+pub use repo::mock_repo_response_json;
 use repo::{build_repo_query, RepoInfo, RepoResponseData};
 use serde::de::DeserializeOwned;
 use ureq::Agent;
@@ -48,9 +50,9 @@ impl GitHubApi {
 	where
 		T: DeserializeOwned + std::fmt::Debug,
 	{
-		let Some(ref token) = *self.token.borrow() else {
-			anyhow::bail!("No GitHub personal access token configured");
-		};
+		let token = self.token.borrow().clone().ok_or(anyhow::anyhow!(
+			"No GitHub personal access token configured"
+		))?;
 
 		let response: GraphQLResponse<T> = serde_json::from_reader(
 			self.agent

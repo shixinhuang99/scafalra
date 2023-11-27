@@ -8,13 +8,11 @@ where
 	Self: DeserializeOwned + Serialize + Default,
 {
 	fn load(file_path: &Utf8Path) -> Result<Self> {
-		let content: Self = {
-			if file_path.exists() {
-				serde_json::from_str(&fs::read_to_string(file_path)?)?
-			} else {
-				fs::File::create(file_path)?;
-				Self::default()
-			}
+		let content: Self = if file_path.exists() {
+			serde_json::from_str(&fs::read_to_string(file_path)?)?
+		} else {
+			fs::File::create(file_path)?;
+			Self::default()
 		};
 
 		Ok(content)

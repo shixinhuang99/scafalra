@@ -51,12 +51,12 @@ pub struct RepoInfo {
 	pub url: String,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct RepoResponseData {
 	repository: RepositoryData,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct RepositoryData {
 	url: String,
@@ -64,12 +64,12 @@ struct RepositoryData {
 	object: Option<Target>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 struct DefaultBranchRef {
 	target: Target,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Target {
 	tarball_url: String,
@@ -94,6 +94,30 @@ impl From<RepoResponseData> for RepoInfo {
 
 pub fn build_repo_query(repo: &Repository) -> GraphQLQuery {
 	GraphQLQuery::new(REPO_GQL, RepoVariables::new(repo).to_json())
+}
+
+#[cfg(test)]
+pub fn mock_repo_response_json(url: &str) -> String {
+	use crate::github_api::gql::GraphQLResponse;
+
+	let data: RepoResponseData = RepoResponseData {
+		repository: RepositoryData {
+			url: "url".to_string(),
+			default_branch_ref: DefaultBranchRef {
+				target: Target {
+					tarball_url: format!("{}/tarball", url),
+				},
+			},
+			object: None,
+		},
+	};
+
+	let response: GraphQLResponse<RepoResponseData> = GraphQLResponse {
+		data: Some(data),
+		errors: None,
+	};
+
+	serde_json::to_string(&response).unwrap()
 }
 
 #[cfg(test)]

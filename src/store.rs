@@ -113,16 +113,20 @@ impl Changes {
 		Self { inner: Vec::new() }
 	}
 
-	fn push_add(&mut self, name: &str) {
+	fn push_add(&mut self, name: &str) -> &mut Self {
 		use crate::colorize::Colorize;
 
-		self.inner.push(format!("{} {}", "+".success(), name));
+		self.inner.push(format!("{} {}", "+".green(), name));
+
+		self
 	}
 
-	fn push_remove(&mut self, name: &str) {
+	fn push_remove(&mut self, name: &str) -> &mut Self {
 		use crate::colorize::Colorize;
 
-		self.inner.push(format!("{} {}", "-".error(), name));
+		self.inner.push(format!("{} {}", "-".red(), name));
+
+		self
 	}
 
 	fn iter(&self) -> Iter<'_, String> {
@@ -163,15 +167,14 @@ impl Store {
 	}
 
 	pub fn add(&mut self, scaffold: Scaffold) {
-		let name: &str = scaffold.name.as_ref();
+		let name = scaffold.name.as_ref();
 
 		if self.scaffolds.contains_key(name) {
 			self.changes.push_remove(name);
 		}
 
 		self.changes.push_add(name);
-
-		self.scaffolds.insert(scaffold.name.clone(), scaffold);
+		self.scaffolds.insert(name.to_string(), scaffold);
 	}
 
 	pub fn remove(&mut self, name: &str) -> Result<()> {
@@ -179,7 +182,6 @@ impl Store {
 			remove_dir_all(&scaffold.path)?;
 
 			self.changes.push_remove(name);
-
 			self.scaffolds.remove(name);
 		}
 
@@ -195,8 +197,7 @@ impl Store {
 		match self.scaffolds.remove(name) {
 			Some(scaffold) => {
 				self.scaffolds.insert(new_name.to_string(), scaffold);
-				self.changes.push_remove(name);
-				self.changes.push_add(new_name);
+				self.changes.push_remove(name).push_add(new_name);
 			}
 			None => {
 				println!("No such scaffold `{}`", name);
@@ -217,7 +218,7 @@ impl Store {
 		});
 
 		self.scaffolds.keys().for_each(|key| {
-			grid.add(Cell::from(key.primary()));
+			grid.add(Cell::from(key.cyan()));
 		});
 
 		Some(grid.fit_into_columns(6).to_string().trim_end().to_string())
@@ -234,7 +235,7 @@ impl Store {
 		let mut table = Table::new(data);
 
 		let modify = Modify::new(Segment::new(1.., ..1))
-			.with(Format::content(|s| s.primary()));
+			.with(Format::content(|s| s.cyan()));
 
 		table
 			.with(Style::psql())
