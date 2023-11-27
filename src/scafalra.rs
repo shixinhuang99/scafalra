@@ -436,7 +436,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo/bar");
+		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
 		let expected = mock_store_json(vec![("bar", &bar_dir)]);
 
 		assert!(bar_dir.exists());
@@ -460,7 +460,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo/bar");
+		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
 		let expected = mock_store_json(vec![("foo", &bar_dir)]);
 
 		assert!(bar_dir.exists());
@@ -484,7 +484,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo/bar");
+		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
 		let expected = mock_store_json(vec![
 			("a", bar_dir.join("a")),
 			("b", bar_dir.join("b")),
@@ -513,7 +513,12 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a1_dir = scafalra.cache_dir.join("foo/bar/a/a1");
+		let a1_dir = scafalra
+			.cache_dir
+			.join("foo")
+			.join("bar")
+			.join("a")
+			.join("a1");
 		let expected = mock_store_json(vec![("a1", &a1_dir)]);
 
 		assert!(a1_dir.exists());
@@ -537,7 +542,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a_dir = scafalra.cache_dir.join("foo/bar/a");
+		let a_dir = scafalra.cache_dir.join("foo").join("bar").join("a");
 		let a1_dir = a_dir.join("a1");
 		let a2_dir = a_dir.join("a2");
 		let a3_dir = a_dir.join("a3");
