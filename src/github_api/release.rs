@@ -74,7 +74,7 @@ impl From<ReleaseResponseData> for Release {
 			.latest_release
 			.release_assets
 			.nodes
-			.iter()
+			.into_iter()
 			.find(|v| v.download_url.contains(target))
 			.expect("Should find a matching release");
 
@@ -88,7 +88,7 @@ impl From<ReleaseResponseData> for Release {
 		);
 
 		Self {
-			assets_url: download_url.clone(),
+			assets_url: download_url,
 			can_update: release_ver > self_ver,
 			version: release_ver,
 		}
@@ -101,48 +101,38 @@ pub fn build_release_query() -> GraphQLQuery {
 
 #[cfg(test)]
 pub fn mock_release_response_json(url: &str, ver: &str) -> String {
+	use crate::github_api::gql::GraphQLResponse;
+
 	let mut data = ReleaseResponseData {
 		repository: RepositoryData {
 			latest_release: LatestRelease {
-				release_assets: ReleaseAssets {
-					nodes: vec![
-						Node {
-							download_url: "x86_64-unknown-linux-gnu.tar.gz"
-								.to_string(),
-						},
-						Node {
-							download_url: "x86_64-pc-windows-msvc.zip"
-								.to_string(),
-						},
-						Node {
-							download_url: "aarch64-apple-darwin.tar.gz"
-								.to_string(),
-						},
-						Node {
-							download_url: "x86_64-apple-darwin.tar.gz"
-								.to_string(),
-						},
-						Node {
-							download_url: "aarch64-unknown-linux-gnu.tar.gz"
-								.to_string(),
-						},
-					],
-				},
+				release_assets: ReleaseAssets { nodes: Vec::new() },
 			},
 		},
 	};
 
-	data.repository
-		.latest_release
-		.release_assets
-		.nodes
-		.iter_mut()
-		.for_each(|v| {
-			v.download_url =
-				format!("{}/scafalra-{}-{}", url, ver, v.download_url)
-		});
+	let target_list: [&str; 5] = [
+		"x86_64-unknown-linux-gnu.tar.gz",
+		"x86_64-apple-darwin.tar.gz",
+		"x86_64-pc-windows-msvc.zip",
+		"aarch64-unknown-linux-gnu.tar.gz",
+		"aarch64-apple-darwin.tar.gz",
+	];
 
-	let data = serde_json::to_string::<ReleaseResponseData>(&data).unwrap();
+	target_list.iter().for_each(|target| {
+		data.repository
+			.latest_release
+			.release_assets
+			.nodes
+			.push(Node {
+				download_url: format!("{}/scafalra-{}-{}", url, ver, target),
+			});
+	});
 
-	format!(r#"{{ "data": {} }}"#, data)
+	let response: GraphQLResponse<ReleaseResponseData> = GraphQLResponse {
+		data: Some(data),
+		errors: None,
+	};
+
+	serde_json::to_string(&response).unwrap()
 }

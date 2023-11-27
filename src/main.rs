@@ -13,11 +13,11 @@ mod utils;
 use std::env;
 
 use anyhow::Result;
-use camino::Utf8PathBuf;
 use clap::Parser;
 use cli::{Cli, Command};
 use debug::trun_on_debug;
 use scafalra::Scafalra;
+use utf8_path::Utf8PathBufExt;
 
 fn main() {
 	if let Err(err) = try_main() {
@@ -26,16 +26,9 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-	let home_dir = Utf8PathBuf::from_path_buf(
-		home::home_dir()
-			.ok_or(anyhow::anyhow!("Impossible to get your home directory"))?,
-	)
-	.map_err(|err_path| {
-		anyhow::anyhow!(
-			"Home directory `{}` it is not valid UTF-8 path",
-			err_path.display()
-		)
-	})?;
+	let home_dir = home::home_dir()
+		.ok_or(anyhow::anyhow!("Impossible to get your home directory"))?
+		.into_utf8_path_buf()?;
 
 	let cli = Cli::parse();
 

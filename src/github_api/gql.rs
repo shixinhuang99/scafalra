@@ -16,7 +16,7 @@ impl GraphQLQuery {
 	}
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GraphQLResponse<T>
 where
 	Option<T>: DeserializeOwned,
@@ -25,7 +25,7 @@ where
 	pub errors: Option<Vec<GraphQLError>>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GraphQLError {
 	pub message: String,
 }

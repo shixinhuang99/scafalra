@@ -73,13 +73,13 @@ impl Repository {
 
 		tar_unpack(&tarball, &temp_dir)?;
 
-		let Some(extracted_dir) = temp_dir.read_dir_utf8()?.next() else {
-			anyhow::bail!("Empty directory");
-		};
+		let first_inner_dir = temp_dir
+			.read_dir_utf8()?
+			.next()
+			.ok_or(anyhow::anyhow!("Empty directory"))??
+			.into_path();
 
-		let extracted_dir = extracted_dir?.into_path();
-
-		debug!("extracted directory: {}", extracted_dir);
+		debug!("first_inner_dir: {}", first_inner_dir);
 
 		let scaffold_dir = Utf8PathBuf::from_iter([
 			cache_dir,
@@ -91,7 +91,7 @@ impl Repository {
 			remove_dir_all(&scaffold_dir)?;
 		}
 
-		dircpy::copy_dir(extracted_dir, &scaffold_dir)?;
+		dircpy::copy_dir(first_inner_dir, &scaffold_dir)?;
 
 		fs::remove_file(&tarball)?;
 		remove_dir_all(temp_dir)?;
@@ -102,13 +102,11 @@ impl Repository {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, path::PathBuf};
-
 	use anyhow::Result;
-	use camino::Utf8Path;
 	use pretty_assertions::assert_eq;
 
 	use super::{get_repo_re, Query, Repository};
+	use crate::utf8_path::Utf8PathBufExt;
 
 	#[test]
 	fn test_repo_re_basic() {
@@ -209,34 +207,23 @@ mod tests {
 
 	#[test]
 	fn test_repo_cache() -> Result<()> {
-		use std::io::Read;
-
 		let mut server = mockito::Server::new();
-		let file_path = PathBuf::from_iter(["assets", "scafalra-test.tar.gz"]);
-		let mut file = fs::File::open(file_path)?;
-		let mut data = Vec::new();
-		file.read_to_end(&mut data)?;
 
 		let mock = server
 			.mock("GET", "/")
 			.with_status(200)
 			.with_header("content-type", "application/x-gzip")
-			.with_body(data)
+			.with_body_from_file("assets/scafalra-test.tar.gz")
 			.create();
 
 		let temp_dir = tempfile::tempdir()?;
-		let temp_dir_path = Utf8Path::from_path(temp_dir.path()).unwrap();
+		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
 
 		let repo = Repository::parse("shixinhuang99/scafalra")?;
-		repo.cache(&server.url(), temp_dir_path)?;
+		repo.cache(&server.url(), &temp_dir_path)?;
 
 		mock.assert();
-		assert!(
-			temp_dir_path
-				.join("shixinhuang99")
-				.join("scafalra")
-				.is_dir()
-		);
+		assert!(temp_dir_path.join("shixinhuang99/scafalra").is_dir());
 		assert!(!temp_dir_path.join("t").exists());
 
 		Ok(())

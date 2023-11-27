@@ -21,15 +21,15 @@ pub trait Colorize: Sized + Display {
 		self.to_string()
 	}
 
-	fn primary(&self) -> String {
+	fn cyan(&self) -> String {
 		self.with_color::<xterm::Cyan>()
 	}
 
-	fn error(&self) -> String {
+	fn red(&self) -> String {
 		self.with_color::<xterm::UserRed>()
 	}
 
-	fn success(&self) -> String {
+	fn green(&self) -> String {
 		self.with_color::<xterm::UserGreen>()
 	}
 }
@@ -43,7 +43,7 @@ mod tests {
 
 	#[test]
 	fn test_no_color() {
-		assert_eq!("foo".primary(), "foo");
-		assert_eq!("foo".to_string().primary(), "foo");
+		assert_eq!("foo".cyan(), "foo");
+		assert_eq!("foo".to_string().cyan(), "foo");
 	}
 }
