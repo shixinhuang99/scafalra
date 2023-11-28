@@ -155,7 +155,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
 		assert_eq!(v.expression, Some("refs/heads/foo".to_string()));
-		assert!(v.is_default_branch);
+		assert!(!v.is_default_branch);
 	}
 
 	#[test]
@@ -169,7 +169,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
 		assert_eq!(v.expression, Some("refs/tags/foo".to_string()));
-		assert!(v.is_default_branch);
+		assert!(!v.is_default_branch);
 	}
 
 	#[test]
@@ -183,6 +183,6 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, Some("foo".to_string()));
 		assert_eq!(v.expression, None);
-		assert!(v.is_default_branch);
+		assert!(!v.is_default_branch);
 	}
 }

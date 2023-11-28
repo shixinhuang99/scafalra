@@ -45,6 +45,7 @@ jobs:
     name: tests (${{ matrix.target }})
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
