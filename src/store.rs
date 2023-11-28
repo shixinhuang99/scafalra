@@ -232,7 +232,6 @@ mod tests {
 
 	use anyhow::Result;
 	use camino::Utf8PathBuf;
-	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
 	use super::{mock_store_json, Scaffold, Store};
@@ -403,7 +402,10 @@ mod tests {
 
 		let expected = include_str!("../fixtures/print-table.txt");
 
-		std::assert_eq!(store.print_table().unwrap(), expected);
+		assert_eq!(
+			Vec::from_iter(store.print_table().unwrap().lines()),
+			Vec::from_iter(expected.lines())
+		);
 
 		Ok(())
 	}

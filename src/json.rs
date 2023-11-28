@@ -41,7 +41,6 @@ mod tests {
 
 	use anyhow::Result;
 	use camino::Utf8PathBuf;
-	use pretty_assertions::assert_eq;
 	use serde::{Deserialize, Serialize};
 	use tempfile::{tempdir, TempDir};
 

@@ -122,8 +122,6 @@ pub fn mock_repo_response_json(url: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use pretty_assertions::assert_eq;
-
 	use super::{Query, RepoVariables, Repository};
 
 	fn build_repository() -> Repository {
@@ -143,7 +141,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
 		assert_eq!(v.expression, None);
-		assert_eq!(v.is_default_branch, true);
+		assert!(v.is_default_branch);
 	}
 
 	#[test]
@@ -157,7 +155,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
 		assert_eq!(v.expression, Some("refs/heads/foo".to_string()));
-		assert_eq!(v.is_default_branch, false);
+		assert!(v.is_default_branch);
 	}
 
 	#[test]
@@ -171,7 +169,7 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
 		assert_eq!(v.expression, Some("refs/tags/foo".to_string()));
-		assert_eq!(v.is_default_branch, false);
+		assert!(v.is_default_branch);
 	}
 
 	#[test]
@@ -185,6 +183,6 @@ mod tests {
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, Some("foo".to_string()));
 		assert_eq!(v.expression, None);
-		assert_eq!(v.is_default_branch, false);
+		assert!(v.is_default_branch);
 	}
 }

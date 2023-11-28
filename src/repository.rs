@@ -103,7 +103,6 @@ impl Repository {
 #[cfg(test)]
 mod tests {
 	use anyhow::Result;
-	use pretty_assertions::assert_eq;
 
 	use super::{get_repo_re, Query, Repository};
 	use crate::utf8_path::Utf8PathBufExt;

@@ -305,7 +305,6 @@ mod tests {
 
 	use anyhow::Result;
 	use mockito::{Mock, ServerGuard};
-	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
 	use super::Scafalra;

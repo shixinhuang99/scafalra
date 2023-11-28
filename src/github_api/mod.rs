@@ -102,7 +102,6 @@ impl GitHubApi {
 #[cfg(test)]
 mod tests {
 	use anyhow::Result;
-	use pretty_assertions::assert_eq;
 
 	use super::GitHubApi;
 	use crate::repository::Repository;
