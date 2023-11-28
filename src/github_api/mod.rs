@@ -120,7 +120,7 @@ mod tests {
 	fn test_repo_query() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = include_str!("../../assets/repo-query-response.json");
+		let data = include_str!("../../fixtures/repo-query-response.json");
 
 		let mock = server
 			.mock("POST", "/")
@@ -154,7 +154,7 @@ mod tests {
 	fn test_github_api_request_error() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = include_str!("../../assets/repo-query-error.json");
+		let data = include_str!("../../fixtures/repo-query-error.json");
 
 		let mock = server
 			.mock("POST", "/")
@@ -184,7 +184,7 @@ mod tests {
 	fn test_release_query() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = include_str!("../../assets/release-query-response.json");
+		let data = include_str!("../../fixtures/release-query-response.json");
 
 		let mock = server
 			.mock("POST", "/")

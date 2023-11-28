@@ -213,7 +213,7 @@ mod tests {
 			.mock("GET", "/")
 			.with_status(200)
 			.with_header("content-type", "application/x-gzip")
-			.with_body_from_file("assets/scafalra-test.tar.gz")
+			.with_body_from_file("fixtures/scafalra-test.tar.gz")
 			.create();
 
 		let temp_dir = tempfile::tempdir()?;

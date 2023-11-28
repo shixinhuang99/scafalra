@@ -355,7 +355,7 @@ mod tests {
 			.mock("GET", "/tarball")
 			.with_status(200)
 			.with_header("content-type", "application/gzip")
-			.with_body_from_file("assets/scafalra-test.tar.gz")
+			.with_body_from_file("fixtures/scafalra-test.tar.gz")
 			.create();
 
 		Ok((server, query_repo_mock, downlowd_mock))

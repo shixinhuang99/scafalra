@@ -447,11 +447,7 @@ mod tests {
 			store.add(mock_scaffold(&format!("foo-{}", i)));
 		}
 
-		#[rustfmt::skip]
-		let expected = " name  | url | created at          \n\
-						-------+-----+---------------------\n \
-						 foo-0 | url | 2023-05-19 00:00:00 \n \
-						 foo-1 | url | 2023-05-19 00:00:00 ";
+		let expected = include_str!("../fixtures/print-table.txt");
 
 		assert_eq!(store.print_table().unwrap(), expected);
 
