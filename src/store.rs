@@ -50,45 +50,9 @@ impl Scaffold {
 }
 
 #[derive(Deserialize, Serialize, Default)]
-struct StoreContent {
-	scaffolds: Vec<Scaffold>,
-}
-
-impl JsonContent for StoreContent {}
-
-#[cfg(test)]
-pub fn mock_store_json(data: Vec<(&str, impl AsRef<Path>)>) -> String {
-	let content = StoreContent {
-		scaffolds: data
-			.into_iter()
-			.map(|v| Scaffold::new(v.0, "url", v.1))
-			.collect(),
-	};
-	serde_json::to_string_pretty(&content).unwrap()
-}
-
-#[derive(Clone)]
 struct ScaffoldMap(BTreeMap<String, Scaffold>);
 
-impl From<StoreContent> for ScaffoldMap {
-	fn from(value: StoreContent) -> Self {
-		Self(
-			value
-				.scaffolds
-				.into_iter()
-				.map(|ele| (ele.name.clone(), ele))
-				.collect(),
-		)
-	}
-}
-
-impl From<ScaffoldMap> for StoreContent {
-	fn from(value: ScaffoldMap) -> Self {
-		StoreContent {
-			scaffolds: value.0.into_values().collect(),
-		}
-	}
-}
+impl JsonContent for ScaffoldMap {}
 
 impl Deref for ScaffoldMap {
 	type Target = BTreeMap<String, Scaffold>;
@@ -136,7 +100,7 @@ impl Changes {
 
 pub struct Store {
 	pub path: Utf8PathBuf,
-	scaffolds: ScaffoldMap,
+	scaffold_map: ScaffoldMap,
 	changes: Changes,
 }
 
@@ -145,19 +109,18 @@ impl Store {
 
 	pub fn new(scafalra_dir: &Utf8Path) -> Result<Self> {
 		let path = scafalra_dir.join(Self::FILE_NAME);
-		let scaffolds = ScaffoldMap::from(StoreContent::load(&path)?);
+		let scaffold_map = ScaffoldMap::load(&path)?;
 		let changes = Changes::new();
 
 		Ok(Self {
 			path,
-			scaffolds,
+			scaffold_map,
 			changes,
 		})
 	}
 
 	pub fn save(&self) -> Result<()> {
-		let store_content = StoreContent::from(self.scaffolds.clone());
-		store_content.save(&self.path)?;
+		self.scaffold_map.save(&self.path)?;
 
 		self.changes.iter().for_each(|v| {
 			println!("{}", v);
@@ -167,36 +130,36 @@ impl Store {
 	}
 
 	pub fn add(&mut self, scaffold: Scaffold) {
-		let name = scaffold.name.as_ref();
+		let name = &scaffold.name;
 
-		if self.scaffolds.contains_key(name) {
+		if self.scaffold_map.contains_key(name) {
 			self.changes.push_remove(name);
 		}
 
 		self.changes.push_add(name);
-		self.scaffolds.insert(name.to_string(), scaffold);
+		self.scaffold_map.insert(name.to_string(), scaffold);
 	}
 
 	pub fn remove(&mut self, name: &str) -> Result<()> {
-		if let Some(scaffold) = self.scaffolds.get(name) {
+		if let Some(scaffold) = self.scaffold_map.get(name) {
 			remove_dir_all(&scaffold.path)?;
 
 			self.changes.push_remove(name);
-			self.scaffolds.remove(name);
+			self.scaffold_map.remove(name);
 		}
 
 		Ok(())
 	}
 
 	pub fn rename(&mut self, name: &str, new_name: &str) {
-		if self.scaffolds.contains_key(new_name) {
+		if self.scaffold_map.contains_key(new_name) {
 			println!("`{}` already exists", new_name);
 			return;
 		}
 
-		match self.scaffolds.remove(name) {
+		match self.scaffold_map.remove(name) {
 			Some(scaffold) => {
-				self.scaffolds.insert(new_name.to_string(), scaffold);
+				self.scaffold_map.insert(new_name.to_string(), scaffold);
 				self.changes.push_remove(name).push_add(new_name);
 			}
 			None => {
@@ -208,7 +171,7 @@ impl Store {
 	pub fn print_grid(&self) -> Option<String> {
 		use crate::colorize::Colorize;
 
-		if self.scaffolds.is_empty() {
+		if self.scaffold_map.is_empty() {
 			return None;
 		}
 
@@ -217,7 +180,7 @@ impl Store {
 			direction: Direction::LeftToRight,
 		});
 
-		self.scaffolds.keys().for_each(|key| {
+		self.scaffold_map.keys().for_each(|key| {
 			grid.add(Cell::from(key.cyan()));
 		});
 
@@ -227,11 +190,11 @@ impl Store {
 	pub fn print_table(&self) -> Option<String> {
 		use crate::colorize::Colorize;
 
-		if self.scaffolds.is_empty() {
+		if self.scaffold_map.is_empty() {
 			return None;
 		}
 
-		let data = Vec::from_iter(self.scaffolds.values().cloned());
+		let data = Vec::from_iter(self.scaffold_map.values().cloned());
 		let mut table = Table::new(data);
 
 		let modify = Modify::new(Segment::new(1.., ..1))
@@ -246,8 +209,21 @@ impl Store {
 	}
 
 	pub fn get(&self, name: &str) -> Option<&Scaffold> {
-		self.scaffolds.get(name)
+		self.scaffold_map.get(name)
 	}
+}
+
+#[cfg(test)]
+pub fn mock_store_json<T, const N: usize>(data: [(&str, T); N]) -> String
+where
+	T: AsRef<Path>,
+{
+	let content =
+		ScaffoldMap(BTreeMap::from_iter(data.into_iter().map(|ele| {
+			(ele.0.to_string(), Scaffold::new(ele.0, "url", ele.1))
+		})));
+
+	serde_json::to_string_pretty(&content).unwrap()
 }
 
 #[cfg(test)]
@@ -256,10 +232,9 @@ mod tests {
 
 	use anyhow::Result;
 	use camino::Utf8PathBuf;
-	use pretty_assertions::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
-	use super::{mock_store_json, Scaffold, ScaffoldMap, Store, StoreContent};
+	use super::{mock_store_json, Scaffold, Store};
 	use crate::utf8_path::Utf8PathBufExt;
 
 	fn mock_scaffold(name: &str) -> Scaffold {
@@ -274,7 +249,7 @@ mod tests {
 		if init_content {
 			let store_file = temp_dir_path.join(Store::FILE_NAME);
 			fs::create_dir(&foo_path)?;
-			let content = mock_store_json(vec![("foo", &foo_path)]);
+			let content = mock_store_json([("foo", &foo_path)]);
 			fs::write(store_file, content)?;
 		}
 
@@ -284,32 +259,10 @@ mod tests {
 	}
 
 	#[test]
-	fn test_scaffold_map_store_content_transform() {
-		let store_content = StoreContent {
-			scaffolds: (0..2)
-				.map(|v| mock_scaffold(&format!("foo-{}", v)))
-				.collect(),
-		};
-
-		let scaffold_map = ScaffoldMap::from(store_content);
-
-		assert_eq!(scaffold_map.len(), 2);
-		scaffold_map.iter().enumerate().for_each(|(idx, kv)| {
-			assert_eq!(kv.0, &format!("foo-{}", idx));
-		});
-
-		let store_content = StoreContent::from(scaffold_map);
-
-		assert_eq!(store_content.scaffolds.len(), 2);
-		assert_eq!(store_content.scaffolds[0].name, "foo-0");
-		assert_eq!(store_content.scaffolds[1].name, "foo-1");
-	}
-
-	#[test]
 	fn test_store_new_file_not_exists() -> Result<()> {
 		let (store, _dir, _) = mock_store(false)?;
 
-		assert_eq!(store.scaffolds.len(), 0);
+		assert_eq!(store.scaffold_map.len(), 0);
 		assert_eq!(store.changes.inner.len(), 0);
 
 		Ok(())
@@ -319,8 +272,8 @@ mod tests {
 	fn test_store_new_file_exists() -> Result<()> {
 		let (store, _dir, _) = mock_store(true)?;
 
-		assert_eq!(store.scaffolds.len(), 1);
-		assert!(store.scaffolds.contains_key("foo"));
+		assert_eq!(store.scaffold_map.len(), 1);
+		assert!(store.scaffold_map.contains_key("foo"));
 
 		Ok(())
 	}
@@ -332,7 +285,7 @@ mod tests {
 		store.save()?;
 
 		let content = fs::read_to_string(store.path)?;
-		let expected_content = mock_store_json(vec![("foo", &foo_path)]);
+		let expected_content = mock_store_json([("foo", &foo_path)]);
 
 		assert_eq!(content, expected_content);
 
@@ -345,8 +298,8 @@ mod tests {
 
 		store.add(mock_scaffold("foo"));
 
-		assert_eq!(store.scaffolds.len(), 1);
-		assert!(store.scaffolds.contains_key("foo"));
+		assert_eq!(store.scaffold_map.len(), 1);
+		assert!(store.scaffold_map.contains_key("foo"));
 		assert_eq!(store.changes.inner, vec!["+ foo"]);
 
 		Ok(())
@@ -358,8 +311,8 @@ mod tests {
 
 		store.add(mock_scaffold("foo"));
 
-		assert_eq!(store.scaffolds.len(), 1);
-		assert!(store.scaffolds.contains_key("foo"));
+		assert_eq!(store.scaffold_map.len(), 1);
+		assert!(store.scaffold_map.contains_key("foo"));
 		assert_eq!(store.changes.inner, vec!["- foo", "+ foo"]);
 
 		Ok(())
@@ -372,7 +325,7 @@ mod tests {
 		store.remove("foo")?;
 
 		assert!(!foo_path.exists());
-		assert_eq!(store.scaffolds.len(), 0);
+		assert_eq!(store.scaffold_map.len(), 0);
 		assert_eq!(store.changes.inner, vec!["- foo"]);
 
 		Ok(())
@@ -394,9 +347,9 @@ mod tests {
 		let (mut store, _dir, _) = mock_store(true)?;
 		store.rename("foo", "bar");
 
-		assert_eq!(store.scaffolds.len(), 1);
-		assert!(!store.scaffolds.contains_key("foo"));
-		assert!(store.scaffolds.contains_key("bar"));
+		assert_eq!(store.scaffold_map.len(), 1);
+		assert!(!store.scaffold_map.contains_key("foo"));
+		assert!(store.scaffold_map.contains_key("bar"));
 		assert_eq!(store.changes.inner, vec!["- foo", "+ bar"]);
 
 		Ok(())
@@ -408,13 +361,13 @@ mod tests {
 
 		store.rename("foo", "foo");
 
-		assert_eq!(store.scaffolds.len(), 1);
-		assert!(store.scaffolds.contains_key("foo"));
+		assert_eq!(store.scaffold_map.len(), 1);
+		assert!(store.scaffold_map.contains_key("foo"));
 
 		store.rename("bar", "foo");
 
-		assert_eq!(store.scaffolds.len(), 1);
-		assert!(store.scaffolds.contains_key("foo"));
+		assert_eq!(store.scaffold_map.len(), 1);
+		assert!(store.scaffold_map.contains_key("foo"));
 
 		Ok(())
 	}
@@ -447,13 +400,12 @@ mod tests {
 			store.add(mock_scaffold(&format!("foo-{}", i)));
 		}
 
-		#[rustfmt::skip]
-		let expected = " name  | url | created at          \n\
-						-------+-----+---------------------\n \
-						 foo-0 | url | 2023-05-19 00:00:00 \n \
-						 foo-1 | url | 2023-05-19 00:00:00 ";
+		let expected = include_str!("../fixtures/print-table.txt");
 
-		assert_eq!(store.print_table().unwrap(), expected);
+		assert_eq!(
+			Vec::from_iter(store.print_table().unwrap().lines()),
+			Vec::from_iter(expected.lines())
+		);
 
 		Ok(())
 	}

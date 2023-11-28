@@ -103,7 +103,6 @@ impl Repository {
 #[cfg(test)]
 mod tests {
 	use anyhow::Result;
-	use pretty_assertions::assert_eq;
 
 	use super::{get_repo_re, Query, Repository};
 	use crate::utf8_path::Utf8PathBufExt;
@@ -213,7 +212,7 @@ mod tests {
 			.mock("GET", "/")
 			.with_status(200)
 			.with_header("content-type", "application/x-gzip")
-			.with_body_from_file("assets/scafalra-test.tar.gz")
+			.with_body_from_file("fixtures/scafalra-test.tar.gz")
 			.create();
 
 		let temp_dir = tempfile::tempdir()?;
