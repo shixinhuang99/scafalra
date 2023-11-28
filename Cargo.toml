@@ -11,7 +11,7 @@ license = "MIT"
 categories = ["command-line-utilities"]
 keywords = ["scaffold"]
 readme = "README.md"
-exclude = ["assets/*"]
+exclude = ["fixtures/*"]
 
 [dependencies]
 anyhow = "1.0.70"

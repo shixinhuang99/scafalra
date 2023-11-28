@@ -2,9 +2,6 @@ include = ["**/*.toml"]
 
 exclude = ["**/Cargo.lock"]
 
-[formatting]
-indent_string = "	"
-
 [[rule]]
 include = ["**/Cargo.toml"]
 keys = ["dependencies", "*-dependencies"]
