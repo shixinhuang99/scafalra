@@ -403,7 +403,7 @@ mod tests {
 
 		let expected = include_str!("../fixtures/print-table.txt");
 
-		assert_eq!(store.print_table().unwrap(), expected);
+		std::assert_eq!(store.print_table().unwrap(), expected);
 
 		Ok(())
 	}

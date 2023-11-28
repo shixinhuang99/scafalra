@@ -398,7 +398,7 @@ mod tests {
 				},
 			)
 			.with_body_from_file(PathBuf::from_iter([
-				"assets",
+				"fixtures",
 				if cfg!(windows) {
 					"scafalra-update-windows.zip"
 				} else {
