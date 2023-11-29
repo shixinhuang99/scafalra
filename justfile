@@ -11,8 +11,12 @@ lint: fmt
 check:
 	cargo fmt --all -- --check
 	taplo fmt --check
-	cargo clippy --all-targets --all-features -- -D warnings
 	cargo check --all-targets --all-features
+	cargo clippy --all-targets --all-features -- -D warnings
+
+check-windows:
+	cargo check --all-targets --all-features
+	cargo clippy --all-targets --all-features -- -D warnings
 
 alias br := build-release
 

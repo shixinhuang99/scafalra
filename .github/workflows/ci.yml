@@ -37,11 +37,17 @@ jobs:
         run: |
           cargo --version
           cargo +stable install just
-          cargo +stable install taplo-cli --locked
+          cargo +stable install taplo-cli
 
       - name: Run check
+        if: matrix.os == 'ubuntu-latest'
         run: |
           just check
+
+      - name: Run check
+        if: matrix.os == 'windows-latest'
+        run: |
+          just check-windows
 
   tests:
     needs: check
