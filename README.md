@@ -31,13 +31,15 @@ scafalra is a command-line interface tool for manage scaffold
 Usage: scafalra [OPTIONS] [COMMAND]
 
 Commands:
-  list    List all scaffolds
-  remove  Remove specified scaffolds
-  mv      Rename a scaffold
-  add     Add scaffolds from GitHub repository
-  create  Copy the scaffold folder to the specified directory
-  token   Configure or display your GitHub personal access token(classic)
-  help    Print this message or the help of the given subcommand(s)
+  list       List all scaffolds
+  remove     Remove specified scaffolds
+  mv         Rename a scaffold
+  add        Add scaffolds from GitHub repository
+  create     Copy the scaffold folder to the specified directory
+  token      Configure or display your GitHub personal access token(classic)
+  update     Update self
+  uninstall  Uninstall self
+  help       Print this message or the help of the given subcommand(s)
 
 Options:
       --debug          Use debug output

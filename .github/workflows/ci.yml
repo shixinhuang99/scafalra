@@ -13,34 +13,44 @@ env:
   DEBUG_LOG: 1
 
 jobs:
-  general-check:
-    runs-on: ubuntu-latest
+  check:
+    runs-on: ${{ matrix.os }}
+    name: check (${{ matrix.os }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly-2023-10-06
-          components: clippy, rustfmt
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Fmt
-        run: cargo fmt --all -- --check
+      - name: Prepare
+        run: |
+          cargo --version
+          cargo +stable install just
+          cargo +stable install taplo-cli
 
-      - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+      - name: Run check
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          just check
 
-      - name: Check
-        run: cargo check --all-targets
+      - name: Run check
+        if: matrix.os == 'windows-latest'
+        run: |
+          just check-windows
 
   tests:
-    needs: general-check
+    needs: check
     runs-on: ${{ matrix.os }}
     name: tests (${{ matrix.target }})
 
@@ -66,15 +76,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Rust cache
-        id: cache
-        uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Install extra tool
+      - name: Prepare
+        if: matrix.cross
         run: |
-          cargo install cross
+          cargo +stable install cross
 
       - name: Test code
         if: matrix.test
