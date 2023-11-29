@@ -10,6 +10,7 @@ lint: fmt
 
 check:
 	cargo fmt --all -- --check
+	taplo fmt --check
 	cargo clippy --all-targets --all-features -- -D warnings
 	cargo check --all-targets --all-features
 

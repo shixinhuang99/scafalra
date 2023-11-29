@@ -33,10 +33,11 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Install nightly toolchain and just
+      - name: Prepare
         run: |
           cargo --version
           cargo install just
+          cargo install taplo-cli --locked
 
       - name: Run check
         run: |
@@ -73,7 +74,7 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Install tool
+      - name: Prepare
         run: |
           cargo install cross
 
