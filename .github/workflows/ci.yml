@@ -36,8 +36,8 @@ jobs:
       - name: Prepare
         run: |
           cargo --version
-          cargo install just
-          cargo install taplo-cli --locked
+          cargo +stable install just
+          cargo +stable install taplo-cli --locked
 
       - name: Run check
         run: |
@@ -76,7 +76,7 @@ jobs:
 
       - name: Prepare
         run: |
-          cargo install cross
+          cargo +stable install cross
 
       - name: Test code
         if: matrix.test
