@@ -81,6 +81,7 @@ jobs:
           shared-key: ${{ runner.os }}
 
       - name: Prepare
+        if: matrix.cross
         run: |
           cargo +stable install cross
 
