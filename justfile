@@ -22,3 +22,6 @@ alias br := build-release
 
 build-release:
 	cargo build --release
+
+changelog tag:
+	git cliff --unreleased --tag {{tag}} --prepend CHANGELOG.md
