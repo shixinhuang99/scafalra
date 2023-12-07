@@ -8,8 +8,6 @@ on:
   push:
     tags:
       - "[0-9]+.*"
-  release:
-    types: [created]
 
 env:
   CARGO_TERM_COLOR: always
@@ -70,3 +68,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           archive: $bin-$tag-$target
           include: LICENSE,README.md
+
+      - name: Publish crates.io
+        run: |
+          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --dry-run
