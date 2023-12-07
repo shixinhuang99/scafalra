@@ -27,4 +27,3 @@ release tag:
 	git cliff --tag {{tag}} -o CHANGELOG.md
 	git commit -am "chore(release): {{tag}}"
 	git tag {{tag}}
-	git push origin {{tag}}
