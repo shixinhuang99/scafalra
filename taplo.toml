@@ -1,5 +1,4 @@
 include = ["**/*.toml"]
-
 exclude = ["**/Cargo.lock"]
 
 [[rule]]
