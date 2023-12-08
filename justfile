@@ -28,4 +28,4 @@ release-pr tag:
 
 push-tag tag:
 	git tag {{tag}}
-	git push orirgin {{tag}}
+	git push origin {{tag}}
