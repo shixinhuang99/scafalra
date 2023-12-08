@@ -21,6 +21,8 @@ check-windows:
 release-pr tag:
 	git checkout -b "release-{{tag}}"
 	git cliff --tag {{tag}} -o CHANGELOG.md
+	# cargo-edit
+	cargo set-version {{tag}}
 	git commit -am "chore(release): {{tag}}"
 	git tag {{tag}}
 	git push --set-upstream origin release-{{tag}}

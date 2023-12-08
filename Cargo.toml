@@ -1,6 +1,6 @@
 [package]
 name = "scafalra"
-version = "0.6.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["shixinhuang99 <shixinhuang99@gmail.com>"]
 description = "scafalra is a command-line interface tool for manage scaffold"
