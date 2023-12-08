@@ -22,3 +22,8 @@ alias br := build-release
 
 build-release:
 	cargo build --release
+
+release tag:
+	git cliff --tag {{tag}} -o CHANGELOG.md
+	git commit -am "chore(release): {{tag}}"
+	git tag {{tag}}
