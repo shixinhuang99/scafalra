@@ -18,12 +18,11 @@ check-windows:
 	cargo check --all-targets --all-features
 	cargo clippy --all-targets --all-features -- -D warnings
 
-alias br := build-release
-
-build-release:
-	cargo build --release
-
 release tag:
+	git checkout -b "release-{{tag}}"
 	git cliff --tag {{tag}} -o CHANGELOG.md
 	git commit -am "chore(release): {{tag}}"
 	git tag {{tag}}
+
+push-tag tag:
+	git push orirgin {{tag}}
