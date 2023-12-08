@@ -18,11 +18,12 @@ check-windows:
 	cargo check --all-targets --all-features
 	cargo clippy --all-targets --all-features -- -D warnings
 
-release tag:
+release-pr tag:
 	git checkout -b "release-{{tag}}"
 	git cliff --tag {{tag}} -o CHANGELOG.md
 	git commit -am "chore(release): {{tag}}"
 	git tag {{tag}}
+	git push --set-upstream origin release-{{tag}}
 
 push-tag tag:
 	git push orirgin {{tag}}
