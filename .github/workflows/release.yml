@@ -50,8 +50,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
-
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ runner.os }}
@@ -76,7 +74,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ runner.os }}
+
       - name: Publish crates.io
         run: |
-          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }} --dry-run
+          cargo +stable publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
