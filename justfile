@@ -24,8 +24,8 @@ release-pr tag:
 	# cargo-edit
 	cargo set-version {{tag}}
 	git commit -am "chore(release): {{tag}}"
-	git tag {{tag}}
 	git push --set-upstream origin release-{{tag}}
 
 push-tag tag:
+	git tag {{tag}}
 	git push orirgin {{tag}}
