@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.1] - 2023-12-09
 
-[bc388b3](bc388b3b1ec1ed60a7597237343c37ff3f57e59c)...[7766101](776610166f2d05333dcd28428e2f6a1e037f2b3e)
+[bc388b3](bc388b3b1ec1ed60a7597237343c37ff3f57e59c)...[2fa71c5](2fa71c5b4b12bbf0cfd2cd0a59e58847e1b62c70)
 
 ### Bug Fixes
 
@@ -24,7 +24,6 @@ All notable changes to this project will be documented in this file.
 - Changelog and distribute (#27) ([c7b330b](c7b330b9582077f4d57a904ac60aff5ba2708de2))
 - Test new release workflow (#28) ([50aed51](50aed5127e7d11371bf89f567690276da1a0e118))
 - Prepare for release (#29) ([b4c8d3e](b4c8d3e34e17fbd98ca386e12d0d430cbde7cd11))
-- 1.0.0 (#30) ([e312f99](e312f99610a38b56254e711c02ce30d1aaa4ecbf))
 
 ### Refactor
 
