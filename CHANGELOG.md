@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2023-12-09
+
+[bc388b3](bc388b3b1ec1ed60a7597237343c37ff3f57e59c)...[2fa71c5](2fa71c5b4b12bbf0cfd2cd0a59e58847e1b62c70)
+
+### Bug Fixes
+
+- Json parse error when content is empty (#33) ([7766101](776610166f2d05333dcd28428e2f6a1e037f2b3e))
+
 ## [1.0.0] - 2023-12-08
 
 ### Features
