@@ -3,7 +3,6 @@ exclude = ["**/Cargo.lock"]
 
 [formatting]
 indent_string = "	"
-crlf = false
 
 [[rule]]
 include = ["**/Cargo.toml"]

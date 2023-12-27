@@ -10,7 +10,7 @@ lint: fmt
 
 check:
 	cargo fmt --all -- --check
-	taplo fmt --check
+	RUST_LOG=trace taplo fmt --check --diff
 	cargo check --all-targets --all-features
 	cargo clippy --all-targets --all-features -- -D warnings
 
