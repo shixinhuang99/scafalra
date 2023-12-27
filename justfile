@@ -14,10 +14,6 @@ check:
 	cargo check --all-targets --all-features
 	cargo clippy --all-targets --all-features -- -D warnings
 
-check-windows:
-	cargo check --all-targets --all-features
-	cargo clippy --all-targets --all-features -- -D warnings
-
 release-pr tag:
 	git checkout -b "release-{{tag}}"
 	git cliff --tag {{tag}} -o CHANGELOG.md

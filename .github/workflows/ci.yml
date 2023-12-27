@@ -47,7 +47,7 @@ jobs:
       - name: Run check
         if: matrix.os == 'windows-latest'
         run: |
-          just check-windows
+          just check
 
   tests:
     needs: check
