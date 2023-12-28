@@ -4,27 +4,29 @@ use anyhow::Result;
 use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 
-#[cfg(unix)]
+#[cfg(all(unix, feature = "self_update"))]
 use crate::utils::tar_unpack;
-#[cfg(windows)]
+#[cfg(all(windows, feature = "self_update"))]
 use crate::utils::zip_unpack;
 use crate::{
-	cli::{
-		AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs,
-		UninstallArgs, UpdateArgs,
-	},
+	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
 	config::Config,
 	debug,
 	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
 	utf8_path::Utf8PathBufExt,
+};
+#[cfg(feature = "self_update")]
+use crate::{
+	cli::{UninstallArgs, UpdateArgs},
 	utils::download,
 };
 
 pub struct Scafalra {
 	pub root_dir: Utf8PathBuf,
 	cache_dir: Utf8PathBuf,
+	#[cfg(feature = "self_update")]
 	update_dir: Utf8PathBuf,
 	config: Config,
 	store: Store,
@@ -34,6 +36,7 @@ pub struct Scafalra {
 impl Scafalra {
 	const ROOT_DIR_NAME: &'static str = ".scafalra";
 	const CACHE_DIR_NAME: &'static str = "cache";
+	#[cfg(feature = "self_update")]
 	const UPDATE_DIR_NAME: &'static str = "update";
 
 	pub fn new(
@@ -43,6 +46,7 @@ impl Scafalra {
 	) -> Result<Self> {
 		let root_dir = home_dir.join(Self::ROOT_DIR_NAME);
 		let cache_dir = root_dir.join(Self::CACHE_DIR_NAME);
+		#[cfg(feature = "self_update")]
 		let update_dir = root_dir.join(Self::UPDATE_DIR_NAME);
 
 		if !cache_dir.exists() {
@@ -63,6 +67,7 @@ impl Scafalra {
 			config,
 			store,
 			github_api,
+			#[cfg(feature = "self_update")]
 			update_dir,
 		})
 	}
@@ -215,6 +220,7 @@ impl Scafalra {
 		Ok(())
 	}
 
+	#[cfg(feature = "self_update")]
 	pub fn update(&self, args: UpdateArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
@@ -284,6 +290,7 @@ impl Scafalra {
 		Ok(())
 	}
 
+	#[cfg(feature = "self_update")]
 	pub fn uninstall(&self, args: UninstallArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
@@ -301,7 +308,9 @@ impl Scafalra {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, path::PathBuf};
+	use std::fs;
+	#[cfg(feature = "self_update")]
+	use std::path::PathBuf;
 
 	use anyhow::Result;
 	use mockito::{Mock, ServerGuard};
@@ -309,10 +318,15 @@ mod tests {
 
 	use super::Scafalra;
 	use crate::{
-		cli::{AddArgs, CreateArgs, UninstallArgs, UpdateArgs},
-		github_api::{mock_release_response_json, mock_repo_response_json},
+		cli::{AddArgs, CreateArgs},
+		github_api::mock_repo_response_json,
 		store::{mock_store_json, Store},
 		utf8_path::Utf8PathBufExt,
+	};
+	#[cfg(feature = "self_update")]
+	use crate::{
+		cli::{UninstallArgs, UpdateArgs},
+		github_api::mock_release_response_json,
 		utils::{get_self_target, get_self_version},
 	};
 
@@ -360,6 +374,7 @@ mod tests {
 		Ok((server, query_repo_mock, downlowd_mock))
 	}
 
+	#[cfg(feature = "self_update")]
 	fn mock_release_server() -> Result<(ServerGuard, Mock, Mock)> {
 		let mut server = mockito::Server::new();
 
@@ -592,6 +607,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature = "self_update")]
 	fn test_scafalra_update_check() -> Result<()> {
 		let (server, query_release_mock, _) = mock_release_server()?;
 		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
@@ -605,6 +621,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature = "self_update")]
 	fn test_scafalra_update() -> Result<()> {
 		let (server, query_release_mock, download_mock) =
 			mock_release_server()?;
@@ -620,6 +637,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature = "self_update")]
 	fn test_scafalra_uninstall() -> Result<()> {
 		let (scafalra, _temp_dir) = mock_scafalra("", false)?;
 
@@ -631,6 +649,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature = "self_update")]
 	fn test_scafalra_uninstall_keep_data() -> Result<()> {
 		let (scafalra, _temp_dir) = mock_scafalra("", false)?;
 

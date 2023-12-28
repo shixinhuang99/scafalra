@@ -83,15 +83,15 @@ jobs:
         if: matrix.test
         run: |
           rustup target add ${{ matrix.target }}
-          cargo test --target ${{ matrix.target }}
+          cargo test --target ${{ matrix.target }} --all-features
 
       - name: Test cargo build
         if: matrix.test == '' && matrix.cross == ''
         run: |
           rustup target add ${{ matrix.target }}
-          cargo build --target ${{ matrix.target }}
+          cargo build --target ${{ matrix.target }} --all-features
 
       - name: Test cross build
         if: matrix.cross
         run: |
-          cross build --target ${{ matrix.target }}
+          cross build --target ${{ matrix.target }} --all-features

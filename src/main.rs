@@ -51,7 +51,9 @@ fn try_main() -> Result<()> {
 			Command::Add(args) => scafalra.add(args)?,
 			Command::Create(args) => scafalra.create(args)?,
 			Command::Token(args) => scafalra.set_or_display_token(args)?,
+			#[cfg(feature = "self_update")]
 			Command::Update(args) => scafalra.update(args)?,
+			#[cfg(feature = "self_update")]
 			Command::Uninstall(args) => scafalra.uninstall(args)?,
 		}
 	}

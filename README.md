@@ -37,8 +37,6 @@ Commands:
   add        Add scaffolds from GitHub repository
   create     Copy the scaffold folder to the specified directory
   token      Configure or display your GitHub personal access token(classic)
-  update     Update self
-  uninstall  Uninstall self
   help       Print this message or the help of the given subcommand(s)
 
 Options:

@@ -1,4 +1,5 @@
 mod gql;
+#[cfg(feature = "self_update")]
 mod release;
 mod repo;
 
@@ -7,7 +8,9 @@ use std::cell::RefCell;
 use anyhow::Result;
 use gql::{GraphQLQuery, GraphQLResponse};
 #[cfg(test)]
+#[cfg(feature = "self_update")]
 pub use release::mock_release_response_json;
+#[cfg(feature = "self_update")]
 use release::{build_release_query, Release, ReleaseResponseData};
 #[cfg(test)]
 pub use repo::mock_repo_response_json;
@@ -90,6 +93,7 @@ impl GitHubApi {
 		Ok(repo_info)
 	}
 
+	#[cfg(feature = "self_update")]
 	pub fn query_release(&self) -> Result<Release> {
 		let release: Release = self
 			.request::<ReleaseResponseData>(build_release_query())?
@@ -176,6 +180,7 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature = "self_update")]
 	fn test_release_query() -> Result<()> {
 		let mut server = mockito::Server::new();
 
