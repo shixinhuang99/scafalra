@@ -54,7 +54,7 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Prepare
+      - name: Install cross
         if: matrix.build-tool == 'cross'
         run: |
           cargo +stable install cross
