@@ -400,7 +400,7 @@ mod tests {
 			store.add(mock_scaffold(&format!("foo-{}", i)));
 		}
 
-		let expected = include_str!("../fixtures/print-table.txt");
+		let expected = fs::read_to_string("fixtures/print-table.txt")?;
 
 		assert_eq!(
 			Vec::from_iter(store.print_table().unwrap().lines()),

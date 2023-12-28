@@ -119,13 +119,11 @@ mod tests {
 	fn test_repo_query() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = include_str!("../../fixtures/repo-query-response.json");
-
 		let mock = server
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(data)
+			.with_body_from_file("fixtures/repo-query-response.json")
 			.create();
 
 		let github_api = GitHubApi::new(Some(&server.url()));
@@ -153,13 +151,11 @@ mod tests {
 	fn test_github_api_request_error() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = include_str!("../../fixtures/repo-query-error.json");
-
 		let mock = server
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(data)
+			.with_body_from_file("fixtures/repo-query-error.json")
 			.create();
 
 		let github_api = GitHubApi::new(Some(&server.url()));
@@ -183,13 +179,11 @@ mod tests {
 	fn test_release_query() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = include_str!("../../fixtures/release-query-response.json");
-
 		let mock = server
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(data)
+			.with_body_from_file("fixtures/release-query-response.json")
 			.create();
 
 		let github_api = GitHubApi::new(Some(&server.url()));
