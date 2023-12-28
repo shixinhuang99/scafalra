@@ -1,4 +1,5 @@
 mod gql;
+#[cfg(feature = "self_update")]
 mod release;
 mod repo;
 
@@ -7,7 +8,9 @@ use std::cell::RefCell;
 use anyhow::Result;
 use gql::{GraphQLQuery, GraphQLResponse};
 #[cfg(test)]
+#[cfg(feature = "self_update")]
 pub use release::mock_release_response_json;
+#[cfg(feature = "self_update")]
 use release::{build_release_query, Release, ReleaseResponseData};
 #[cfg(test)]
 pub use repo::mock_repo_response_json;
@@ -90,6 +93,7 @@ impl GitHubApi {
 		Ok(repo_info)
 	}
 
+	#[cfg(feature = "self_update")]
 	pub fn query_release(&self) -> Result<Release> {
 		let release: Release = self
 			.request::<ReleaseResponseData>(build_release_query())?
@@ -119,13 +123,11 @@ mod tests {
 	fn test_repo_query() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = include_str!("../../fixtures/repo-query-response.json");
-
 		let mock = server
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(data)
+			.with_body_from_file("fixtures/repo-query-response.json")
 			.create();
 
 		let github_api = GitHubApi::new(Some(&server.url()));
@@ -153,13 +155,11 @@ mod tests {
 	fn test_github_api_request_error() -> Result<()> {
 		let mut server = mockito::Server::new();
 
-		let data = include_str!("../../fixtures/repo-query-error.json");
-
 		let mock = server
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(data)
+			.with_body_from_file("fixtures/repo-query-error.json")
 			.create();
 
 		let github_api = GitHubApi::new(Some(&server.url()));
@@ -180,16 +180,15 @@ mod tests {
 	}
 
 	#[test]
+	#[cfg(feature = "self_update")]
 	fn test_release_query() -> Result<()> {
 		let mut server = mockito::Server::new();
-
-		let data = include_str!("../../fixtures/release-query-response.json");
 
 		let mock = server
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(data)
+			.with_body_from_file("fixtures/release-query-response.json")
 			.create();
 
 		let github_api = GitHubApi::new(Some(&server.url()));

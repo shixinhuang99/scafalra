@@ -54,7 +54,7 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Prepare
+      - name: Install cross
         if: matrix.build-tool == 'cross'
         run: |
           cargo +stable install cross
@@ -67,6 +67,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           archive: $bin-$tag-$target
           include: LICENSE,README.md
+          features: self_update
 
   publish-crate:
     needs: upload-assets

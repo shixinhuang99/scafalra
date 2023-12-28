@@ -44,9 +44,11 @@ pub enum Command {
 	Token(TokenArgs),
 
 	/// Update self
+	#[cfg(feature = "self_update")]
 	Update(UpdateArgs),
 
 	/// Uninstall self
+	#[cfg(feature = "self_update")]
 	Uninstall(UninstallArgs),
 }
 
@@ -103,6 +105,7 @@ pub struct TokenArgs {
 	pub token: Option<String>,
 }
 
+#[cfg(feature = "self_update")]
 #[derive(Args, Debug)]
 pub struct UpdateArgs {
 	/// Check for updates to self
@@ -110,6 +113,7 @@ pub struct UpdateArgs {
 	pub check: bool,
 }
 
+#[cfg(feature = "self_update")]
 #[derive(Args, Debug)]
 pub struct UninstallArgs {
 	/// Keep the data

@@ -20,6 +20,7 @@ pub fn build_proxy_agent() -> Agent {
 	agent.build()
 }
 
+#[cfg(feature = "self_update")]
 pub fn get_self_target() -> &'static str {
 	env!("TARGET")
 }
@@ -48,7 +49,7 @@ pub fn tar_unpack(file_path: &Utf8Path, dst: &Utf8Path) -> Result<()> {
 	Ok(())
 }
 
-#[cfg(windows)]
+#[cfg(all(windows, feature = "self_update"))]
 pub fn zip_unpack(file_path: &Utf8Path, dst: &Utf8Path) -> Result<()> {
 	let file = fs::File::open(file_path)?;
 	let mut archive = zip::ZipArchive::new(file)?;
