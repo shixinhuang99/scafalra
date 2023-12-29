@@ -1,7 +1,7 @@
 use std::env;
 
 use anyhow::Result;
-use camino::{Utf8Component, Utf8Path, Utf8PathBuf};
+use camino::{Utf8Component, Utf8PathBuf};
 use fs_err as fs;
 
 #[cfg(all(unix, feature = "self_update"))]
@@ -24,7 +24,7 @@ use crate::{
 };
 
 pub struct Scafalra {
-	pub root_dir: Utf8PathBuf,
+	pub proj_dir: Utf8PathBuf,
 	cache_dir: Utf8PathBuf,
 	#[cfg(feature = "self_update")]
 	update_dir: Utf8PathBuf,
@@ -34,27 +34,25 @@ pub struct Scafalra {
 }
 
 impl Scafalra {
-	const ROOT_DIR_NAME: &'static str = ".scafalra";
 	const CACHE_DIR_NAME: &'static str = "cache";
 	#[cfg(feature = "self_update")]
 	const UPDATE_DIR_NAME: &'static str = "update";
 
 	pub fn new(
-		home_dir: &Utf8Path,
+		proj_dir: Utf8PathBuf,
 		endpoint: Option<&str>,
 		token: Option<&str>,
 	) -> Result<Self> {
-		let root_dir = home_dir.join(Self::ROOT_DIR_NAME);
-		let cache_dir = root_dir.join(Self::CACHE_DIR_NAME);
+		let cache_dir = proj_dir.join(Self::CACHE_DIR_NAME);
 		#[cfg(feature = "self_update")]
-		let update_dir = root_dir.join(Self::UPDATE_DIR_NAME);
+		let update_dir = proj_dir.join(Self::UPDATE_DIR_NAME);
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)?;
 		}
 
-		let config = Config::new(&root_dir)?;
-		let store = Store::new(&root_dir)?;
+		let config = Config::new(&proj_dir)?;
+		let store = Store::new(&proj_dir)?;
 		let github_api = GitHubApi::new(endpoint);
 
 		if let Some(token) = token.or_else(|| config.token()) {
@@ -62,7 +60,7 @@ impl Scafalra {
 		}
 
 		Ok(Self {
-			root_dir,
+			proj_dir,
 			cache_dir,
 			config,
 			store,
@@ -335,12 +333,11 @@ mod tests {
 		init_content: bool,
 	) -> Result<(Scafalra, TempDir)> {
 		let temp_dir = tempdir()?;
-		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
+		let proj_dir = temp_dir.path().into_utf8_path_buf()?.join("scafalra");
 
 		if init_content {
-			let root_dir = temp_dir_path.join(Scafalra::ROOT_DIR_NAME);
-			let cache_dir = root_dir.join(Scafalra::CACHE_DIR_NAME);
-			let store_file = root_dir.join(Store::FILE_NAME);
+			let cache_dir = proj_dir.join(Scafalra::CACHE_DIR_NAME);
+			let store_file = proj_dir.join(Store::FILE_NAME);
 			let foo_dir = cache_dir.join("foo");
 			let bar_dir = foo_dir.join("bar");
 			fs::create_dir_all(&bar_dir)?;
@@ -348,8 +345,7 @@ mod tests {
 			fs::write(store_file, mock_store_json([("bar", bar_dir)]))?;
 		}
 
-		let scafalra =
-			Scafalra::new(&temp_dir_path, Some(endpoint), Some("token"))?;
+		let scafalra = Scafalra::new(proj_dir, Some(endpoint), Some("token"))?;
 
 		Ok((scafalra, temp_dir))
 	}

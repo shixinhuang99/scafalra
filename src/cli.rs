@@ -18,9 +18,9 @@ pub struct Cli {
 	#[arg(long, global = true)]
 	pub token: Option<String>,
 
-	/// Display root dir of scafalra
+	/// Display of scafalra's data storage location
 	#[arg(long)]
-	pub root_dir: bool,
+	pub proj_dir: bool,
 }
 
 #[derive(Subcommand)]
