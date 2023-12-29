@@ -16,8 +16,7 @@ Download the [latest release binary](https://github.com/shixinhuang99/scafalra/r
 
 ## Prepare
 
-A GitHub personal access token(classic), which does not require any scope for public repositories
-and `repo` scope for private repositories
+scafalra requires a PAT(personal access token) to be configured, usually it doesn't require any permissions, but for private repositories it requires a bit of permissions, either `All repositories` or `Only select repositories` for fine-grained PAT, or `repo` scope for classic PAT.
 
 ```bash
 scafalra token your_token
@@ -36,12 +35,12 @@ Commands:
   mv         Rename a scaffold
   add        Add scaffolds from GitHub repository
   create     Copy the scaffold folder to the specified directory
-  token      Configure or display your GitHub personal access token(classic)
+  token      Configure or display your GitHub personal access token
   help       Print this message or the help of the given subcommand(s)
 
 Options:
       --debug          Use debug output
-      --token <TOKEN>  Specify the GitHub personal access token(classic)
+      --token <TOKEN>  Specify the GitHub personal access token
       --proj-dir       Display of scafalra's data storage location
   -h, --help           Print help
   -V, --version        Print version
