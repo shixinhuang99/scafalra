@@ -26,20 +26,24 @@ fn main() {
 }
 
 fn try_main() -> Result<()> {
-	let home_dir = home::home_dir()
-		.ok_or(anyhow::anyhow!("Impossible to get your home directory"))?
-		.into_utf8_path_buf()?;
-
 	let cli = Cli::parse();
 
 	if cli.debug || env::var("DEBUG_LOG").is_ok() {
 		trun_on_debug();
 	}
 
-	let mut scafalra = Scafalra::new(&home_dir, None, cli.token.as_deref())?;
+	let proj_dir = directories::ProjectDirs::from("", "", "scafalra")
+		.ok_or(anyhow::anyhow!(
+			"No valid home directory path could be retrieved from your \
+			 operating system"
+		))?
+		.config_dir()
+		.into_utf8_path_buf()?;
 
-	if cli.root_dir {
-		println!("{}", scafalra.root_dir);
+	let mut scafalra = Scafalra::new(proj_dir, None, cli.token.as_deref())?;
+
+	if cli.proj_dir {
+		println!("{}", scafalra.proj_dir);
 		return Ok(());
 	}
 

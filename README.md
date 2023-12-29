@@ -42,7 +42,7 @@ Commands:
 Options:
       --debug          Use debug output
       --token <TOKEN>  Specify the GitHub personal access token(classic)
-      --root-dir       Display root dir of scafalra
+      --proj-dir       Display of scafalra's data storage location
   -h, --help           Print help
   -V, --version        Print version
 ```
