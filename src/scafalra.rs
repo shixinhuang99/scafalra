@@ -293,7 +293,7 @@ impl Scafalra {
 		debug!("args: {:#?}", args);
 
 		if !args.keep_data {
-			remove_dir_all::remove_dir_all(&self.root_dir)?;
+			remove_dir_all::remove_dir_all(&self.proj_dir)?;
 		}
 
 		if cfg!(not(test)) {
@@ -639,7 +639,7 @@ mod tests {
 
 		scafalra.uninstall(UninstallArgs { keep_data: false })?;
 
-		assert!(!scafalra.root_dir.exists());
+		assert!(!scafalra.proj_dir.exists());
 
 		Ok(())
 	}
@@ -651,7 +651,7 @@ mod tests {
 
 		scafalra.uninstall(UninstallArgs { keep_data: true })?;
 
-		assert!(scafalra.root_dir.exists());
+		assert!(scafalra.proj_dir.exists());
 
 		Ok(())
 	}
