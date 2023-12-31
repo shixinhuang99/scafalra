@@ -2,13 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2023-12-31
+
+[a685275](a68527515ec2c6dfaac83d401285e9da23d6cad0)...[4579483](45794837718e20e96caaf4e25271a4acee282bf6)
+
+### Documentation
+
+- Update description for PAT (#40) ([4579483](45794837718e20e96caaf4e25271a4acee282bf6))
+
+### Miscellaneous Tasks
+
+- Fmt config (#36) ([b2ee71b](b2ee71b34b87fb514d6c7b3371b8cd66da612693))
+
+### Refactor
+
+- Move self update to a feature (#37) ([eaf5394](eaf539476ff758527427351f097a59145f01d913))
+- Use directories (#39) ([7db982a](7db982a26160a5ddf5b111f78140f503f1d0a1d9))
+
 ## [1.0.1] - 2023-12-09
 
-[bc388b3](bc388b3b1ec1ed60a7597237343c37ff3f57e59c)...[2fa71c5](2fa71c5b4b12bbf0cfd2cd0a59e58847e1b62c70)
+[bc388b3](bc388b3b1ec1ed60a7597237343c37ff3f57e59c)...[a685275](a68527515ec2c6dfaac83d401285e9da23d6cad0)
 
 ### Bug Fixes
 
 - Json parse error when content is empty (#33) ([7766101](776610166f2d05333dcd28428e2f6a1e037f2b3e))
+
+### Miscellaneous Tasks
+
+- Revert  config (#35) ([a685275](a68527515ec2c6dfaac83d401285e9da23d6cad0))
 
 ## [1.0.0] - 2023-12-08
 
