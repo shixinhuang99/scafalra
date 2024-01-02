@@ -117,7 +117,7 @@ impl Scafalra {
 		let mut scaffold_path =
 			repo.cache(&repo_info.tarball_url, &self.cache_dir)?;
 
-		debug!("scaffold_path: {}", scaffold_path.to_string_lossy());
+		debug!("scaffold_path: {:?}", scaffold_path);
 
 		if let Some(ref subdir) = repo.subdir {
 			subdir
@@ -127,7 +127,7 @@ impl Scafalra {
 					scaffold_path.push(c);
 				});
 
-			debug!("scaffold_path: {}", scaffold_path.to_string_lossy());
+			debug!("scaffold_path: {:?}", scaffold_path);
 
 			if let Some(name) = scaffold_path.file_name() {
 				scaffold_name = name.to_string_lossy().to_string();
@@ -172,7 +172,7 @@ impl Scafalra {
 
 		let cwd = env::current_dir()?;
 
-		debug!("current directory: {}", cwd.to_string_lossy());
+		debug!("current directory: {:?}", cwd);
 
 		let dst = if let Some(arg_dir) = args.directory {
 			if arg_dir.is_absolute() {
@@ -184,15 +184,17 @@ impl Scafalra {
 			cwd.join(args.name)
 		};
 
-		debug!("target directory: {}", dst.to_string_lossy());
+		debug!("target directory: {:?}", dst);
+
+		let dst_display = dst.to_string_lossy();
 
 		if dst.exists() {
-			anyhow::bail!("`{}` is already exists", dst.to_string_lossy());
+			anyhow::bail!("`{}` is already exists", dst_display);
 		}
 
 		dircpy::copy_dir(&scaffold.path, &dst)?;
 
-		println!("Created in `{}`", dst.to_string_lossy());
+		println!("Created in `{}`", dst_display);
 
 		Ok(())
 	}
@@ -319,6 +321,7 @@ mod tests {
 	use crate::{
 		cli::{AddArgs, CreateArgs},
 		github_api::mock_repo_response_json,
+		path_ext::*,
 		store::{mock_store_json, Store},
 	};
 	#[cfg(feature = "self_update")]
@@ -336,10 +339,9 @@ mod tests {
 		let proj_dir = temp_dir.path().join("scafalra");
 
 		if init_content {
-			let cache_dir = proj_dir.join(Scafalra::CACHE_DIR_NAME);
 			let store_file = proj_dir.join(Store::FILE_NAME);
-			let foo_dir = cache_dir.join("foo");
-			let bar_dir = foo_dir.join("bar");
+			let bar_dir =
+				proj_dir.join_iter([Scafalra::CACHE_DIR_NAME, "foo", "bar"]);
 			fs::create_dir_all(&bar_dir)?;
 			fs::write(bar_dir.join("baz.txt"), "")?;
 			fs::write(store_file, mock_store_json([("bar", bar_dir)]))?;
@@ -446,7 +448,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
 		let expected = mock_store_json([("bar", &bar_dir)]);
 
 		assert!(bar_dir.exists());
@@ -470,7 +472,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
 		let expected = mock_store_json([("foo", &bar_dir)]);
 
 		assert!(bar_dir.exists());
@@ -494,7 +496,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
 		let expected = mock_store_json([
 			("a", bar_dir.join("a")),
 			("b", bar_dir.join("b")),
@@ -523,12 +525,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a1_dir = scafalra
-			.cache_dir
-			.join("foo")
-			.join("bar")
-			.join("a")
-			.join("a1");
+		let a1_dir = scafalra.cache_dir.join_slash("foo/bar/a/a1");
 		let expected = mock_store_json([("a1", &a1_dir)]);
 
 		assert!(a1_dir.exists());
@@ -552,7 +549,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a_dir = scafalra.cache_dir.join("foo").join("bar").join("a");
+		let a_dir = scafalra.cache_dir.join_slash("foo/bar/a");
 		let a1_dir = a_dir.join("a1");
 		let a2_dir = a_dir.join("a2");
 		let a3_dir = a_dir.join("a3");
@@ -583,7 +580,7 @@ mod tests {
 			directory: Some(temp_dir_path.join("bar")),
 		})?;
 
-		assert!(temp_dir_path.join("bar/baz.txt").exists());
+		assert!(temp_dir_path.join_slash("bar/baz.txt").exists());
 
 		Ok(())
 	}

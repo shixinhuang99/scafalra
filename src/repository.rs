@@ -10,6 +10,7 @@ use remove_dir_all::remove_dir_all;
 
 use crate::{
 	debug,
+	path_ext::*,
 	utils::{download, tar_unpack},
 };
 
@@ -77,13 +78,9 @@ impl Repository {
 			.ok_or(anyhow::anyhow!("Empty directory"))??
 			.path();
 
-		debug!("first_inner_dir: {}", first_inner_dir.to_string_lossy());
+		debug!("first_inner_dir: {:?}", first_inner_dir);
 
-		let scaffold_dir = PathBuf::from_iter([
-			cache_dir,
-			Path::new(&self.owner),
-			Path::new(&self.name),
-		]);
+		let scaffold_dir = cache_dir.join_iter([&self.owner, &self.name]);
 
 		if scaffold_dir.exists() {
 			remove_dir_all(&scaffold_dir)?;
@@ -103,6 +100,7 @@ mod tests {
 	use anyhow::Result;
 
 	use super::{get_repo_re, Query, Repository};
+	use crate::path_ext::*;
 
 	#[test]
 	fn test_repo_re_basic() {
@@ -189,7 +187,10 @@ mod tests {
 
 		assert_eq!(repo.owner, "foo");
 		assert_eq!(repo.name, "bar");
-		assert_eq!(repo.subdir.unwrap().to_string_lossy(), "/path/to/dir");
+		assert_eq!(
+			repo.subdir.unwrap().to_string_lossy().to_string(),
+			"/path/to/dir"
+		);
 		assert_eq!(repo.query.unwrap(), Query::Branch("main".to_string()));
 
 		Ok(())
@@ -219,7 +220,7 @@ mod tests {
 		repo.cache(&server.url(), temp_dir_path)?;
 
 		mock.assert();
-		assert!(temp_dir_path.join("shixinhuang99/scafalra").is_dir());
+		assert!(temp_dir_path.join_slash("shixinhuang99/scafalra").is_dir());
 		assert!(!temp_dir_path.join("t").exists());
 
 		Ok(())
