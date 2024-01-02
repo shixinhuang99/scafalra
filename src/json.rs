@@ -1,5 +1,6 @@
+use std::path::Path;
+
 use anyhow::Result;
-use camino::Utf8Path;
 use fs_err as fs;
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -7,7 +8,7 @@ pub trait JsonContent
 where
 	Self: DeserializeOwned + Serialize + Default,
 {
-	fn load(file_path: &Utf8Path) -> Result<Self> {
+	fn load(file_path: &Path) -> Result<Self> {
 		let write_and_return_default = || -> Result<Self> {
 			let default = Self::default();
 			fs::write(file_path, serde_json::to_string_pretty(&default)?)?;
@@ -24,7 +25,7 @@ where
 		write_and_return_default()
 	}
 
-	fn save(&self, file_path: &Utf8Path) -> Result<()> {
+	fn save(&self, file_path: &Path) -> Result<()> {
 		let content = serde_json::to_string_pretty(&self)?;
 		fs::write(file_path, content)?;
 
@@ -43,15 +44,13 @@ where
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
+	use std::{fs, path::PathBuf};
 
 	use anyhow::Result;
-	use camino::Utf8PathBuf;
 	use serde::{Deserialize, Serialize};
 	use tempfile::{tempdir, TempDir};
 
 	use super::JsonContent;
-	use crate::utf8_path::Utf8PathBufExt;
 
 	#[derive(Deserialize, Serialize, Default)]
 	struct Foo {
@@ -63,10 +62,9 @@ mod tests {
 	fn mock_foo(
 		create_file: bool,
 		init_content: bool,
-	) -> Result<(Foo, TempDir, Utf8PathBuf)> {
+	) -> Result<(Foo, TempDir, PathBuf)> {
 		let temp_dir = tempdir()?;
-		let file_path =
-			temp_dir.path().join("foo.json").into_utf8_path_buf()?;
+		let file_path = temp_dir.path().join("foo.json");
 
 		if create_file {
 			if init_content {
