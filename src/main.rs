@@ -4,6 +4,7 @@ mod config;
 mod debug;
 mod github_api;
 mod json;
+mod path_ext;
 mod repository;
 mod scafalra;
 mod store;
