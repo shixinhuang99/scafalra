@@ -1,41 +1,43 @@
-use std::fmt::Display;
+#[cfg(not(test))]
+use owo_colors::{colors::xterm, OwoColorize};
+
+pub trait Colorize {
+	fn blue(&self) -> String;
+
+	fn red(&self) -> String;
+
+	fn green(&self) -> String;
+}
 
 #[cfg(not(test))]
-use owo_colors::OwoColorize;
-use owo_colors::{colors::xterm, Color};
-
-pub trait Colorize: Sized + Display {
-	#[cfg(not(test))]
-	fn with_color<T>(&self) -> String
-	where
-		T: Color,
-	{
-		self.fg::<T>().to_string()
-	}
-
-	#[cfg(test)]
-	fn with_color<T>(&self) -> String
-	where
-		T: Color,
-	{
-		self.to_string()
-	}
-
-	fn cyan(&self) -> String {
-		self.with_color::<xterm::Cyan>()
-	}
-
-	fn red(&self) -> String {
-		self.with_color::<xterm::UserRed>()
+impl Colorize for str {
+	fn blue(&self) -> String {
+		self.fg::<xterm::UserBlue>().to_string()
 	}
 
 	fn green(&self) -> String {
-		self.with_color::<xterm::UserGreen>()
+		self.fg::<xterm::UserGreen>().to_string()
+	}
+
+	fn red(&self) -> String {
+		self.fg::<xterm::UserRed>().to_string()
 	}
 }
 
-impl Colorize for &str {}
-impl Colorize for String {}
+#[cfg(test)]
+impl Colorize for str {
+	fn blue(&self) -> String {
+		self.to_string()
+	}
+
+	fn green(&self) -> String {
+		self.to_string()
+	}
+
+	fn red(&self) -> String {
+		self.to_string()
+	}
+}
 
 #[cfg(test)]
 mod tests {
@@ -43,7 +45,7 @@ mod tests {
 
 	#[test]
 	fn test_no_color() {
-		assert_eq!("foo".cyan(), "foo");
-		assert_eq!("foo".to_string().cyan(), "foo");
+		assert_eq!("foo".blue(), "foo");
+		assert_eq!("foo".to_string().blue(), "foo");
 	}
 }

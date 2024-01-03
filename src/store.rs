@@ -180,7 +180,7 @@ impl Store {
 		});
 
 		self.scaffold_map.keys().for_each(|key| {
-			grid.add(Cell::from(key.cyan()));
+			grid.add(Cell::from(key.blue()));
 		});
 
 		Some(grid.fit_into_columns(6).to_string().trim_end().to_string())
@@ -197,7 +197,7 @@ impl Store {
 		let mut table = Table::new(data);
 
 		let modify = Modify::new(Segment::new(1.., ..1))
-			.with(Format::content(|s| s.cyan()));
+			.with(Format::content(|s| s.blue()));
 
 		table
 			.with(Style::psql())
