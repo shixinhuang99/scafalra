@@ -17,7 +17,7 @@ use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 use crate::json::JsonContent;
 
 #[derive(Deserialize, Serialize, Clone, Tabled)]
-pub struct Scaffold {
+pub struct Template {
 	pub name: String,
 	pub url: String,
 	#[tabled(skip)]
@@ -26,7 +26,7 @@ pub struct Scaffold {
 	pub created_at: String,
 }
 
-impl Scaffold {
+impl Template {
 	pub fn new<N, U, L>(name: N, url: U, path: L) -> Self
 	where
 		N: AsRef<str>,
@@ -49,19 +49,19 @@ impl Scaffold {
 }
 
 #[derive(Deserialize, Serialize, Default)]
-struct ScaffoldMap(BTreeMap<String, Scaffold>);
+struct TemplateMap(BTreeMap<String, Template>);
 
-impl JsonContent for ScaffoldMap {}
+impl JsonContent for TemplateMap {}
 
-impl Deref for ScaffoldMap {
-	type Target = BTreeMap<String, Scaffold>;
+impl Deref for TemplateMap {
+	type Target = BTreeMap<String, Template>;
 
 	fn deref(&self) -> &Self::Target {
 		&self.0
 	}
 }
 
-impl DerefMut for ScaffoldMap {
+impl DerefMut for TemplateMap {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		&mut self.0
 	}
@@ -99,7 +99,7 @@ impl Changes {
 
 pub struct Store {
 	pub path: PathBuf,
-	scaffold_map: ScaffoldMap,
+	templates: TemplateMap,
 	changes: Changes,
 }
 
@@ -108,18 +108,18 @@ impl Store {
 
 	pub fn new(scafalra_dir: &Path) -> Result<Self> {
 		let path = scafalra_dir.join(Self::FILE_NAME);
-		let scaffold_map = ScaffoldMap::load(&path)?;
+		let templates = TemplateMap::load(&path)?;
 		let changes = Changes::new();
 
 		Ok(Self {
 			path,
-			scaffold_map,
+			templates,
 			changes,
 		})
 	}
 
 	pub fn save(&self) -> Result<()> {
-		self.scaffold_map.save(&self.path)?;
+		self.templates.save(&self.path)?;
 
 		self.changes.iter().for_each(|v| {
 			println!("{}", v);
@@ -128,41 +128,41 @@ impl Store {
 		Ok(())
 	}
 
-	pub fn add(&mut self, scaffold: Scaffold) {
-		let name = &scaffold.name;
+	pub fn add(&mut self, template: Template) {
+		let name = &template.name;
 
-		if self.scaffold_map.contains_key(name) {
+		if self.templates.contains_key(name) {
 			self.changes.push_remove(name);
 		}
 
 		self.changes.push_add(name);
-		self.scaffold_map.insert(name.to_string(), scaffold);
+		self.templates.insert(name.to_string(), template);
 	}
 
 	pub fn remove(&mut self, name: &str) -> Result<()> {
-		if let Some(scaffold) = self.scaffold_map.get(name) {
-			remove_dir_all(&scaffold.path)?;
+		if let Some(template) = self.templates.get(name) {
+			remove_dir_all(&template.path)?;
 
 			self.changes.push_remove(name);
-			self.scaffold_map.remove(name);
+			self.templates.remove(name);
 		}
 
 		Ok(())
 	}
 
 	pub fn rename(&mut self, name: &str, new_name: &str) {
-		if self.scaffold_map.contains_key(new_name) {
+		if self.templates.contains_key(new_name) {
 			println!("`{}` already exists", new_name);
 			return;
 		}
 
-		match self.scaffold_map.remove(name) {
-			Some(scaffold) => {
-				self.scaffold_map.insert(new_name.to_string(), scaffold);
+		match self.templates.remove(name) {
+			Some(template) => {
+				self.templates.insert(new_name.to_string(), template);
 				self.changes.push_remove(name).push_add(new_name);
 			}
 			None => {
-				println!("No such scaffold `{}`", name);
+				println!("No such template `{}`", name);
 			}
 		};
 	}
@@ -170,7 +170,7 @@ impl Store {
 	pub fn print_grid(&self) -> Option<String> {
 		use crate::colorize::Colorize;
 
-		if self.scaffold_map.is_empty() {
+		if self.templates.is_empty() {
 			return None;
 		}
 
@@ -179,7 +179,7 @@ impl Store {
 			direction: Direction::LeftToRight,
 		});
 
-		self.scaffold_map.keys().for_each(|key| {
+		self.templates.keys().for_each(|key| {
 			grid.add(Cell::from(key.blue()));
 		});
 
@@ -189,11 +189,11 @@ impl Store {
 	pub fn print_table(&self) -> Option<String> {
 		use crate::colorize::Colorize;
 
-		if self.scaffold_map.is_empty() {
+		if self.templates.is_empty() {
 			return None;
 		}
 
-		let data = Vec::from_iter(self.scaffold_map.values().cloned());
+		let data = Vec::from_iter(self.templates.values().cloned());
 		let mut table = Table::new(data);
 
 		let modify = Modify::new(Segment::new(1.., ..1))
@@ -207,8 +207,8 @@ impl Store {
 		Some(table.to_string())
 	}
 
-	pub fn get(&self, name: &str) -> Option<&Scaffold> {
-		self.scaffold_map.get(name)
+	pub fn get(&self, name: &str) -> Option<&Template> {
+		self.templates.get(name)
 	}
 }
 
@@ -218,8 +218,8 @@ where
 	T: AsRef<Path>,
 {
 	let content =
-		ScaffoldMap(BTreeMap::from_iter(data.into_iter().map(|ele| {
-			(ele.0.to_string(), Scaffold::new(ele.0, "url", ele.1))
+		TemplateMap(BTreeMap::from_iter(data.into_iter().map(|ele| {
+			(ele.0.to_string(), Template::new(ele.0, "url", ele.1))
 		})));
 
 	serde_json::to_string_pretty(&content).unwrap()
@@ -232,10 +232,10 @@ mod tests {
 	use anyhow::Result;
 	use tempfile::{tempdir, TempDir};
 
-	use super::{mock_store_json, Scaffold, Store};
+	use super::{mock_store_json, Store, Template};
 
-	fn mock_scaffold(name: &str) -> Scaffold {
-		Scaffold::new(name, "url", "path")
+	fn mock_template(name: &str) -> Template {
+		Template::new(name, "url", "path")
 	}
 
 	fn mock_store(init_content: bool) -> Result<(Store, TempDir, PathBuf)> {
@@ -259,7 +259,7 @@ mod tests {
 	fn test_store_new_file_not_exists() -> Result<()> {
 		let (store, _dir, _) = mock_store(false)?;
 
-		assert_eq!(store.scaffold_map.len(), 0);
+		assert_eq!(store.templates.len(), 0);
 		assert_eq!(store.changes.inner.len(), 0);
 
 		Ok(())
@@ -269,8 +269,8 @@ mod tests {
 	fn test_store_new_file_exists() -> Result<()> {
 		let (store, _dir, _) = mock_store(true)?;
 
-		assert_eq!(store.scaffold_map.len(), 1);
-		assert!(store.scaffold_map.contains_key("foo"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
 
 		Ok(())
 	}
@@ -293,10 +293,10 @@ mod tests {
 	fn test_store_add() -> Result<()> {
 		let (mut store, _dir, _) = mock_store(false)?;
 
-		store.add(mock_scaffold("foo"));
+		store.add(mock_template("foo"));
 
-		assert_eq!(store.scaffold_map.len(), 1);
-		assert!(store.scaffold_map.contains_key("foo"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
 		assert_eq!(store.changes.inner, vec!["+ foo"]);
 
 		Ok(())
@@ -306,10 +306,10 @@ mod tests {
 	fn test_store_add_same() -> Result<()> {
 		let (mut store, _dir, _) = mock_store(true)?;
 
-		store.add(mock_scaffold("foo"));
+		store.add(mock_template("foo"));
 
-		assert_eq!(store.scaffold_map.len(), 1);
-		assert!(store.scaffold_map.contains_key("foo"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
 		assert_eq!(store.changes.inner, vec!["- foo", "+ foo"]);
 
 		Ok(())
@@ -322,7 +322,7 @@ mod tests {
 		store.remove("foo")?;
 
 		assert!(!foo_path.exists());
-		assert_eq!(store.scaffold_map.len(), 0);
+		assert_eq!(store.templates.len(), 0);
 		assert_eq!(store.changes.inner, vec!["- foo"]);
 
 		Ok(())
@@ -344,9 +344,9 @@ mod tests {
 		let (mut store, _dir, _) = mock_store(true)?;
 		store.rename("foo", "bar");
 
-		assert_eq!(store.scaffold_map.len(), 1);
-		assert!(!store.scaffold_map.contains_key("foo"));
-		assert!(store.scaffold_map.contains_key("bar"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(!store.templates.contains_key("foo"));
+		assert!(store.templates.contains_key("bar"));
 		assert_eq!(store.changes.inner, vec!["- foo", "+ bar"]);
 
 		Ok(())
@@ -358,13 +358,13 @@ mod tests {
 
 		store.rename("foo", "foo");
 
-		assert_eq!(store.scaffold_map.len(), 1);
-		assert!(store.scaffold_map.contains_key("foo"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
 
 		store.rename("bar", "foo");
 
-		assert_eq!(store.scaffold_map.len(), 1);
-		assert!(store.scaffold_map.contains_key("foo"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
 
 		Ok(())
 	}
@@ -376,7 +376,7 @@ mod tests {
 		assert_eq!(store.print_grid(), None);
 
 		for i in 0..7 {
-			store.add(mock_scaffold(&format!("foo-{}", i)));
+			store.add(mock_template(&format!("foo-{}", i)));
 		}
 
 		assert_eq!(
@@ -394,7 +394,7 @@ mod tests {
 		assert_eq!(store.print_table(), None);
 
 		for i in 0..2 {
-			store.add(mock_scaffold(&format!("foo-{}", i)));
+			store.add(mock_template(&format!("foo-{}", i)));
 		}
 
 		let expected = fs::read_to_string("fixtures/print-table.txt")?;

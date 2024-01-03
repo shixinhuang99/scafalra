@@ -1,6 +1,6 @@
 # Scafalra
 
-command-line interface tool for manage scaffolding
+`scafalra` is a command-line interface tool for manage templates
 
 ## Installation
 
@@ -25,18 +25,18 @@ scafalra token your_token
 ## Usage
 
 ```
-scafalra is a command-line interface tool for manage scaffold
+scafalra is a command-line interface tool for manage templates
 
 Usage: scafalra [OPTIONS] [COMMAND]
 
 Commands:
-  list       List all scaffolds
-  remove     Remove specified scaffolds
-  mv         Rename a scaffold
-  add        Add scaffolds from GitHub repository
-  create     Copy the scaffold folder to the specified directory
-  token      Configure or display your GitHub personal access token
-  help       Print this message or the help of the given subcommand(s)
+  list    List all templates
+  remove  Remove specified templates
+  mv      Rename a template
+  add     Add templates from GitHub repository
+  create  Copy the template folder to the specified directory
+  token   Configure or display your GitHub personal access token
+  help    Print this message or the help of the given subcommand(s)
 
 Options:
       --debug          Use debug output

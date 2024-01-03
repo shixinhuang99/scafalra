@@ -16,7 +16,7 @@ use crate::{
 	debug,
 	github_api::GitHubApi,
 	repository::Repository,
-	store::{Scaffold, Store},
+	store::{Store, Template},
 };
 #[cfg(feature = "self_update")]
 use crate::{
@@ -112,44 +112,44 @@ impl Scafalra {
 
 		let repo_info = self.github_api.query_repository(&repo)?;
 
-		let mut scaffold_name = args.name.unwrap_or(repo.name.clone());
+		let mut template_name = args.name.unwrap_or(repo.name.clone());
 
-		let mut scaffold_path =
+		let mut template_path =
 			repo.cache(&repo_info.tarball_url, &self.cache_dir)?;
 
-		debug!("scaffold_path: {:?}", scaffold_path);
+		debug!("template_path: {:?}", template_path);
 
 		if let Some(ref subdir) = repo.subdir {
 			subdir
 				.components()
 				.filter(|c| matches!(c, Component::Normal(_)))
 				.for_each(|c| {
-					scaffold_path.push(c);
+					template_path.push(c);
 				});
 
-			debug!("scaffold_path: {:?}", scaffold_path);
+			debug!("template_path: {:?}", template_path);
 
-			if let Some(name) = scaffold_path.file_name() {
-				scaffold_name = name.to_string_lossy().to_string();
+			if let Some(name) = template_path.file_name() {
+				template_name = name.to_string_lossy().to_string();
 			}
 		}
 
 		if args.depth == 0 {
-			self.store.add(Scaffold::new(
-				scaffold_name,
+			self.store.add(Template::new(
+				template_name,
 				repo_info.url.clone(),
-				scaffold_path.clone(),
+				template_path.clone(),
 			))
 		}
 
 		if args.depth == 1 {
-			for entry in scaffold_path.read_dir()? {
+			for entry in template_path.read_dir()? {
 				let entry = entry?;
 				let file_type = entry.file_type()?;
 				let file_name = entry.file_name().to_string_lossy().to_string();
 
 				if file_type.is_dir() && !file_name.starts_with('.') {
-					self.store.add(Scaffold::new(
+					self.store.add(Template::new(
 						file_name,
 						repo_info.url.clone(),
 						entry.path(),
@@ -166,8 +166,8 @@ impl Scafalra {
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let Some(scaffold) = self.store.get(&args.name) else {
-			anyhow::bail!("No such scaffold `{}`", args.name);
+		let Some(template) = self.store.get(&args.name) else {
+			anyhow::bail!("No such template `{}`", args.name);
 		};
 
 		let cwd = env::current_dir()?;
@@ -192,7 +192,7 @@ impl Scafalra {
 			anyhow::bail!("`{}` is already exists", dst_display);
 		}
 
-		dircpy::copy_dir(&scaffold.path, &dst)?;
+		dircpy::copy_dir(&template.path, &dst)?;
 
 		println!("Created in `{}`", dst_display);
 

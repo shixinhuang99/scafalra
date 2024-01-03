@@ -80,18 +80,18 @@ impl Repository {
 
 		debug!("first_inner_dir: {:?}", first_inner_dir);
 
-		let scaffold_dir = cache_dir.join_iter([&self.owner, &self.name]);
+		let template_dir = cache_dir.join_iter([&self.owner, &self.name]);
 
-		if scaffold_dir.exists() {
-			remove_dir_all(&scaffold_dir)?;
+		if template_dir.exists() {
+			remove_dir_all(&template_dir)?;
 		}
 
-		dircpy::copy_dir(first_inner_dir, &scaffold_dir)?;
+		dircpy::copy_dir(first_inner_dir, &template_dir)?;
 
 		fs::remove_file(&tarball)?;
 		remove_dir_all(temp_dir)?;
 
-		Ok(scaffold_dir)
+		Ok(template_dir)
 	}
 }
 

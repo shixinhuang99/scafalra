@@ -9,20 +9,18 @@ where
 	Self: DeserializeOwned + Serialize + Default,
 {
 	fn load(file_path: &Path) -> Result<Self> {
-		let write_and_return_default = || -> Result<Self> {
-			let default = Self::default();
-			fs::write(file_path, serde_json::to_string_pretty(&default)?)?;
-			Ok(default)
-		};
 		if file_path.exists() {
 			let content = fs::read_to_string(file_path)?;
-			if content.is_empty() {
-				return write_and_return_default();
+			if !content.is_empty() {
+				let value: Self = serde_json::from_str(&content)?;
+
+				return Ok(value);
 			}
-			let value: Self = serde_json::from_str(&content)?;
-			return Ok(value);
 		}
-		write_and_return_default()
+		let default = Self::default();
+		fs::write(file_path, serde_json::to_string_pretty(&default)?)?;
+
+		Ok(default)
 	}
 
 	fn save(&self, file_path: &Path) -> Result<()> {
