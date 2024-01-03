@@ -1,13 +1,16 @@
-use std::sync::OnceLock;
+use std::{
+	path::{Path, PathBuf},
+	sync::OnceLock,
+};
 
 use anyhow::Result;
-use camino::{Utf8Path, Utf8PathBuf};
 use fs_err as fs;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
 
 use crate::{
 	debug,
+	path_ext::*,
 	utils::{download, tar_unpack},
 };
 
@@ -22,7 +25,7 @@ fn get_repo_re() -> &'static Regex {
 pub struct Repository {
 	pub owner: String,
 	pub name: String,
-	pub subdir: Option<Utf8PathBuf>,
+	pub subdir: Option<PathBuf>,
 	pub query: Option<Query>,
 }
 
@@ -42,7 +45,7 @@ impl Repository {
 		let owner = caps[1].to_string();
 		let name = caps[2].to_string();
 
-		let subdir = caps.get(3).map(|v| Utf8PathBuf::from(v.as_str()));
+		let subdir = caps.get(3).map(|v| PathBuf::from(v.as_str()));
 		let query_kind = caps.get(4).map(|v| v.as_str());
 		let query_val = caps.get(5).map(|v| v.as_str().to_string());
 
@@ -61,11 +64,7 @@ impl Repository {
 		})
 	}
 
-	pub fn cache(
-		&self,
-		url: &str,
-		cache_dir: &Utf8Path,
-	) -> Result<Utf8PathBuf> {
+	pub fn cache(&self, url: &str, cache_dir: &Path) -> Result<PathBuf> {
 		let temp_dir = cache_dir.join("t");
 		let tarball = temp_dir.with_extension("tar.gz");
 
@@ -74,18 +73,14 @@ impl Repository {
 		tar_unpack(&tarball, &temp_dir)?;
 
 		let first_inner_dir = temp_dir
-			.read_dir_utf8()?
+			.read_dir()?
 			.next()
 			.ok_or(anyhow::anyhow!("Empty directory"))??
-			.into_path();
+			.path();
 
-		debug!("first_inner_dir: {}", first_inner_dir);
+		debug!("first_inner_dir: {:?}", first_inner_dir);
 
-		let scaffold_dir = Utf8PathBuf::from_iter([
-			cache_dir,
-			Utf8Path::new(&self.owner),
-			Utf8Path::new(&self.name),
-		]);
+		let scaffold_dir = cache_dir.join_iter([&self.owner, &self.name]);
 
 		if scaffold_dir.exists() {
 			remove_dir_all(&scaffold_dir)?;
@@ -105,7 +100,7 @@ mod tests {
 	use anyhow::Result;
 
 	use super::{get_repo_re, Query, Repository};
-	use crate::utf8_path::Utf8PathBufExt;
+	use crate::path_ext::*;
 
 	#[test]
 	fn test_repo_re_basic() {
@@ -192,7 +187,10 @@ mod tests {
 
 		assert_eq!(repo.owner, "foo");
 		assert_eq!(repo.name, "bar");
-		assert_eq!(repo.subdir.unwrap(), "/path/to/dir");
+		assert_eq!(
+			repo.subdir.unwrap().to_string_lossy().to_string(),
+			"/path/to/dir"
+		);
 		assert_eq!(repo.query.unwrap(), Query::Branch("main".to_string()));
 
 		Ok(())
@@ -216,13 +214,13 @@ mod tests {
 			.create();
 
 		let temp_dir = tempfile::tempdir()?;
-		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
+		let temp_dir_path = temp_dir.path();
 
 		let repo = Repository::parse("shixinhuang99/scafalra")?;
-		repo.cache(&server.url(), &temp_dir_path)?;
+		repo.cache(&server.url(), temp_dir_path)?;
 
 		mock.assert();
-		assert!(temp_dir_path.join("shixinhuang99/scafalra").is_dir());
+		assert!(temp_dir_path.join_slash("shixinhuang99/scafalra").is_dir());
 		assert!(!temp_dir_path.join("t").exists());
 
 		Ok(())

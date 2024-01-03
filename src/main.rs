@@ -4,10 +4,10 @@ mod config;
 mod debug;
 mod github_api;
 mod json;
+mod path_ext;
 mod repository;
 mod scafalra;
 mod store;
-mod utf8_path;
 mod utils;
 
 use std::env;
@@ -17,7 +17,6 @@ use clap::Parser;
 use cli::{Cli, Command};
 use debug::trun_on_debug;
 use scafalra::Scafalra;
-use utf8_path::Utf8PathBufExt;
 
 fn main() {
 	if let Err(err) = try_main() {
@@ -38,12 +37,12 @@ fn try_main() -> Result<()> {
 			 operating system"
 		))?
 		.config_dir()
-		.into_utf8_path_buf()?;
+		.to_path_buf();
 
 	let mut scafalra = Scafalra::new(proj_dir, None, cli.token.as_deref())?;
 
 	if cli.proj_dir {
-		println!("{}", scafalra.proj_dir);
+		println!("{}", scafalra.proj_dir.to_string_lossy());
 		return Ok(());
 	}
 

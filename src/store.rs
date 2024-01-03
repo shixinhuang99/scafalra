@@ -6,7 +6,6 @@ use std::{
 };
 
 use anyhow::Result;
-use camino::{Utf8Path, Utf8PathBuf};
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
 use tabled::{
@@ -99,7 +98,7 @@ impl Changes {
 }
 
 pub struct Store {
-	pub path: Utf8PathBuf,
+	pub path: PathBuf,
 	scaffold_map: ScaffoldMap,
 	changes: Changes,
 }
@@ -107,7 +106,7 @@ pub struct Store {
 impl Store {
 	pub const FILE_NAME: &'static str = "store.json";
 
-	pub fn new(scafalra_dir: &Utf8Path) -> Result<Self> {
+	pub fn new(scafalra_dir: &Path) -> Result<Self> {
 		let path = scafalra_dir.join(Self::FILE_NAME);
 		let scaffold_map = ScaffoldMap::load(&path)?;
 		let changes = Changes::new();
@@ -228,22 +227,20 @@ where
 
 #[cfg(test)]
 mod tests {
-	use std::fs;
+	use std::{fs, path::PathBuf};
 
 	use anyhow::Result;
-	use camino::Utf8PathBuf;
 	use tempfile::{tempdir, TempDir};
 
 	use super::{mock_store_json, Scaffold, Store};
-	use crate::utf8_path::Utf8PathBufExt;
 
 	fn mock_scaffold(name: &str) -> Scaffold {
 		Scaffold::new(name, "url", "path")
 	}
 
-	fn mock_store(init_content: bool) -> Result<(Store, TempDir, Utf8PathBuf)> {
+	fn mock_store(init_content: bool) -> Result<(Store, TempDir, PathBuf)> {
 		let temp_dir = tempdir()?;
-		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
+		let temp_dir_path = temp_dir.path();
 		let foo_path = temp_dir_path.join("foo");
 
 		if init_content {
@@ -253,7 +250,7 @@ mod tests {
 			fs::write(store_file, content)?;
 		}
 
-		let store = Store::new(&temp_dir_path)?;
+		let store = Store::new(temp_dir_path)?;
 
 		Ok((store, temp_dir, foo_path))
 	}

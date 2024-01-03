@@ -1,7 +1,9 @@
-use std::env;
+use std::{
+	env,
+	path::{Component, PathBuf},
+};
 
 use anyhow::Result;
-use camino::{Utf8Component, Utf8PathBuf};
 use fs_err as fs;
 
 #[cfg(all(unix, feature = "self_update"))]
@@ -15,7 +17,6 @@ use crate::{
 	github_api::GitHubApi,
 	repository::Repository,
 	store::{Scaffold, Store},
-	utf8_path::Utf8PathBufExt,
 };
 #[cfg(feature = "self_update")]
 use crate::{
@@ -24,10 +25,10 @@ use crate::{
 };
 
 pub struct Scafalra {
-	pub proj_dir: Utf8PathBuf,
-	cache_dir: Utf8PathBuf,
+	pub proj_dir: PathBuf,
+	cache_dir: PathBuf,
 	#[cfg(feature = "self_update")]
-	update_dir: Utf8PathBuf,
+	update_dir: PathBuf,
 	config: Config,
 	store: Store,
 	github_api: GitHubApi,
@@ -39,7 +40,7 @@ impl Scafalra {
 	const UPDATE_DIR_NAME: &'static str = "update";
 
 	pub fn new(
-		proj_dir: Utf8PathBuf,
+		proj_dir: PathBuf,
 		endpoint: Option<&str>,
 		token: Option<&str>,
 	) -> Result<Self> {
@@ -116,20 +117,20 @@ impl Scafalra {
 		let mut scaffold_path =
 			repo.cache(&repo_info.tarball_url, &self.cache_dir)?;
 
-		debug!("scaffold_path: {}", scaffold_path);
+		debug!("scaffold_path: {:?}", scaffold_path);
 
 		if let Some(ref subdir) = repo.subdir {
 			subdir
 				.components()
-				.filter(|c| matches!(c, Utf8Component::Normal(_)))
+				.filter(|c| matches!(c, Component::Normal(_)))
 				.for_each(|c| {
 					scaffold_path.push(c);
 				});
 
-			debug!("scaffold_path: {}", scaffold_path);
+			debug!("scaffold_path: {:?}", scaffold_path);
 
 			if let Some(name) = scaffold_path.file_name() {
-				scaffold_name = name.to_string();
+				scaffold_name = name.to_string_lossy().to_string();
 			}
 		}
 
@@ -142,10 +143,10 @@ impl Scafalra {
 		}
 
 		if args.depth == 1 {
-			for entry in scaffold_path.read_dir_utf8()? {
+			for entry in scaffold_path.read_dir()? {
 				let entry = entry?;
 				let file_type = entry.file_type()?;
-				let file_name = entry.file_name();
+				let file_name = entry.file_name().to_string_lossy().to_string();
 
 				if file_type.is_dir() && !file_name.starts_with('.') {
 					self.store.add(Scaffold::new(
@@ -169,9 +170,9 @@ impl Scafalra {
 			anyhow::bail!("No such scaffold `{}`", args.name);
 		};
 
-		let cwd = env::current_dir()?.into_utf8_path_buf()?;
+		let cwd = env::current_dir()?;
 
-		debug!("current directory: {}", cwd);
+		debug!("current directory: {:?}", cwd);
 
 		let dst = if let Some(arg_dir) = args.directory {
 			if arg_dir.is_absolute() {
@@ -183,15 +184,17 @@ impl Scafalra {
 			cwd.join(args.name)
 		};
 
-		debug!("target directory: {}", dst);
+		debug!("target directory: {:?}", dst);
+
+		let dst_display = dst.to_string_lossy();
 
 		if dst.exists() {
-			anyhow::bail!("`{}` is already exists", dst);
+			anyhow::bail!("`{}` is already exists", dst_display);
 		}
 
 		dircpy::copy_dir(&scaffold.path, &dst)?;
 
-		println!("Created in `{}`", dst);
+		println!("Created in `{}`", dst_display);
 
 		Ok(())
 	}
@@ -256,9 +259,9 @@ impl Scafalra {
 			zip_unpack(&archive, &self.update_dir)?;
 		}
 
-		let mut new_executable: Option<Utf8PathBuf> = None;
+		let mut new_executable: Option<PathBuf> = None;
 
-		for entry in self.update_dir.read_dir_utf8()? {
+		for entry in self.update_dir.read_dir()? {
 			let entry = entry?;
 			if entry.file_type()?.is_dir() {
 				new_executable = Some(
@@ -318,8 +321,8 @@ mod tests {
 	use crate::{
 		cli::{AddArgs, CreateArgs},
 		github_api::mock_repo_response_json,
+		path_ext::*,
 		store::{mock_store_json, Store},
-		utf8_path::Utf8PathBufExt,
 	};
 	#[cfg(feature = "self_update")]
 	use crate::{
@@ -333,13 +336,12 @@ mod tests {
 		init_content: bool,
 	) -> Result<(Scafalra, TempDir)> {
 		let temp_dir = tempdir()?;
-		let proj_dir = temp_dir.path().into_utf8_path_buf()?.join("scafalra");
+		let proj_dir = temp_dir.path().join("scafalra");
 
 		if init_content {
-			let cache_dir = proj_dir.join(Scafalra::CACHE_DIR_NAME);
 			let store_file = proj_dir.join(Store::FILE_NAME);
-			let foo_dir = cache_dir.join("foo");
-			let bar_dir = foo_dir.join("bar");
+			let bar_dir =
+				proj_dir.join_iter([Scafalra::CACHE_DIR_NAME, "foo", "bar"]);
 			fs::create_dir_all(&bar_dir)?;
 			fs::write(bar_dir.join("baz.txt"), "")?;
 			fs::write(store_file, mock_store_json([("bar", bar_dir)]))?;
@@ -446,7 +448,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
 		let expected = mock_store_json([("bar", &bar_dir)]);
 
 		assert!(bar_dir.exists());
@@ -470,7 +472,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
 		let expected = mock_store_json([("foo", &bar_dir)]);
 
 		assert!(bar_dir.exists());
@@ -494,7 +496,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join("foo").join("bar");
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
 		let expected = mock_store_json([
 			("a", bar_dir.join("a")),
 			("b", bar_dir.join("b")),
@@ -523,12 +525,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a1_dir = scafalra
-			.cache_dir
-			.join("foo")
-			.join("bar")
-			.join("a")
-			.join("a1");
+		let a1_dir = scafalra.cache_dir.join_slash("foo/bar/a/a1");
 		let expected = mock_store_json([("a1", &a1_dir)]);
 
 		assert!(a1_dir.exists());
@@ -552,7 +549,7 @@ mod tests {
 		download_mock.assert();
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a_dir = scafalra.cache_dir.join("foo").join("bar").join("a");
+		let a_dir = scafalra.cache_dir.join_slash("foo/bar/a");
 		let a1_dir = a_dir.join("a1");
 		let a2_dir = a_dir.join("a2");
 		let a3_dir = a_dir.join("a3");
@@ -574,7 +571,7 @@ mod tests {
 	fn test_scafalra_create() -> Result<()> {
 		let (scafalra, temp_dir) = mock_scafalra("", true)?;
 
-		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
+		let temp_dir_path = temp_dir.path();
 
 		scafalra.create(CreateArgs {
 			name: "bar".to_string(),
@@ -583,7 +580,7 @@ mod tests {
 			directory: Some(temp_dir_path.join("bar")),
 		})?;
 
-		assert!(temp_dir_path.join("bar/baz.txt").exists());
+		assert!(temp_dir_path.join_slash("bar/baz.txt").exists());
 
 		Ok(())
 	}

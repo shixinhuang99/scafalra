@@ -259,12 +259,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "camino"
-version = "1.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c59e92b5a388f549b863a7bea62612c09f24c8393560709a54558a9abdfb3b9c"
-
-[[package]]
 name = "cc"
 version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1121,6 +1115,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "path-slash"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e91099d4268b0e11973f036e885d652fb0b21fedcf69738c627f94db6a44f42"
+
+[[package]]
 name = "pbkdf2"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1400,7 +1400,6 @@ name = "scafalra"
 version = "1.1.1"
 dependencies = [
  "anyhow",
- "camino",
  "chrono",
  "clap",
  "dircpy",
@@ -1409,6 +1408,7 @@ dependencies = [
  "fs-err",
  "mockito",
  "owo-colors",
+ "path-slash",
  "regex",
  "remove_dir_all",
  "self-replace",

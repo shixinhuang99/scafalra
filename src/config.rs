@@ -1,5 +1,6 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::Result;
-use camino::{Utf8Path, Utf8PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::json::JsonContent;
@@ -12,14 +13,14 @@ struct ConfigContent {
 impl JsonContent for ConfigContent {}
 
 pub struct Config {
-	pub path: Utf8PathBuf,
+	pub path: PathBuf,
 	content: ConfigContent,
 }
 
 impl Config {
 	pub const FILE_NAME: &'static str = "config.json";
 
-	pub fn new(scafalra_dir: &Utf8Path) -> Result<Self> {
+	pub fn new(scafalra_dir: &Path) -> Result<Self> {
 		let path = scafalra_dir.join(Self::FILE_NAME);
 		let content = ConfigContent::load(&path)?;
 
@@ -47,11 +48,10 @@ mod tests {
 	use tempfile::{tempdir, TempDir};
 
 	use super::Config;
-	use crate::utf8_path::Utf8PathBufExt;
 
 	fn mock_config(create_file: bool) -> Result<(Config, TempDir)> {
 		let temp_dir = tempdir()?;
-		let temp_dir_path = temp_dir.path().into_utf8_path_buf()?;
+		let temp_dir_path = temp_dir.path();
 
 		if create_file {
 			fs::write(
@@ -60,7 +60,7 @@ mod tests {
 			)?;
 		}
 
-		let config = Config::new(&temp_dir_path)?;
+		let config = Config::new(temp_dir_path)?;
 
 		Ok((config, temp_dir))
 	}

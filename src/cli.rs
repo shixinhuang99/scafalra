@@ -1,4 +1,5 @@
-use camino::Utf8PathBuf;
+use std::path::PathBuf;
+
 use clap::{
 	builder::{PossibleValuesParser, TypedValueParser as _},
 	Args, Parser, Subcommand,
@@ -97,7 +98,7 @@ pub struct CreateArgs {
 	pub name: String,
 
 	/// Specified directory(defaults to the current directory)
-	pub directory: Option<Utf8PathBuf>,
+	pub directory: Option<PathBuf>,
 }
 
 #[derive(Args, Debug)]
