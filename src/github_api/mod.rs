@@ -114,8 +114,7 @@ mod tests {
 		Repository {
 			owner: "shixinhuang99".to_string(),
 			name: "scafalra".to_string(),
-			subdir: None,
-			query: None,
+			..Repository::default()
 		}
 	}
 
@@ -169,8 +168,7 @@ mod tests {
 		let api_result = github_api.query_repository(&Repository {
 			owner: "foo".to_string(),
 			name: "bar".to_string(),
-			subdir: None,
-			query: None,
+			..Repository::default()
 		});
 
 		mock.assert();

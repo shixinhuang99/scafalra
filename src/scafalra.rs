@@ -106,7 +106,7 @@ impl Scafalra {
 	pub fn add(&mut self, args: AddArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let repo = Repository::parse(&args.repository)?;
+		let mut repo = Repository::parse(&args.repository)?;
 
 		println!("Downloading `{}` ...", args.repository);
 
@@ -114,22 +114,22 @@ impl Scafalra {
 
 		let mut template_name = args.name.unwrap_or(repo.name.clone());
 
-		let mut template_path =
+		let mut template_dir =
 			repo.cache(&repo_info.tarball_url, &self.cache_dir)?;
 
-		debug!("template_path: {:?}", template_path);
+		debug!("template_dir: {:?}", template_dir);
 
 		if let Some(ref subdir) = repo.subdir {
 			subdir
 				.components()
 				.filter(|c| matches!(c, Component::Normal(_)))
 				.for_each(|c| {
-					template_path.push(c);
+					template_dir.push(c);
 				});
 
-			debug!("template_path: {:?}", template_path);
+			debug!("template_path: {:?}", template_dir);
 
-			if let Some(name) = template_path.file_name() {
+			if let Some(name) = template_dir.file_name() {
 				template_name = name.to_string_lossy().to_string();
 			}
 		}
@@ -137,23 +137,25 @@ impl Scafalra {
 		if args.depth == 0 {
 			self.store.add(Template::new(
 				template_name,
-				repo_info.url.clone(),
-				template_path.clone(),
+				repo_info.url,
+				template_dir,
 			))
-		}
-
-		if args.depth == 1 {
-			for entry in template_path.read_dir()? {
+		} else if args.depth == 1 {
+			for entry in template_dir.read_dir()? {
 				let entry = entry?;
 				let file_type = entry.file_type()?;
 				let file_name = entry.file_name().to_string_lossy().to_string();
 
 				if file_type.is_dir() && !file_name.starts_with('.') {
+					let sub_template_dir = entry.path();
+
 					self.store.add(Template::new(
-						file_name,
-						repo_info.url.clone(),
-						entry.path(),
+						&file_name,
+						&repo_info.url,
+						&sub_template_dir,
 					))
+
+					// todo: template linkings
 				}
 			}
 		}

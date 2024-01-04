@@ -128,8 +128,7 @@ mod tests {
 		Repository {
 			owner: "shixinhuang99".to_string(),
 			name: "scafalra".to_string(),
-			subdir: None,
-			query: None,
+			..Repository::default()
 		}
 	}
 

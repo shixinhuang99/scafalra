@@ -27,11 +27,11 @@ pub struct Template {
 }
 
 impl Template {
-	pub fn new<N, U, L>(name: N, url: U, path: L) -> Self
+	pub fn new<N, U, P>(name: N, url: U, path: P) -> Self
 	where
 		N: AsRef<str>,
 		U: AsRef<str>,
-		L: AsRef<Path>,
+		P: AsRef<Path>,
 	{
 		let created_at = if cfg!(test) {
 			"2023-05-19 00:00:00".to_string()

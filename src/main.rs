@@ -1,3 +1,5 @@
+#![feature(lazy_cell)]
+
 mod cli;
 mod colorize;
 mod config;
@@ -6,6 +8,7 @@ mod github_api;
 mod json;
 mod path_ext;
 mod repository;
+mod repository_config;
 mod scafalra;
 mod store;
 mod utils;
