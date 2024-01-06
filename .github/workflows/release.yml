@@ -54,10 +54,9 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Install cross
-        if: matrix.build-tool == 'cross'
-        run: |
-          cargo +stable install cross
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cross
 
       - uses: taiki-e/upload-rust-binary-action@v1
         with:

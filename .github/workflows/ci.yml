@@ -32,11 +32,13 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Prepare
+      - name: Use rust nightly
         run: |
           cargo --version
-          cargo +stable install just
-          cargo +stable install taplo-cli
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just,taplo-cli
 
       - name: Run check
         run: |
@@ -73,10 +75,9 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Install cross
-        if: matrix.cross
-        run: |
-          cargo +stable install cross
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cross
 
       - name: Test code
         if: matrix.test
