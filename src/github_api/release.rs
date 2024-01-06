@@ -78,7 +78,9 @@ impl From<ReleaseResponseData> for Release {
 			.find(|v| v.download_url.contains(target))
 			.expect("Should find a matching release");
 
-		let Node { download_url } = node;
+		let Node {
+			download_url,
+		} = node;
 		let self_ver = parse_ver(get_self_version());
 		let release_ver = parse_ver(
 			download_url
@@ -96,7 +98,10 @@ impl From<ReleaseResponseData> for Release {
 }
 
 pub fn build_release_query() -> GraphQLQuery {
-	GraphQLQuery::new(RELEASE_GQL, ReleaseVariables::new().to_json())
+	GraphQLQuery::new(
+		RELEASE_GQL,
+		ReleaseVariables::new().to_json(),
+	)
 }
 
 #[cfg(test)]
@@ -106,7 +111,9 @@ pub fn mock_release_response_json(url: &str, ver: &str) -> String {
 	let mut data = ReleaseResponseData {
 		repository: RepositoryData {
 			latest_release: LatestRelease {
-				release_assets: ReleaseAssets { nodes: Vec::new() },
+				release_assets: ReleaseAssets {
+					nodes: Vec::new(),
+				},
 			},
 		},
 	};

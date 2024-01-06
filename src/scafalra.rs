@@ -26,7 +26,7 @@ use crate::{
 };
 
 pub struct Scafalra {
-	pub proj_dir: PathBuf,
+	pub path: PathBuf,
 	cache_dir: PathBuf,
 	#[cfg(feature = "self_update")]
 	update_dir: PathBuf,
@@ -41,20 +41,20 @@ impl Scafalra {
 	const UPDATE_DIR_NAME: &'static str = "update";
 
 	pub fn new(
-		proj_dir: PathBuf,
+		scfalra_dir: PathBuf,
 		endpoint: Option<&str>,
 		token: Option<&str>,
 	) -> Result<Self> {
-		let cache_dir = proj_dir.join(Self::CACHE_DIR_NAME);
+		let cache_dir = scfalra_dir.join(Self::CACHE_DIR_NAME);
 		#[cfg(feature = "self_update")]
-		let update_dir = proj_dir.join(Self::UPDATE_DIR_NAME);
+		let update_dir = scfalra_dir.join(Self::UPDATE_DIR_NAME);
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)?;
 		}
 
-		let config = Config::new(&proj_dir)?;
-		let store = Store::new(&proj_dir)?;
+		let config = Config::new(&scfalra_dir)?;
+		let store = Store::new(&scfalra_dir)?;
 		let github_api = GitHubApi::new(endpoint);
 
 		if let Some(token) = token.or_else(|| config.token()) {
@@ -62,7 +62,7 @@ impl Scafalra {
 		}
 
 		Ok(Self {
-			proj_dir,
+			path: scfalra_dir,
 			cache_dir,
 			config,
 			store,
@@ -72,7 +72,7 @@ impl Scafalra {
 		})
 	}
 
-	pub fn set_or_display_token(&mut self, args: TokenArgs) -> Result<()> {
+	pub fn token(&mut self, args: TokenArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
 		match args.token {
@@ -115,8 +115,10 @@ impl Scafalra {
 
 		let mut template_name = args.name.unwrap_or(repo.name.clone());
 
-		let mut template_dir =
-			repo.cache(&remote_repo.tarball_url, &self.cache_dir)?;
+		let mut template_dir = repo.cache(
+			&remote_repo.tarball_url,
+			&self.cache_dir,
+		)?;
 
 		debug!("template_dir: {:?}", template_dir);
 
@@ -147,8 +149,10 @@ impl Scafalra {
 				for entry in template_dir.read_dir()? {
 					let entry = entry?;
 					let file_type = entry.file_type()?;
-					let file_name =
-						entry.file_name().to_string_lossy().to_string();
+					let file_name = entry
+						.file_name()
+						.to_string_lossy()
+						.to_string();
 
 					if file_type.is_dir() && !file_name.starts_with('.') {
 						let sub_template_dir = entry.path();
@@ -330,7 +334,7 @@ impl Scafalra {
 				new_executable = Some(
 					entry
 						.path()
-						.join("scafalra")
+						.join("sca")
 						.with_extension(env::consts::EXE_EXTENSION),
 				);
 				break;
@@ -359,7 +363,7 @@ impl Scafalra {
 		debug!("args: {:#?}", args);
 
 		if !args.keep_data {
-			remove_dir_all::remove_dir_all(&self.proj_dir)?;
+			remove_dir_all::remove_dir_all(&self.path)?;
 		}
 
 		if cfg!(not(test)) {
@@ -426,7 +430,9 @@ mod tests {
 			fs::write(bar_dir.join("baz.txt"), "")?;
 			fs::write(
 				store_file,
-				StoreJsonMocker::new().push("bar", bar_dir).build(),
+				StoreJsonMocker::new()
+					.push("bar", bar_dir)
+					.build(),
 			)?;
 		}
 
@@ -469,7 +475,10 @@ mod tests {
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(mock_release_response_json(&server.url(), &higher_ver))
+			.with_body(mock_release_response_json(
+				&server.url(),
+				&higher_ver,
+			))
 			.create();
 
 		let download_mock = server
@@ -479,7 +488,11 @@ mod tests {
 					"/scafalra-{}-{}{}",
 					higher_ver,
 					get_self_target(),
-					if cfg!(windows) { ".zip" } else { ".tar.gz" }
+					if cfg!(windows) {
+						".zip"
+					} else {
+						".tar.gz"
+					}
 				)
 				.as_str(),
 			)
@@ -502,7 +515,11 @@ mod tests {
 			]))
 			.create();
 
-		Ok((server, query_release_mock, download_mock))
+		Ok((
+			server,
+			query_release_mock,
+			download_mock,
+		))
 	}
 
 	#[test]
@@ -532,7 +549,9 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = StoreJsonMocker::new().push("bar", &bar_dir).build();
+		let expected = StoreJsonMocker::new()
+			.push("bar", &bar_dir)
+			.build();
 
 		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
@@ -556,7 +575,9 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = StoreJsonMocker::new().push("foo", &bar_dir).build();
+		let expected = StoreJsonMocker::new()
+			.push("foo", &bar_dir)
+			.build();
 
 		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
@@ -584,7 +605,10 @@ mod tests {
 			.push("a", bar_dir.join("a"))
 			.push("b", bar_dir.join("b"))
 			.push("c", bar_dir.join("c"))
-			.push("node_modules", bar_dir.join("node_modules"))
+			.push(
+				"node_modules",
+				bar_dir.join("node_modules"),
+			)
 			.all_to_sub_template()
 			.build();
 
@@ -610,7 +634,9 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let a1_dir = scafalra.cache_dir.join_slash("foo/bar/a/a1");
-		let expected = StoreJsonMocker::new().push("a1", &a1_dir).build();
+		let expected = StoreJsonMocker::new()
+			.push("a1", &a1_dir)
+			.build();
 
 		assert!(a1_dir.exists());
 		assert_eq!(store_content, expected);
@@ -666,7 +692,11 @@ mod tests {
 			with: None,
 		})?;
 
-		assert!(temp_dir_path.join_slash("bar/baz.txt").exists());
+		assert!(
+			temp_dir_path
+				.join_slash("bar/baz.txt")
+				.exists()
+		);
 
 		Ok(())
 	}
@@ -692,7 +722,9 @@ mod tests {
 		let (server, query_release_mock, _) = mock_release_server()?;
 		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
 
-		scafalra.update(UpdateArgs { check: true })?;
+		scafalra.update(UpdateArgs {
+			check: true,
+		})?;
 
 		query_release_mock.assert();
 		assert!(!scafalra.update_dir.exists());
@@ -707,7 +739,9 @@ mod tests {
 			mock_release_server()?;
 		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
 
-		scafalra.update(UpdateArgs { check: false })?;
+		scafalra.update(UpdateArgs {
+			check: false,
+		})?;
 
 		query_release_mock.assert();
 		download_mock.assert();
@@ -721,9 +755,11 @@ mod tests {
 	fn test_scafalra_uninstall() -> Result<()> {
 		let (scafalra, _temp_dir) = mock_scafalra("", false)?;
 
-		scafalra.uninstall(UninstallArgs { keep_data: false })?;
+		scafalra.uninstall(UninstallArgs {
+			keep_data: false,
+		})?;
 
-		assert!(!scafalra.proj_dir.exists());
+		assert!(!scafalra.path.exists());
 
 		Ok(())
 	}
@@ -733,9 +769,11 @@ mod tests {
 	fn test_scafalra_uninstall_keep_data() -> Result<()> {
 		let (scafalra, _temp_dir) = mock_scafalra("", false)?;
 
-		scafalra.uninstall(UninstallArgs { keep_data: true })?;
+		scafalra.uninstall(UninstallArgs {
+			keep_data: true,
+		})?;
 
-		assert!(scafalra.proj_dir.exists());
+		assert!(scafalra.path.exists());
 
 		Ok(())
 	}
@@ -768,10 +806,18 @@ mod tests {
 		]));
 
 		let b_dir = template_dir.join("b");
-		assert!(b_dir.join_slash("shared-b/shared-b.txt").exists());
+		assert!(
+			b_dir
+				.join_slash("shared-b/shared-b.txt")
+				.exists()
+		);
 
 		let c_dir = template_dir.join("c");
-		assert!(c_dir.join_slash("shared-c/shared-c.txt").exists());
+		assert!(
+			c_dir
+				.join_slash("shared-c/shared-c.txt")
+				.exists()
+		);
 
 		Ok(())
 	}
