@@ -1,6 +1,6 @@
 use std::{
 	path::{Path, PathBuf},
-	sync::LazyLock,
+	sync::OnceLock,
 };
 
 use anyhow::Result;
@@ -13,12 +13,16 @@ use crate::{
 	utils::{download, tar_unpack},
 };
 
-static REPO_RE: LazyLock<Regex> = LazyLock::new(|| {
-	Regex::new(
-		r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$",
-	)
-	.unwrap()
-});
+static REPO_RE: OnceLock<Regex> = OnceLock::new();
+
+fn repo_re() -> &'static Regex {
+	REPO_RE.get_or_init(|| {
+		Regex::new(
+			r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$",
+		)
+		.unwrap()
+	})
+}
 
 #[derive(Default)]
 pub struct Repository {
@@ -37,7 +41,7 @@ pub enum Query {
 
 impl Repository {
 	pub fn parse(input: &str) -> Result<Self> {
-		let caps = REPO_RE
+		let caps = repo_re()
 			.captures(input)
 			.ok_or(anyhow::anyhow!(
 				"Could not parse the input: `{}`",
@@ -102,12 +106,12 @@ impl Repository {
 mod tests {
 	use anyhow::Result;
 
-	use super::{Query, Repository, REPO_RE};
+	use super::{repo_re, Query, Repository};
 	use crate::path_ext::*;
 
 	#[test]
 	fn test_repo_re_basic() {
-		let caps = REPO_RE.captures("foo/bar");
+		let caps = repo_re().captures("foo/bar");
 		assert!(caps.is_some());
 		let caps = caps.unwrap();
 		assert_eq!(&caps[1], "foo");
@@ -116,7 +120,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_re_subdir() {
-		let caps = REPO_RE.captures("foo/bar/path/to/dir");
+		let caps = repo_re().captures("foo/bar/path/to/dir");
 		assert!(caps.is_some());
 		let caps = caps.unwrap();
 		assert_eq!(&caps[1], "foo");
@@ -126,7 +130,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_re_branch() {
-		let caps = REPO_RE.captures("foo/bar?branch=main");
+		let caps = repo_re().captures("foo/bar?branch=main");
 		assert!(caps.is_some());
 		let caps = caps.unwrap();
 		assert_eq!(&caps[1], "foo");
@@ -138,7 +142,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_re_tag() {
-		let caps = REPO_RE.captures("foo/bar?tag=v1.0.0");
+		let caps = repo_re().captures("foo/bar?tag=v1.0.0");
 		assert!(caps.is_some());
 		let caps = caps.unwrap();
 		assert_eq!(&caps[1], "foo");
@@ -150,7 +154,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_re_commit() {
-		let caps = REPO_RE.captures("foo/bar?commit=abc123");
+		let caps = repo_re().captures("foo/bar?commit=abc123");
 		assert!(caps.is_some());
 		let caps = caps.unwrap();
 		assert_eq!(&caps[1], "foo");
@@ -162,13 +166,13 @@ mod tests {
 
 	#[test]
 	fn test_repo_re_query_empty() {
-		let caps = REPO_RE.captures("foo/bar?commit= ");
+		let caps = repo_re().captures("foo/bar?commit= ");
 		assert!(caps.is_none());
 	}
 
 	#[test]
 	fn test_repo_re_full() {
-		let caps = REPO_RE.captures("foo/bar/path/to/dir?branch=main");
+		let caps = repo_re().captures("foo/bar/path/to/dir?branch=main");
 		assert!(caps.is_some());
 		let caps = caps.unwrap();
 		assert_eq!(&caps[1], "foo");
@@ -183,7 +187,7 @@ mod tests {
 
 	#[test]
 	fn test_repo_re_none_match() {
-		let caps = REPO_RE.captures("foo");
+		let caps = repo_re().captures("foo");
 		assert!(caps.is_none());
 	}
 
