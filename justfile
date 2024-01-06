@@ -1,6 +1,9 @@
 default:
 	just --list --unsorted
 
+alias rp := release-pr
+alias pt := push-tag
+
 fmt:
 	cargo fmt --all
 	taplo fmt

@@ -1,3 +1,5 @@
+#![feature(lazy_cell)]
+
 mod cli;
 mod colorize;
 mod config;
@@ -6,6 +8,7 @@ mod github_api;
 mod json;
 mod path_ext;
 mod repository;
+mod repository_config;
 mod scafalra;
 mod store;
 mod utils;
@@ -27,7 +30,7 @@ fn main() {
 fn try_main() -> Result<()> {
 	let cli = Cli::parse();
 
-	if cli.debug || env::var("DEBUG_LOG").is_ok() {
+	if cli.debug || env::var("SCAFALRA_DEBUG").is_ok() {
 		trun_on_debug();
 	}
 

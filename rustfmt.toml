@@ -6,5 +6,4 @@ imports_granularity = "Crate"
 use_field_init_shorthand = true
 edition = "2021"
 wrap_comments = true
-format_strings = true
 hard_tabs = true

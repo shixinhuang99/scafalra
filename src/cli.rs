@@ -26,19 +26,19 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Command {
-	/// List all scaffolds
+	/// List all templates
 	List(ListArgs),
 
-	/// Remove specified scaffolds
+	/// Remove specified templates
 	Remove(RemoveArgs),
 
-	/// Rename a scaffold
+	/// Rename a template
 	Mv(MvArgs),
 
-	/// Add scaffolds from GitHub repository
+	/// Add templates from GitHub repository
 	Add(AddArgs),
 
-	/// Copy the scaffold folder to the specified directory
+	/// Copy the template folder to the specified directory
 	Create(CreateArgs),
 
 	/// Configure or display your GitHub personal access token
@@ -86,7 +86,7 @@ pub struct AddArgs {
     )]
 	pub depth: u8,
 
-	/// Specify scaffold name, if a subdir is provided, the last level of the
+	/// Specify template name, if a subdir is provided, the last level of the
 	/// subdir will be used as the name
 	#[arg(long)]
 	pub name: Option<String>,
@@ -94,11 +94,15 @@ pub struct AddArgs {
 
 #[derive(Args, Debug)]
 pub struct CreateArgs {
-	/// Scaffold name
+	/// Template name
 	pub name: String,
 
 	/// Specified directory(defaults to the current directory)
 	pub directory: Option<PathBuf>,
+
+	/// Comma-separated list of glob
+	#[arg(long)]
+	pub with: Option<String>,
 }
 
 #[derive(Args, Debug)]

@@ -1,6 +1,6 @@
 # Scafalra
 
-command-line interface tool for manage scaffolding
+`scafalra` is a command-line interface tool for manage templates
 
 ## Installation
 
@@ -25,18 +25,18 @@ scafalra token your_token
 ## Usage
 
 ```
-scafalra is a command-line interface tool for manage scaffold
+scafalra is a command-line interface tool for manage templates
 
 Usage: scafalra [OPTIONS] [COMMAND]
 
 Commands:
-  list       List all scaffolds
-  remove     Remove specified scaffolds
-  mv         Rename a scaffold
-  add        Add scaffolds from GitHub repository
-  create     Copy the scaffold folder to the specified directory
-  token      Configure or display your GitHub personal access token
-  help       Print this message or the help of the given subcommand(s)
+  list    List all templates
+  remove  Remove specified templates
+  mv      Rename a template
+  add     Add templates from GitHub repository
+  create  Copy the template folder to the specified directory
+  token   Configure or display your GitHub personal access token
+  help    Print this message or the help of the given subcommand(s)
 
 Options:
       --debug          Use debug output
@@ -46,10 +46,138 @@ Options:
   -V, --version        Print version
 ```
 
-### proxy support
+## Example
+
+### Proxy support
 
 ```bash
 # linux/macos
 export https_proxy=your_proxy
 scafalra add user/repo
+```
+
+### Repository config
+
+if a repository `foo/bar` looks like the following:
+
+```
+.
+├── a
+│   ├── a1
+│   │   └── a1.txt
+│   ├── a2
+│   │   └── a2.txt
+│   └── a3
+│       └── a3.txt
+└── .scafalra
+    ├── common.txt
+    ├── copy-all-in-dir
+    │   ├── copy-all-in-dir-2
+    │   │   └── copy-all-in-dir-2.txt
+    │   └── copy-all-in-dir.txt
+    ├── copy-dir
+    │   ├── copy-dir.txt
+    │   └── cpoy-dir-2
+    │       └── copy-dir-2.txt
+    ├── scafalra.json
+    └── shared-a
+        └── shared-a.txt
+```
+
+And the configuration file looks like this:
+
+```json
+{
+  "linking": {
+    "a": ["common.txt", "copy-dir", "copy-all-in-dir/**", "shared-a"]
+  }
+}
+```
+
+With the `scafalra add foo/bar --depth 1` command, the local cache will look like the following:
+
+```
+├── foo
+│   └── bar
+│       ├── a
+│       │   ├── a1
+│       │   │   └── a1.txt
+│       │   ├── a2
+│       │   │   └── a2.txt
+│       │   ├── a3
+│       │   │   └── a3.txt
+│       │   ├── common.txt
+│       │   ├── copy-all-in-dir-2
+│       │   │   └── copy-all-in-dir-2.txt
+│       │   ├── copy-all-in-dir.txt
+│       │   └── copy-dir
+│       │       ├── copy-dir.txt
+│       │       └── cpoy-dir-2
+│       │           └── copy-dir-2.txt
+│       └── .scafalra
+│           ├── common.txt
+│           ├── copy-all-in-dir
+│           │   ├── copy-all-in-dir-2
+│           │   │   └── copy-all-in-dir-2.txt
+│           │   └── copy-all-in-dir.txt
+│           ├── copy-dir
+│           │   ├── copy-dir.txt
+│           │   └── cpoy-dir-2
+│           │       └── copy-dir-2.txt
+│           ├── scafalra.json
+│           └── shared-a
+│               └── shared-a.txt
+```
+
+### The `--with` parameter of the `create` command
+
+The local cache is as follows:
+
+```
+├── foo
+│   └── bar
+│       ├── a
+│       │   ├── a1
+│       │   │   └── a1.txt
+│       │   ├── a2
+│       │   │   └── a2.txt
+│       │   └── a3
+│       │       └── a3.txt
+│       └── .scafalra
+│           ├── common.txt
+│           ├── copy-all-in-dir
+│           │   ├── copy-all-in-dir-2
+│           │   │   └── copy-all-in-dir-2.txt
+│           │   └── copy-all-in-dir.txt
+│           ├── copy-dir
+│           │   ├── copy-dir.txt
+│           │   └── cpoy-dir-2
+│           │       └── copy-dir-2.txt
+│           ├── scafalra.json
+│           └── shared-a
+│               └── shared-a.txt
+```
+
+```bash
+scafalra create a --with "common.txt,copy-dir,copy-all-in-dir/**"
+```
+
+The created project will look like this:
+
+```
+├── a
+│   ├── a1
+│   │   └── a1.txt
+│   ├── a2
+│   │   └── a2.txt
+│   ├── a3
+│   │   └── a3.txt
+│   ├── common.txt
+│   ├── copy-all-in-dir-2
+│   │   └── copy-all-in-dir-2.txt
+│   ├── copy-all-in-dir.txt
+│   └── copy-dir
+│       ├── copy-dir.txt
+│       └── cpoy-dir-2
+│           └── copy-dir-2.txt
 ```

@@ -1,0 +1,5 @@
+{
+  "copyOnAdd": {
+    "foo": ["baz"]
+  }
+}
