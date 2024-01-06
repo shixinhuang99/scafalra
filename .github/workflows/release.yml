@@ -61,7 +61,7 @@ jobs:
 
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: scafalra
+          bin: sca
           target: ${{ matrix.target }}
           build-tool: ${{ matrix.build-tool }}
           token: ${{ secrets.GITHUB_TOKEN }}
