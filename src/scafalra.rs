@@ -1,6 +1,6 @@
 use std::{
 	env,
-	path::{Component, PathBuf},
+	path::{Component, Path, PathBuf},
 };
 
 use anyhow::Result;
@@ -16,7 +16,8 @@ use crate::{
 	debug,
 	github_api::GitHubApi,
 	repository::Repository,
-	store::{Store, Template},
+	repository_config::RepositoryConfig,
+	store::{Store, Template, TemplateBuilder},
 };
 #[cfg(feature = "self_update")]
 use crate::{
@@ -106,7 +107,7 @@ impl Scafalra {
 	pub fn add(&mut self, args: AddArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let mut repo = Repository::parse(&args.repository)?;
+		let repo = Repository::parse(&args.repository)?;
 
 		println!("Downloading `{}` ...", args.repository);
 
@@ -119,7 +120,7 @@ impl Scafalra {
 
 		debug!("template_dir: {:?}", template_dir);
 
-		if let Some(ref subdir) = repo.subdir {
+		if let Some(subdir) = repo.subdir {
 			subdir
 				.components()
 				.filter(|c| matches!(c, Component::Normal(_)))
@@ -128,13 +129,13 @@ impl Scafalra {
 				});
 
 			debug!("template_path: {:?}", template_dir);
-
-			if let Some(name) = template_dir.file_name() {
-				template_name = name.to_string_lossy().to_string();
-			}
 		}
 
 		if args.depth == 0 {
+			if let Some(name) = template_dir.file_name() {
+				template_name = name.to_string_lossy().to_string();
+			}
+
 			self.store.add(Template::new(
 				template_name,
 				repo_info.url,
@@ -149,20 +150,54 @@ impl Scafalra {
 				if file_type.is_dir() && !file_name.starts_with('.') {
 					let sub_template_dir = entry.path();
 
-					self.store.add(Template::new(
-						&file_name,
-						&repo_info.url,
-						&sub_template_dir,
-					))
-
-					// todo: template linkings
+					self.store.add(
+						TemplateBuilder::new(
+							&file_name,
+							&repo_info.url,
+							&sub_template_dir,
+						)
+						.sub_template(true)
+						.build(),
+					);
 				}
 			}
+
+			self.copy_on_add(&template_dir);
 		}
 
 		self.store.save()?;
 
 		Ok(())
+	}
+
+	fn copy_on_add(&self, template_dir: &Path) {
+		use globwalk::{GlobWalker, GlobWalkerBuilder};
+
+		if let Ok(repo_cfg) = RepositoryConfig::load(template_dir) {
+			let template_gw_list = repo_cfg
+				.copy_on_add
+				.iter()
+				.filter_map(|(name, globs)| {
+					if let Some(template) = self.store.get(name) {
+						if let Ok(gw) = GlobWalkerBuilder::from_patterns(
+							template_dir.join(RepositoryConfig::DIR_NAME),
+							globs,
+						)
+						.case_insensitive(true)
+						.build()
+						{
+							return Some((template, gw));
+						}
+					};
+
+					None
+				})
+				.collect::<Vec<(&Template, GlobWalker)>>();
+
+			for (template, gw) in template_gw_list {
+				copy_by_glob_walker(gw, &template.path);
+			}
+		}
 	}
 
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
@@ -174,9 +209,9 @@ impl Scafalra {
 
 		let cwd = env::current_dir()?;
 
-		debug!("current directory: {:?}", cwd);
+		debug!("cwd: {:?}", cwd);
 
-		let dst = if let Some(arg_dir) = args.directory {
+		let dest = if let Some(arg_dir) = args.directory {
 			if arg_dir.is_absolute() {
 				arg_dir
 			} else {
@@ -186,19 +221,42 @@ impl Scafalra {
 			cwd.join(args.name)
 		};
 
-		debug!("target directory: {:?}", dst);
+		debug!("dest: {:?}", dest);
 
-		let dst_display = dst.to_string_lossy();
+		let dest_display = dest.to_string_lossy();
 
-		if dst.exists() {
-			anyhow::bail!("`{}` is already exists", dst_display);
+		if dest.exists() {
+			anyhow::bail!("`{}` is already exists", dest_display);
 		}
 
-		dircpy::copy_dir(&template.path, &dst)?;
+		dircpy::copy_dir(&template.path, &dest)?;
 
-		println!("Created in `{}`", dst_display);
+		if let Some(with) = args.with {
+			if template.is_sub_template.is_some_and(|v| v) {
+				if let Some(parent) = template.path.parent() {
+					self.copy_on_create(parent, &dest, with);
+				};
+			}
+		}
+
+		println!("Created in `{}`", dest_display);
 
 		Ok(())
+	}
+
+	fn copy_on_create(&self, from: &Path, dest: &Path, with: String) {
+		let mut globs = with
+			.split(',')
+			.filter(|v| !v.is_empty())
+			.collect::<Vec<_>>();
+		globs.dedup();
+
+		if let Ok(gw) = globwalk::GlobWalkerBuilder::from_patterns(from, &globs)
+			.case_insensitive(true)
+			.build()
+		{
+			copy_by_glob_walker(gw, dest);
+		}
 	}
 
 	pub fn mv(&mut self, args: MvArgs) -> Result<()> {
@@ -309,11 +367,27 @@ impl Scafalra {
 	}
 }
 
+fn copy_by_glob_walker(gw: globwalk::GlobWalker, dest: &Path) {
+	for matching in gw.filter_map(|ret| ret.ok()) {
+		let matching_path = matching.path();
+		debug!("matching_path: {:?}", matching_path);
+		let entry_type = matching.file_type();
+		let entry_name = matching.file_name();
+		let curr_dest = dest.join(entry_name);
+		debug!("dst: {:?}", curr_dest);
+		if entry_type.is_dir() {
+			let _ = dircpy::CopyBuilder::new(matching_path, curr_dest)
+				.overwrite(true)
+				.run();
+		} else if entry_type.is_file() {
+			let _ = fs::copy(matching_path, curr_dest);
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
-	use std::fs;
-	#[cfg(feature = "self_update")]
-	use std::path::PathBuf;
+	use std::{fs, path::PathBuf};
 
 	use anyhow::Result;
 	use mockito::{Mock, ServerGuard};
@@ -580,6 +654,7 @@ mod tests {
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
 			directory: Some(temp_dir_path.join("bar")),
+			with: None,
 		})?;
 
 		assert!(temp_dir_path.join_slash("bar/baz.txt").exists());
@@ -594,6 +669,7 @@ mod tests {
 		let ret = scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			directory: None,
+			with: None,
 		});
 
 		assert!(ret.is_err());
@@ -651,6 +727,73 @@ mod tests {
 		scafalra.uninstall(UninstallArgs { keep_data: true })?;
 
 		assert!(scafalra.proj_dir.exists());
+
+		Ok(())
+	}
+
+	fn is_all_exists(paths: &[PathBuf]) -> bool {
+		paths.iter().any(|p| !p.exists())
+	}
+
+	#[test]
+	fn test_scafalra_copy_on_add() -> Result<()> {
+		let (server, _query_repo_mock, _download_mock) = mock_repo_server()?;
+		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+
+		scafalra.add(AddArgs {
+			repository: "foo/bar".to_string(),
+			depth: 1,
+			name: Some("foo".to_string()),
+		})?;
+
+		let template_dir = scafalra.cache_dir.join_slash("foo/bar");
+
+		let a_dir = template_dir.join("a");
+		assert!(is_all_exists(&[
+			a_dir.join("common.txt"),
+			a_dir.join_slash("copy-dir/copy-dir.txt"),
+			a_dir.join_slash("copy-dir/copy-dir-2/copy-dir-2.txt"),
+			a_dir.join("copy-all-in-dir.txt"),
+			a_dir.join_slash("copy-all-in-dir-2/copy-all-in-dir-2.txt"),
+			a_dir.join_slash("shared-a/shared-a.txt")
+		]));
+
+		let b_dir = template_dir.join("b");
+		assert!(b_dir.join_slash("shared-b/shared-b.txt").exists());
+
+		let c_dir = template_dir.join("c");
+		assert!(c_dir.join_slash("shared-c/shared-c.txt").exists());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_copy_on_create() -> Result<()> {
+		let (server, _query_repo_mock, _download_mock) = mock_repo_server()?;
+		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+
+		scafalra.add(AddArgs {
+			repository: "foo/bar".to_string(),
+			depth: 1,
+			name: Some("foo".to_string()),
+		})?;
+
+		let tmp_dir = tempdir()?;
+		let dest = tmp_dir.path().join("dest");
+
+		scafalra.create(CreateArgs {
+			name: "b".to_string(),
+			directory: Some(dest.clone()),
+			with: Some("common.txt,copy-dir,copy-all-in-dir/**".to_string()),
+		})?;
+
+		assert!(is_all_exists(&[
+			dest.join("common.txt"),
+			dest.join_slash("copy-dir/copy-dir.txt"),
+			dest.join_slash("copy-dir/copy-dir-2/copy-dir-2.txt"),
+			dest.join("copy-all-in-dir.txt"),
+			dest.join_slash("copy-all-in-dir-2/copy-all-in-dir-2.txt"),
+		]));
 
 		Ok(())
 	}

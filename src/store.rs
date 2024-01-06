@@ -24,9 +24,30 @@ pub struct Template {
 	pub path: PathBuf,
 	#[tabled(rename = "created at")]
 	pub created_at: String,
+	#[tabled(skip)]
+	pub is_sub_template: Option<bool>,
 }
 
 impl Template {
+	pub fn new<N, U, P>(name: N, url: U, path: P) -> Self
+	where
+		N: AsRef<str>,
+		U: AsRef<str>,
+		P: AsRef<Path>,
+	{
+		TemplateBuilder::new(name, url, path).build()
+	}
+}
+
+pub struct TemplateBuilder {
+	pub name: String,
+	pub url: String,
+	pub path: PathBuf,
+	pub created_at: String,
+	pub is_sub_template: Option<bool>,
+}
+
+impl TemplateBuilder {
 	pub fn new<N, U, P>(name: N, url: U, path: P) -> Self
 	where
 		N: AsRef<str>,
@@ -44,6 +65,26 @@ impl Template {
 			url: String::from(url.as_ref()),
 			path: PathBuf::from(path.as_ref()),
 			created_at,
+			is_sub_template: None,
+		}
+	}
+
+	pub fn build(self) -> Template {
+		Template {
+			name: self.name,
+			url: self.url,
+			path: self.path,
+			created_at: self.created_at,
+			is_sub_template: self.is_sub_template,
+		}
+	}
+
+	pub fn sub_template(self, value: bool) -> Self {
+		let is_sub_template = value.then_some(true);
+
+		Self {
+			is_sub_template,
+			..self
 		}
 	}
 }

@@ -46,10 +46,138 @@ Options:
   -V, --version        Print version
 ```
 
-### proxy support
+## Example
+
+### Proxy support
 
 ```bash
 # linux/macos
 export https_proxy=your_proxy
 scafalra add user/repo
+```
+
+### Repository config
+
+if a repository `foo/bar` looks like the following:
+
+```
+.
+├── a
+│   ├── a1
+│   │   └── a1.txt
+│   ├── a2
+│   │   └── a2.txt
+│   └── a3
+│       └── a3.txt
+└── .scafalra
+    ├── common.txt
+    ├── copy-all-in-dir
+    │   ├── copy-all-in-dir-2
+    │   │   └── copy-all-in-dir-2.txt
+    │   └── copy-all-in-dir.txt
+    ├── copy-dir
+    │   ├── copy-dir.txt
+    │   └── cpoy-dir-2
+    │       └── copy-dir-2.txt
+    ├── scafalra.json
+    └── shared-a
+        └── shared-a.txt
+```
+
+And the configuration file looks like this:
+
+```json
+{
+  "linking": {
+    "a": ["common.txt", "copy-dir", "copy-all-in-dir/**", "shared-a"]
+  }
+}
+```
+
+With the `scafalra add foo/bar --depth 1` command, the local cache will look like the following:
+
+```
+├── foo
+│   └── bar
+│       ├── a
+│       │   ├── a1
+│       │   │   └── a1.txt
+│       │   ├── a2
+│       │   │   └── a2.txt
+│       │   ├── a3
+│       │   │   └── a3.txt
+│       │   ├── common.txt
+│       │   ├── copy-all-in-dir-2
+│       │   │   └── copy-all-in-dir-2.txt
+│       │   ├── copy-all-in-dir.txt
+│       │   └── copy-dir
+│       │       ├── copy-dir.txt
+│       │       └── cpoy-dir-2
+│       │           └── copy-dir-2.txt
+│       └── .scafalra
+│           ├── common.txt
+│           ├── copy-all-in-dir
+│           │   ├── copy-all-in-dir-2
+│           │   │   └── copy-all-in-dir-2.txt
+│           │   └── copy-all-in-dir.txt
+│           ├── copy-dir
+│           │   ├── copy-dir.txt
+│           │   └── cpoy-dir-2
+│           │       └── copy-dir-2.txt
+│           ├── scafalra.json
+│           └── shared-a
+│               └── shared-a.txt
+```
+
+### The `--with` parameter of the `create` command
+
+The local cache is as follows:
+
+```
+├── foo
+│   └── bar
+│       ├── a
+│       │   ├── a1
+│       │   │   └── a1.txt
+│       │   ├── a2
+│       │   │   └── a2.txt
+│       │   └── a3
+│       │       └── a3.txt
+│       └── .scafalra
+│           ├── common.txt
+│           ├── copy-all-in-dir
+│           │   ├── copy-all-in-dir-2
+│           │   │   └── copy-all-in-dir-2.txt
+│           │   └── copy-all-in-dir.txt
+│           ├── copy-dir
+│           │   ├── copy-dir.txt
+│           │   └── cpoy-dir-2
+│           │       └── copy-dir-2.txt
+│           ├── scafalra.json
+│           └── shared-a
+│               └── shared-a.txt
+```
+
+```bash
+scafalra create a --with "common.txt,copy-dir,copy-all-in-dir/**"
+```
+
+The created project will look like this:
+
+```
+├── a
+│   ├── a1
+│   │   └── a1.txt
+│   ├── a2
+│   │   └── a2.txt
+│   ├── a3
+│   │   └── a3.txt
+│   ├── common.txt
+│   ├── copy-all-in-dir-2
+│   │   └── copy-all-in-dir-2.txt
+│   ├── copy-all-in-dir.txt
+│   └── copy-dir
+│       ├── copy-dir.txt
+│       └── cpoy-dir-2
+│           └── copy-dir-2.txt
 ```

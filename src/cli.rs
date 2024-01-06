@@ -99,6 +99,10 @@ pub struct CreateArgs {
 
 	/// Specified directory(defaults to the current directory)
 	pub directory: Option<PathBuf>,
+
+	/// Comma-separated list of glob
+	#[arg(long)]
+	pub with: Option<String>,
 }
 
 #[derive(Args, Debug)]

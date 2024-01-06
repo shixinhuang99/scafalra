@@ -1,32 +1,27 @@
 use std::{collections::HashMap, path::Path};
 
+use anyhow::Result;
 use fs_err as fs;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RepositoryConfig {
-	pub linking: HashMap<String, Vec<String>>,
+	pub copy_on_add: HashMap<String, Vec<String>>,
 }
 
 impl RepositoryConfig {
-	const FILE_PATH: &'static str = ".scafalra/scafalra.json";
+	pub const DIR_NAME: &'static str = ".scafalra";
+	pub const FILE_NAME: &'static str = "scafalra.json";
 
-	pub fn new() -> Self {
-		Self {
-			linking: HashMap::with_capacity(0),
-		}
-	}
-
-	pub fn load(&mut self, template_dir: &Path) {
+	pub fn load(template_dir: &Path) -> Result<Self> {
 		use crate::path_ext::*;
 
-		let file = template_dir.join_slash(Self::FILE_PATH);
+		let file = template_dir.join_iter([Self::DIR_NAME, Self::FILE_NAME]);
+		let content = fs::read_to_string(file)?;
+		let value: Self = serde_json::from_str(&content)?;
 
-		if let Ok(content) = fs::read_to_string(file) {
-			if let Ok(value) = serde_json::from_str::<Self>(&content) {
-				self.linking = value.linking;
-			}
-		}
+		Ok(value)
 	}
 }
 
@@ -41,12 +36,10 @@ mod tests {
 	#[test]
 	fn test_config_file_exists() -> Result<()> {
 		let template_dir = PathBuf::from("fixtures");
-		let mut repo_cfg = RepositoryConfig::new();
-
-		repo_cfg.load(&template_dir);
+		let repo_cfg = RepositoryConfig::load(&template_dir)?;
 
 		assert_eq!(
-			repo_cfg.linking,
+			repo_cfg.copy_on_add,
 			HashMap::from_iter([("foo".to_string(), vec!["baz".to_string()])])
 		);
 
@@ -56,11 +49,9 @@ mod tests {
 	#[test]
 	fn test_config_file_not_exists() -> Result<()> {
 		let template_dir = tempfile::tempdir()?;
-		let mut repo_cfg = RepositoryConfig::new();
+		let repo_cfg = RepositoryConfig::load(template_dir.path())?;
 
-		repo_cfg.load(template_dir.path());
-
-		assert!(repo_cfg.linking.is_empty());
+		assert!(repo_cfg.copy_on_add.is_empty());
 
 		Ok(())
 	}

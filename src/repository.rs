@@ -10,7 +10,6 @@ use remove_dir_all::remove_dir_all;
 use crate::{
 	debug,
 	path_ext::*,
-	repository_config::RepositoryConfig,
 	utils::{download, tar_unpack},
 };
 
@@ -19,12 +18,12 @@ static REPO_RE: LazyLock<Regex> = LazyLock::new(|| {
 	Regex::new(RE).unwrap()
 });
 
+#[derive(Default)]
 pub struct Repository {
 	pub owner: String,
 	pub name: String,
 	pub subdir: Option<PathBuf>,
 	pub query: Option<Query>,
-	pub config: RepositoryConfig,
 }
 
 #[derive(PartialEq, Debug)]
@@ -32,18 +31,6 @@ pub enum Query {
 	Branch(String),
 	Tag(String),
 	Commit(String),
-}
-
-impl Default for Repository {
-	fn default() -> Self {
-		Self {
-			owner: "".to_string(),
-			name: "".to_string(),
-			subdir: None,
-			query: None,
-			config: RepositoryConfig::new(),
-		}
-	}
 }
 
 impl Repository {
@@ -71,11 +58,10 @@ impl Repository {
 			name,
 			subdir,
 			query,
-			config: RepositoryConfig::new(),
 		})
 	}
 
-	pub fn cache(&mut self, url: &str, cache_dir: &Path) -> Result<PathBuf> {
+	pub fn cache(&self, url: &str, cache_dir: &Path) -> Result<PathBuf> {
 		let temp_dir = cache_dir.join("t");
 		let tarball = temp_dir.with_extension("tar.gz");
 
@@ -100,8 +86,6 @@ impl Repository {
 		dircpy::copy_dir(first_inner_dir, &template_dir)?;
 
 		remove_dir_all(temp_dir)?;
-
-		self.config.load(&template_dir);
 
 		Ok(template_dir)
 	}
@@ -228,7 +212,7 @@ mod tests {
 		let temp_dir = tempfile::tempdir()?;
 		let temp_dir_path = temp_dir.path();
 
-		let mut repo = Repository::parse("shixinhuang99/scafalra")?;
+		let repo = Repository::parse("shixinhuang99/scafalra")?;
 		repo.cache(&server.url(), temp_dir_path)?;
 
 		mock.assert();
