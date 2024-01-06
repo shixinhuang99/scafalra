@@ -24,7 +24,10 @@ impl Config {
 		let path = scafalra_dir.join(Self::FILE_NAME);
 		let content = ConfigContent::load(&path)?;
 
-		Ok(Self { path, content })
+		Ok(Self {
+			path,
+			content,
+		})
 	}
 
 	pub fn save(&self) -> Result<()> {

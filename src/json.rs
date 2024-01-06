@@ -18,7 +18,10 @@ where
 			}
 		}
 		let default = Self::default();
-		fs::write(file_path, serde_json::to_string_pretty(&default)?)?;
+		fs::write(
+			file_path,
+			serde_json::to_string_pretty(&default)?,
+		)?;
 
 		Ok(default)
 	}

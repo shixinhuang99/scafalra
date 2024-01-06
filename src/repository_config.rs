@@ -44,7 +44,10 @@ mod tests {
 
 		assert_eq!(
 			repo_cfg.copy_on_add,
-			HashMap::from_iter([("foo".to_string(), vec!["baz".to_string()])])
+			HashMap::from_iter([(
+				"foo".to_string(),
+				vec!["baz".to_string()]
+			)])
 		);
 
 		Ok(())

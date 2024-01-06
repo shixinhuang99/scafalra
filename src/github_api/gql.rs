@@ -12,7 +12,10 @@ impl GraphQLQuery {
 	pub fn new(query: &'static str, variables: String) -> Self {
 		debug!("GraphQL variables json: {}", variables);
 
-		Self { query, variables }
+		Self {
+			query,
+			variables,
+		}
 	}
 }
 

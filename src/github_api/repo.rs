@@ -20,14 +20,15 @@ struct RepoVariables {
 
 impl RepoVariables {
 	pub fn new(repo: &Repository) -> Self {
-		let (expression, oid) = match repo.query {
-			Some(Query::Branch(ref branch)) => {
-				(Some(format!("refs/heads/{}", branch)), None)
+		let (expression, oid) = match &repo.query {
+			Some(Query::Branch(branch)) => {
+				(
+					Some(format!("refs/heads/{}", branch)),
+					None,
+				)
 			}
-			Some(Query::Tag(ref tag)) => {
-				(Some(format!("refs/tags/{}", tag)), None)
-			}
-			Some(Query::Commit(ref oid)) => (None, Some(oid.clone())),
+			Some(Query::Tag(tag)) => (Some(format!("refs/tags/{}", tag)), None),
+			Some(Query::Commit(oid)) => (None, Some(oid.clone())),
 			_ => (None, None),
 		};
 
@@ -88,12 +89,18 @@ impl From<RepoResponseData> for RemoteRepo {
 			None => default_branch_ref.target.tarball_url,
 		};
 
-		Self { tarball_url, url }
+		Self {
+			tarball_url,
+			url,
+		}
 	}
 }
 
 pub fn build_repo_query(repo: &Repository) -> GraphQLQuery {
-	GraphQLQuery::new(REPO_GQL, RepoVariables::new(repo).to_json())
+	GraphQLQuery::new(
+		REPO_GQL,
+		RepoVariables::new(repo).to_json(),
+	)
 }
 
 #[cfg(test)]
@@ -153,7 +160,10 @@ mod tests {
 		assert_eq!(&v.name, "scafalra");
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
-		assert_eq!(v.expression, Some("refs/heads/foo".to_string()));
+		assert_eq!(
+			v.expression,
+			Some("refs/heads/foo".to_string())
+		);
 		assert!(!v.is_default_branch);
 	}
 
@@ -167,7 +177,10 @@ mod tests {
 		assert_eq!(&v.name, "scafalra");
 		assert_eq!(&v.owner, "shixinhuang99");
 		assert_eq!(v.oid, None);
-		assert_eq!(v.expression, Some("refs/tags/foo".to_string()));
+		assert_eq!(
+			v.expression,
+			Some("refs/tags/foo".to_string())
+		);
 		assert!(!v.is_default_branch);
 	}
 
