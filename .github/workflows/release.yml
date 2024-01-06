@@ -82,10 +82,6 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Use rust nightly
-        run: |
-          cargo --version
-
       - name: Publish crates.io
         run: |
-          cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo +stable publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

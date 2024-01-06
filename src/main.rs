@@ -1,5 +1,3 @@
-#![feature(lazy_cell)]
-
 mod cli;
 mod colorize;
 mod config;
