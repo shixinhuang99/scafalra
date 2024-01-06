@@ -46,7 +46,7 @@ impl RepoVariables {
 impl ToJson for RepoVariables {}
 
 #[derive(Debug)]
-pub struct RepoInfo {
+pub struct RemoteRepo {
 	pub tarball_url: String,
 	pub url: String,
 }
@@ -75,7 +75,7 @@ struct Target {
 	tarball_url: String,
 }
 
-impl From<RepoResponseData> for RepoInfo {
+impl From<RepoResponseData> for RemoteRepo {
 	fn from(value: RepoResponseData) -> Self {
 		let RepositoryData {
 			default_branch_ref,

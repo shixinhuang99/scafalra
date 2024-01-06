@@ -4,7 +4,7 @@ use anyhow::Result;
 use fs_err as fs;
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct RepositoryConfig {
 	pub copy_on_add: HashMap<String, Vec<String>>,
@@ -14,7 +14,7 @@ impl RepositoryConfig {
 	pub const DIR_NAME: &'static str = ".scafalra";
 	pub const FILE_NAME: &'static str = "scafalra.json";
 
-	pub fn load(template_dir: &Path) -> Result<Self> {
+	fn try_load(template_dir: &Path) -> Result<Self> {
 		use crate::path_ext::*;
 
 		let file = template_dir.join_iter([Self::DIR_NAME, Self::FILE_NAME]);
@@ -22,6 +22,10 @@ impl RepositoryConfig {
 		let value: Self = serde_json::from_str(&content)?;
 
 		Ok(value)
+	}
+
+	pub fn load(template_dir: &Path) -> Self {
+		Self::try_load(template_dir).unwrap_or_default()
 	}
 }
 
@@ -36,7 +40,7 @@ mod tests {
 	#[test]
 	fn test_config_file_exists() -> Result<()> {
 		let template_dir = PathBuf::from("fixtures");
-		let repo_cfg = RepositoryConfig::load(&template_dir)?;
+		let repo_cfg = RepositoryConfig::load(&template_dir);
 
 		assert_eq!(
 			repo_cfg.copy_on_add,
@@ -49,7 +53,7 @@ mod tests {
 	#[test]
 	fn test_config_file_not_exists() -> Result<()> {
 		let template_dir = tempfile::tempdir()?;
-		let repo_cfg = RepositoryConfig::load(template_dir.path())?;
+		let repo_cfg = RepositoryConfig::load(template_dir.path());
 
 		assert!(repo_cfg.copy_on_add.is_empty());
 

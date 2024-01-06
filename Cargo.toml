@@ -38,6 +38,7 @@ zip = { version = "0.6.6", optional = true }
 
 [dev-dependencies]
 mockito = "1.0.2"
+similar-asserts = "1.5.0"
 tempfile = "3.5.0"
 
 [profile.release]

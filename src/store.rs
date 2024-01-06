@@ -254,16 +254,48 @@ impl Store {
 }
 
 #[cfg(test)]
-pub fn mock_store_json<T, const N: usize>(data: [(&str, T); N]) -> String
-where
-	T: AsRef<Path>,
-{
-	let content =
-		TemplateMap(BTreeMap::from_iter(data.into_iter().map(|ele| {
-			(ele.0.to_string(), Template::new(ele.0, "url", ele.1))
-		})));
+pub mod test_utils {
+	use std::{collections::BTreeMap, path::Path};
 
-	serde_json::to_string_pretty(&content).unwrap()
+	use super::{Template, TemplateMap};
+
+	pub struct StoreJsonMocker {
+		data: Vec<Template>,
+	}
+
+	impl StoreJsonMocker {
+		pub fn new() -> Self {
+			Self { data: Vec::new() }
+		}
+
+		pub fn push<T>(&mut self, name: &str, path: T) -> &mut Self
+		where
+			T: AsRef<Path>,
+		{
+			self.data.push(Template::new(name, "url", path));
+
+			self
+		}
+
+		pub fn all_to_sub_template(&mut self) -> &mut Self {
+			for ele in &mut self.data {
+				ele.is_sub_template = Some(true);
+			}
+
+			self
+		}
+
+		pub fn build(&self) -> String {
+			let tempalte_map = TemplateMap(BTreeMap::from_iter(
+				self.data
+					.clone()
+					.into_iter()
+					.map(|ele| (ele.name.clone(), ele)),
+			));
+
+			serde_json::to_string_pretty(&tempalte_map).unwrap()
+		}
+	}
 }
 
 #[cfg(test)]
@@ -271,9 +303,10 @@ mod tests {
 	use std::{fs, path::PathBuf};
 
 	use anyhow::Result;
+	use similar_asserts::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
-	use super::{mock_store_json, Store, Template};
+	use super::{test_utils::StoreJsonMocker, Store, Template};
 
 	fn mock_template(name: &str) -> Template {
 		Template::new(name, "url", "path")
@@ -287,7 +320,7 @@ mod tests {
 		if init_content {
 			let store_file = temp_dir_path.join(Store::FILE_NAME);
 			fs::create_dir(&foo_path)?;
-			let content = mock_store_json([("foo", &foo_path)]);
+			let content = StoreJsonMocker::new().push("foo", &foo_path).build();
 			fs::write(store_file, content)?;
 		}
 
@@ -323,9 +356,9 @@ mod tests {
 		store.save()?;
 
 		let content = fs::read_to_string(store.path)?;
-		let expected_content = mock_store_json([("foo", &foo_path)]);
+		let expected = StoreJsonMocker::new().push("foo", &foo_path).build();
 
-		assert_eq!(content, expected_content);
+		assert_eq!(content, expected);
 
 		Ok(())
 	}

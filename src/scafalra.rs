@@ -111,12 +111,12 @@ impl Scafalra {
 
 		println!("Downloading `{}` ...", args.repository);
 
-		let repo_info = self.github_api.query_repository(&repo)?;
+		let remote_repo = self.github_api.query_remote_repo(&repo)?;
 
 		let mut template_name = args.name.unwrap_or(repo.name.clone());
 
 		let mut template_dir =
-			repo.cache(&repo_info.tarball_url, &self.cache_dir)?;
+			repo.cache(&remote_repo.tarball_url, &self.cache_dir)?;
 
 		debug!("template_dir: {:?}", template_dir);
 
@@ -129,40 +129,45 @@ impl Scafalra {
 				});
 
 			debug!("template_path: {:?}", template_dir);
-		}
 
-		if args.depth == 0 {
 			if let Some(name) = template_dir.file_name() {
 				template_name = name.to_string_lossy().to_string();
 			}
+		}
 
-			self.store.add(Template::new(
-				template_name,
-				repo_info.url,
-				template_dir,
-			))
-		} else if args.depth == 1 {
-			for entry in template_dir.read_dir()? {
-				let entry = entry?;
-				let file_type = entry.file_type()?;
-				let file_name = entry.file_name().to_string_lossy().to_string();
-
-				if file_type.is_dir() && !file_name.starts_with('.') {
-					let sub_template_dir = entry.path();
-
-					self.store.add(
-						TemplateBuilder::new(
-							&file_name,
-							&repo_info.url,
-							&sub_template_dir,
-						)
-						.sub_template(true)
-						.build(),
-					);
-				}
+		match args.depth {
+			0 => {
+				self.store.add(Template::new(
+					template_name,
+					remote_repo.url,
+					template_dir,
+				));
 			}
+			1 => {
+				for entry in template_dir.read_dir()? {
+					let entry = entry?;
+					let file_type = entry.file_type()?;
+					let file_name =
+						entry.file_name().to_string_lossy().to_string();
 
-			self.copy_on_add(&template_dir);
+					if file_type.is_dir() && !file_name.starts_with('.') {
+						let sub_template_dir = entry.path();
+
+						self.store.add(
+							TemplateBuilder::new(
+								&file_name,
+								&remote_repo.url,
+								&sub_template_dir,
+							)
+							.sub_template(true)
+							.build(),
+						);
+					}
+				}
+
+				self.copy_on_add(&template_dir);
+			}
+			_ => anyhow::bail!("The argument `depth` allows only 0 or 1"),
 		}
 
 		self.store.save()?;
@@ -173,30 +178,28 @@ impl Scafalra {
 	fn copy_on_add(&self, template_dir: &Path) {
 		use globwalk::{GlobWalker, GlobWalkerBuilder};
 
-		if let Ok(repo_cfg) = RepositoryConfig::load(template_dir) {
-			let template_gw_list = repo_cfg
-				.copy_on_add
-				.iter()
-				.filter_map(|(name, globs)| {
-					if let Some(template) = self.store.get(name) {
-						if let Ok(gw) = GlobWalkerBuilder::from_patterns(
-							template_dir.join(RepositoryConfig::DIR_NAME),
-							globs,
-						)
-						.case_insensitive(true)
-						.build()
-						{
-							return Some((template, gw));
-						}
-					};
+		let template_gw_list = RepositoryConfig::load(template_dir)
+			.copy_on_add
+			.iter()
+			.filter_map(|(name, globs)| {
+				if let Some(template) = self.store.get(name) {
+					if let Ok(gw) = GlobWalkerBuilder::from_patterns(
+						template_dir.join(RepositoryConfig::DIR_NAME),
+						globs,
+					)
+					.case_insensitive(true)
+					.build()
+					{
+						return Some((template, gw));
+					}
+				};
 
-					None
-				})
-				.collect::<Vec<(&Template, GlobWalker)>>();
+				None
+			})
+			.collect::<Vec<(&Template, GlobWalker)>>();
 
-			for (template, gw) in template_gw_list {
-				copy_by_glob_walker(gw, &template.path);
-			}
+		for (template, gw) in template_gw_list {
+			copy_by_glob_walker(gw, &template.path);
 		}
 	}
 
@@ -391,6 +394,7 @@ mod tests {
 
 	use anyhow::Result;
 	use mockito::{Mock, ServerGuard};
+	use similar_asserts::assert_eq;
 	use tempfile::{tempdir, TempDir};
 
 	use super::Scafalra;
@@ -398,7 +402,7 @@ mod tests {
 		cli::{AddArgs, CreateArgs},
 		github_api::mock_repo_response_json,
 		path_ext::*,
-		store::{mock_store_json, Store},
+		store::{test_utils::StoreJsonMocker, Store},
 	};
 	#[cfg(feature = "self_update")]
 	use crate::{
@@ -420,7 +424,10 @@ mod tests {
 				proj_dir.join_iter([Scafalra::CACHE_DIR_NAME, "foo", "bar"]);
 			fs::create_dir_all(&bar_dir)?;
 			fs::write(bar_dir.join("baz.txt"), "")?;
-			fs::write(store_file, mock_store_json([("bar", bar_dir)]))?;
+			fs::write(
+				store_file,
+				StoreJsonMocker::new().push("bar", bar_dir).build(),
+			)?;
 		}
 
 		let scafalra = Scafalra::new(proj_dir, Some(endpoint), Some("token"))?;
@@ -525,7 +532,7 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = mock_store_json([("bar", &bar_dir)]);
+		let expected = StoreJsonMocker::new().push("bar", &bar_dir).build();
 
 		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
@@ -549,7 +556,7 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = mock_store_json([("foo", &bar_dir)]);
+		let expected = StoreJsonMocker::new().push("foo", &bar_dir).build();
 
 		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
@@ -573,12 +580,13 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = mock_store_json([
-			("a", bar_dir.join("a")),
-			("b", bar_dir.join("b")),
-			("c", bar_dir.join("c")),
-			("node_modules", bar_dir.join("node_modules")),
-		]);
+		let expected = StoreJsonMocker::new()
+			.push("a", bar_dir.join("a"))
+			.push("b", bar_dir.join("b"))
+			.push("c", bar_dir.join("c"))
+			.push("node_modules", bar_dir.join("node_modules"))
+			.all_to_sub_template()
+			.build();
 
 		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
@@ -602,7 +610,7 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let a1_dir = scafalra.cache_dir.join_slash("foo/bar/a/a1");
-		let expected = mock_store_json([("a1", &a1_dir)]);
+		let expected = StoreJsonMocker::new().push("a1", &a1_dir).build();
 
 		assert!(a1_dir.exists());
 		assert_eq!(store_content, expected);
@@ -629,11 +637,12 @@ mod tests {
 		let a1_dir = a_dir.join("a1");
 		let a2_dir = a_dir.join("a2");
 		let a3_dir = a_dir.join("a3");
-		let expected = mock_store_json([
-			("a1", &a1_dir),
-			("a2", &a2_dir),
-			("a3", &a3_dir),
-		]);
+		let expected = StoreJsonMocker::new()
+			.push("a1", &a1_dir)
+			.push("a2", &a2_dir)
+			.push("a3", &a3_dir)
+			.all_to_sub_template()
+			.build();
 
 		assert!(a1_dir.exists());
 		assert!(a2_dir.exists());

@@ -14,7 +14,7 @@ pub use release::mock_release_response_json;
 use release::{build_release_query, Release, ReleaseResponseData};
 #[cfg(test)]
 pub use repo::mock_repo_response_json;
-use repo::{build_repo_query, RepoInfo, RepoResponseData};
+use repo::{build_repo_query, RemoteRepo, RepoResponseData};
 use serde::de::DeserializeOwned;
 use ureq::Agent;
 
@@ -85,12 +85,12 @@ impl GitHubApi {
 		data.ok_or(anyhow::anyhow!("No response data"))
 	}
 
-	pub fn query_repository(&self, repo: &Repository) -> Result<RepoInfo> {
-		let repo_info: RepoInfo = self
+	pub fn query_remote_repo(&self, repo: &Repository) -> Result<RemoteRepo> {
+		let remote_repo: RemoteRepo = self
 			.request::<RepoResponseData>(build_repo_query(repo))?
 			.into();
 
-		Ok(repo_info)
+		Ok(remote_repo)
 	}
 
 	#[cfg(feature = "self_update")]
@@ -133,11 +133,11 @@ mod tests {
 
 		github_api.set_token("token");
 
-		let repo_info = github_api.query_repository(&mock_repo())?;
+		let repo_urls = github_api.query_remote_repo(&mock_repo())?;
 
 		mock.assert();
-		assert_eq!(repo_info.url, "url");
-		assert_eq!(repo_info.tarball_url, "tarballUrl");
+		assert_eq!(repo_urls.url, "url");
+		assert_eq!(repo_urls.tarball_url, "tarballUrl");
 
 		Ok(())
 	}
@@ -145,7 +145,7 @@ mod tests {
 	#[test]
 	fn test_github_api_request_no_token() {
 		let github_api = GitHubApi::new(None);
-		let api_result = github_api.query_repository(&mock_repo());
+		let api_result = github_api.query_remote_repo(&mock_repo());
 
 		assert!(api_result.is_err());
 	}
@@ -165,7 +165,7 @@ mod tests {
 
 		github_api.set_token("token");
 
-		let api_result = github_api.query_repository(&Repository {
+		let api_result = github_api.query_remote_repo(&Repository {
 			owner: "foo".to_string(),
 			name: "bar".to_string(),
 			..Repository::default()
