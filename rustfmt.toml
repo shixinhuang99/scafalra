@@ -7,3 +7,4 @@ use_field_init_shorthand = true
 edition = "2021"
 wrap_comments = true
 hard_tabs = true
+combine_control_expr = false

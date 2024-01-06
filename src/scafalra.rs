@@ -26,7 +26,7 @@ use crate::{
 };
 
 pub struct Scafalra {
-	pub proj_dir: PathBuf,
+	pub path: PathBuf,
 	cache_dir: PathBuf,
 	#[cfg(feature = "self_update")]
 	update_dir: PathBuf,
@@ -41,20 +41,20 @@ impl Scafalra {
 	const UPDATE_DIR_NAME: &'static str = "update";
 
 	pub fn new(
-		proj_dir: PathBuf,
+		scfalra_dir: PathBuf,
 		endpoint: Option<&str>,
 		token: Option<&str>,
 	) -> Result<Self> {
-		let cache_dir = proj_dir.join(Self::CACHE_DIR_NAME);
+		let cache_dir = scfalra_dir.join(Self::CACHE_DIR_NAME);
 		#[cfg(feature = "self_update")]
-		let update_dir = proj_dir.join(Self::UPDATE_DIR_NAME);
+		let update_dir = scfalra_dir.join(Self::UPDATE_DIR_NAME);
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)?;
 		}
 
-		let config = Config::new(&proj_dir)?;
-		let store = Store::new(&proj_dir)?;
+		let config = Config::new(&scfalra_dir)?;
+		let store = Store::new(&scfalra_dir)?;
 		let github_api = GitHubApi::new(endpoint);
 
 		if let Some(token) = token.or_else(|| config.token()) {
@@ -62,7 +62,7 @@ impl Scafalra {
 		}
 
 		Ok(Self {
-			proj_dir,
+			path: scfalra_dir,
 			cache_dir,
 			config,
 			store,
@@ -72,7 +72,7 @@ impl Scafalra {
 		})
 	}
 
-	pub fn set_or_display_token(&mut self, args: TokenArgs) -> Result<()> {
+	pub fn token(&mut self, args: TokenArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
 		match args.token {
@@ -330,7 +330,7 @@ impl Scafalra {
 				new_executable = Some(
 					entry
 						.path()
-						.join("scafalra")
+						.join("sca")
 						.with_extension(env::consts::EXE_EXTENSION),
 				);
 				break;
@@ -359,7 +359,7 @@ impl Scafalra {
 		debug!("args: {:#?}", args);
 
 		if !args.keep_data {
-			remove_dir_all::remove_dir_all(&self.proj_dir)?;
+			remove_dir_all::remove_dir_all(&self.path)?;
 		}
 
 		if cfg!(not(test)) {
@@ -723,7 +723,7 @@ mod tests {
 
 		scafalra.uninstall(UninstallArgs { keep_data: false })?;
 
-		assert!(!scafalra.proj_dir.exists());
+		assert!(!scafalra.path.exists());
 
 		Ok(())
 	}
@@ -735,7 +735,7 @@ mod tests {
 
 		scafalra.uninstall(UninstallArgs { keep_data: true })?;
 
-		assert!(scafalra.proj_dir.exists());
+		assert!(scafalra.path.exists());
 
 		Ok(())
 	}

@@ -14,8 +14,10 @@ use crate::{
 };
 
 static REPO_RE: LazyLock<Regex> = LazyLock::new(|| {
-	const RE: &str = r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$";
-	Regex::new(RE).unwrap()
+	Regex::new(
+		r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$",
+	)
+	.unwrap()
 });
 
 #[derive(Default)]

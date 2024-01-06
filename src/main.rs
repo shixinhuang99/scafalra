@@ -19,33 +19,36 @@ use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Command};
 use debug::trun_on_debug;
+use directories::ProjectDirs;
 use scafalra::Scafalra;
 
 fn main() {
-	if let Err(err) = try_main() {
+	if let Err(err) = run() {
 		eprintln!("{:?}", err);
 	}
 }
 
-fn try_main() -> Result<()> {
+fn run() -> Result<()> {
 	let cli = Cli::parse();
 
 	if cli.debug || env::var("SCAFALRA_DEBUG").is_ok() {
 		trun_on_debug();
 	}
 
-	let proj_dir = directories::ProjectDirs::from("", "", "scafalra")
-		.ok_or(anyhow::anyhow!(
-			"No valid home directory path could be retrieved from your \
-			 operating system"
-		))?
+	let scfalra_dir = ProjectDirs::from("", "", "scafalra")
+		.ok_or_else(|| {
+			anyhow::anyhow!(
+				"No valid home directory path could be retrieved from your \
+				 operating system"
+			)
+		})?
 		.config_dir()
 		.to_path_buf();
 
-	let mut scafalra = Scafalra::new(proj_dir, None, cli.token.as_deref())?;
+	let mut scafalra = Scafalra::new(scfalra_dir, None, cli.token.as_deref())?;
 
 	if cli.proj_dir {
-		println!("{}", scafalra.proj_dir.to_string_lossy());
+		println!("{}", scafalra.path.to_string_lossy());
 		return Ok(());
 	}
 
@@ -56,7 +59,7 @@ fn try_main() -> Result<()> {
 			Command::Mv(args) => scafalra.mv(args)?,
 			Command::Add(args) => scafalra.add(args)?,
 			Command::Create(args) => scafalra.create(args)?,
-			Command::Token(args) => scafalra.set_or_display_token(args)?,
+			Command::Token(args) => scafalra.token(args)?,
 			#[cfg(feature = "self_update")]
 			Command::Update(args) => scafalra.update(args)?,
 			#[cfg(feature = "self_update")]

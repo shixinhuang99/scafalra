@@ -1,6 +1,6 @@
-# Scafalra
+# Scafalra(sca)
 
-`scafalra` is a command-line interface tool for manage templates
+scafalra is a command-line interface tool for manage templates
 
 ## Installation
 
@@ -19,15 +19,15 @@ Download the [latest release binary](https://github.com/shixinhuang99/scafalra/r
 scafalra requires a PAT(personal access token) to be configured, usually it doesn't require any permissions, but for private repositories it requires a bit of permissions, either `All repositories` or `Only select repositories` for fine-grained PAT, or `repo` scope for classic PAT.
 
 ```bash
-scafalra token your_token
+sca token your_token
 ```
 
 ## Usage
 
 ```
-scafalra is a command-line interface tool for manage templates
+scafalra(sca) is a command-line interface tool for manage templates
 
-Usage: scafalra [OPTIONS] [COMMAND]
+Usage: sca [OPTIONS] [COMMAND]
 
 Commands:
   list    List all templates
@@ -53,7 +53,7 @@ Options:
 ```bash
 # linux/macos
 export https_proxy=your_proxy
-scafalra add user/repo
+sca add user/repo
 ```
 
 ### Repository config
@@ -94,7 +94,7 @@ And the configuration file looks like this:
 }
 ```
 
-With the `scafalra add foo/bar --depth 1` command, the local cache will look like the following:
+With the `sca add foo/bar --depth 1` command, the local cache will look like the following:
 
 ```
 ├── foo
@@ -159,7 +159,7 @@ The local cache is as follows:
 ```
 
 ```bash
-scafalra create a --with "common.txt,copy-dir,copy-all-in-dir/**"
+sca create a --with "common.txt,copy-dir,copy-all-in-dir/**"
 ```
 
 The created project will look like this:

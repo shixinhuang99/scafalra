@@ -3,12 +3,24 @@ name = "scafalra"
 version = "1.1.1"
 edition = "2021"
 authors = ["shixinhuang99 <shixinhuang99@gmail.com>"]
-description = "scafalra is a command-line interface tool for manage templates"
+description = "scafalra(sca) is a command-line interface tool for manage templates"
 repository = "https://github.com/shixinhuang99/scafalra"
 license = "MIT"
 categories = ["command-line-utilities"]
 keywords = ["scaffold", "template"]
-include = ["Cargo.toml", "Cargo.lock", "README.md", "LICENSE", "src/**"]
+include = [
+	"Cargo.toml",
+	"Cargo.lock",
+	"README.md",
+	"LICENSE",
+	"src/**",
+	"build.rs",
+	".cargo",
+]
+
+[[bin]]
+name = "sca"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.70"
@@ -30,7 +42,6 @@ serde_json = { version = "1.0.108", features = ["preserve_order"] }
 tabled = { version = "0.14.0", features = ["color"] }
 tar = "0.4.38"
 term_grid = "0.2.0"
-toml = "0.8.0"
 ureq = "2.6.2"
 
 [target.'cfg(windows)'.dependencies]
