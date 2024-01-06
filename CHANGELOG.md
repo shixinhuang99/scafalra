@@ -2,13 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.1.1] - 2023-12-31
+## [1.2.1] - 2024-01-06
 
-[a685275](a68527515ec2c6dfaac83d401285e9da23d6cad0)...[4579483](45794837718e20e96caaf4e25271a4acee282bf6)
+[a685275](a68527515ec2c6dfaac83d401285e9da23d6cad0)...[e9e156d](e9e156dc118751c5f14decc705ff64dc5c4de8bc)
 
 ### Documentation
 
 - Update description for PAT (#40) ([4579483](45794837718e20e96caaf4e25271a4acee282bf6))
+
+### Features
+
+- Repository config (#44) ([3c22830](3c22830be9d1b773dd1e9cccb93a960597433dba))
+- New binary name (#45) ([e9e156d](e9e156dc118751c5f14decc705ff64dc5c4de8bc))
 
 ### Miscellaneous Tasks
 
@@ -18,6 +23,8 @@ All notable changes to this project will be documented in this file.
 
 - Move self update to a feature (#37) ([eaf5394](eaf539476ff758527427351f097a59145f01d913))
 - Use directories (#39) ([7db982a](7db982a26160a5ddf5b111f78140f503f1d0a1d9))
+- Use path_slash and remove camino (#42) ([5b027df](5b027df0d2629604aeab4d41176c87a2fb6421d5))
+- Change cyan to blue in colorize (#43) ([e59efcb](e59efcb40a76af083f3d876cb99818f9cd50f134))
 
 ## [1.0.1] - 2023-12-09
 
