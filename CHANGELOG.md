@@ -2,9 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.2] - 2024-01-06
+
+[2e3691f](2e3691f87259731eb3c5e9ddc38c511dd2da1e01)...[4474080](4474080cf9bddcdf197cf419fd3476e199b90289)
+
+### Bug Fixes
+
+- Move back to OnceLock (#49) ([4474080](4474080cf9bddcdf197cf419fd3476e199b90289))
+
 ## [1.2.1] - 2024-01-06
 
-[a685275](a68527515ec2c6dfaac83d401285e9da23d6cad0)...[e9e156d](e9e156dc118751c5f14decc705ff64dc5c4de8bc)
+[a685275](a68527515ec2c6dfaac83d401285e9da23d6cad0)...[2e3691f](2e3691f87259731eb3c5e9ddc38c511dd2da1e01)
 
 ### Documentation
 
@@ -18,6 +26,8 @@ All notable changes to this project will be documented in this file.
 ### Miscellaneous Tasks
 
 - Fmt config (#36) ([b2ee71b](b2ee71b34b87fb514d6c7b3371b8cd66da612693))
+- Fix release (#47) ([4c03857](4c03857a793058c253591e87b0293ecee1a00bac))
+- Fix crate publish (#48) ([2e3691f](2e3691f87259731eb3c5e9ddc38c511dd2da1e01))
 
 ### Refactor
 
