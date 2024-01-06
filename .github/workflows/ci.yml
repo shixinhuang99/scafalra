@@ -69,13 +69,14 @@ jobs:
             test: true
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ runner.os }}
 
       - uses: taiki-e/install-action@v2
+        if: matrix.cross
         with:
           tool: cross
 

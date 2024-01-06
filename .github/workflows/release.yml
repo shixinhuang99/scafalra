@@ -55,6 +55,7 @@ jobs:
           shared-key: ${{ runner.os }}
 
       - uses: taiki-e/install-action@v2
+        if: matrix.build-tool == 'cross'
         with:
           tool: cross
 
