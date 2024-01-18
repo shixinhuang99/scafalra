@@ -115,10 +115,8 @@ impl Scafalra {
 
 		let mut template_name = args.name.unwrap_or(repo.name.clone());
 
-		let mut template_dir = repo.cache(
-			&remote_repo.tarball_url,
-			&self.cache_dir,
-		)?;
+		let mut template_dir =
+			repo.cache(&remote_repo.tarball_url, &self.cache_dir)?;
 
 		debug!("template_dir: {:?}", template_dir);
 
@@ -149,10 +147,8 @@ impl Scafalra {
 				for entry in template_dir.read_dir()? {
 					let entry = entry?;
 					let file_type = entry.file_type()?;
-					let file_name = entry
-						.file_name()
-						.to_string_lossy()
-						.to_string();
+					let file_name =
+						entry.file_name().to_string_lossy().to_string();
 
 					if file_type.is_dir() && !file_name.starts_with('.') {
 						let sub_template_dir = entry.path();
@@ -211,7 +207,11 @@ impl Scafalra {
 		debug!("args: {:#?}", args);
 
 		let Some(template) = self.store.get(&args.name) else {
-			anyhow::bail!("No such template `{}`", args.name);
+			let mut msg = format!("No such template `{}`", args.name);
+			if let Some(name) = self.store.get_similar_name(&args.name) {
+				msg = format!("{}\nA similar template is `{}`", msg, name);
+			}
+			anyhow::bail!(msg);
 		};
 
 		let cwd = env::current_dir()?;
@@ -430,9 +430,7 @@ mod tests {
 			fs::write(bar_dir.join("baz.txt"), "")?;
 			fs::write(
 				store_file,
-				StoreJsonMocker::new()
-					.push("bar", bar_dir)
-					.build(),
+				StoreJsonMocker::new().push("bar", bar_dir).build(),
 			)?;
 		}
 
@@ -475,10 +473,7 @@ mod tests {
 			.mock("POST", "/")
 			.with_status(200)
 			.with_header("content-type", "application/json")
-			.with_body(mock_release_response_json(
-				&server.url(),
-				&higher_ver,
-			))
+			.with_body(mock_release_response_json(&server.url(), &higher_ver))
 			.create();
 
 		let download_mock = server
@@ -515,11 +510,7 @@ mod tests {
 			]))
 			.create();
 
-		Ok((
-			server,
-			query_release_mock,
-			download_mock,
-		))
+		Ok((server, query_release_mock, download_mock))
 	}
 
 	#[test]
@@ -549,9 +540,7 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = StoreJsonMocker::new()
-			.push("bar", &bar_dir)
-			.build();
+		let expected = StoreJsonMocker::new().push("bar", &bar_dir).build();
 
 		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
@@ -575,9 +564,7 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = StoreJsonMocker::new()
-			.push("foo", &bar_dir)
-			.build();
+		let expected = StoreJsonMocker::new().push("foo", &bar_dir).build();
 
 		assert!(bar_dir.exists());
 		assert_eq!(store_content, expected);
@@ -605,10 +592,7 @@ mod tests {
 			.push("a", bar_dir.join("a"))
 			.push("b", bar_dir.join("b"))
 			.push("c", bar_dir.join("c"))
-			.push(
-				"node_modules",
-				bar_dir.join("node_modules"),
-			)
+			.push("node_modules", bar_dir.join("node_modules"))
 			.all_to_sub_template()
 			.build();
 
@@ -634,9 +618,7 @@ mod tests {
 
 		let store_content = fs::read_to_string(&scafalra.store.path)?;
 		let a1_dir = scafalra.cache_dir.join_slash("foo/bar/a/a1");
-		let expected = StoreJsonMocker::new()
-			.push("a1", &a1_dir)
-			.build();
+		let expected = StoreJsonMocker::new().push("a1", &a1_dir).build();
 
 		assert!(a1_dir.exists());
 		assert_eq!(store_content, expected);
@@ -692,11 +674,7 @@ mod tests {
 			with: None,
 		})?;
 
-		assert!(
-			temp_dir_path
-				.join_slash("bar/baz.txt")
-				.exists()
-		);
+		assert!(temp_dir_path.join_slash("bar/baz.txt").exists());
 
 		Ok(())
 	}
@@ -806,18 +784,10 @@ mod tests {
 		]));
 
 		let b_dir = template_dir.join("b");
-		assert!(
-			b_dir
-				.join_slash("shared-b/shared-b.txt")
-				.exists()
-		);
+		assert!(b_dir.join_slash("shared-b/shared-b.txt").exists());
 
 		let c_dir = template_dir.join("c");
-		assert!(
-			c_dir
-				.join_slash("shared-c/shared-c.txt")
-				.exists()
-		);
+		assert!(c_dir.join_slash("shared-c/shared-c.txt").exists());
 
 		Ok(())
 	}

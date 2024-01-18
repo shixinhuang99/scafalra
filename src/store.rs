@@ -57,9 +57,7 @@ impl TemplateBuilder {
 		let created_at = if cfg!(test) {
 			"2023-05-19 00:00:00".to_string()
 		} else {
-			chrono::Local::now()
-				.format("%Y-%m-%d %H:%M:%S")
-				.to_string()
+			chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
 		};
 
 		Self {
@@ -124,8 +122,7 @@ impl Changes {
 	fn push_add(&mut self, name: &str) -> &mut Self {
 		use crate::colorize::Colorize;
 
-		self.inner
-			.push(format!("{} {}", "+".green(), name));
+		self.inner.push(format!("{} {}", "+".green(), name));
 
 		self
 	}
@@ -133,8 +130,7 @@ impl Changes {
 	fn push_remove(&mut self, name: &str) -> &mut Self {
 		use crate::colorize::Colorize;
 
-		self.inner
-			.push(format!("{} {}", "-".red(), name));
+		self.inner.push(format!("{} {}", "-".red(), name));
 
 		self
 	}
@@ -183,8 +179,7 @@ impl Store {
 		}
 
 		self.changes.push_add(name);
-		self.templates
-			.insert(name.to_string(), template);
+		self.templates.insert(name.to_string(), template);
 	}
 
 	pub fn remove(&mut self, name: &str) -> Result<()> {
@@ -206,11 +201,8 @@ impl Store {
 
 		match self.templates.remove(name) {
 			Some(template) => {
-				self.templates
-					.insert(new_name.to_string(), template);
-				self.changes
-					.push_remove(name)
-					.push_add(new_name);
+				self.templates.insert(new_name.to_string(), template);
+				self.changes.push_remove(name).push_add(new_name);
 			}
 			None => {
 				println!("No such template `{}`", name);
@@ -234,12 +226,7 @@ impl Store {
 			grid.add(Cell::from(key.blue()));
 		});
 
-		Some(
-			grid.fit_into_columns(6)
-				.to_string()
-				.trim_end()
-				.to_string(),
-		)
+		Some(grid.fit_into_columns(6).to_string().trim_end().to_string())
 	}
 
 	pub fn print_table(&self) -> Option<String> {
@@ -266,6 +253,22 @@ impl Store {
 	pub fn get(&self, name: &str) -> Option<&Template> {
 		self.templates.get(name)
 	}
+
+	pub fn get_similar_name(&self, target: &str) -> Option<&str> {
+		use strsim::normalized_levenshtein;
+
+		self.templates
+			.keys()
+			.filter_map(|name| {
+				let score = normalized_levenshtein(target, name).abs();
+				if score > 0.5 {
+					return Some((name, score));
+				}
+				None
+			})
+			.min_by(|x, y| x.1.total_cmp(&y.1))
+			.map(|v| v.0.as_str())
+	}
 }
 
 #[cfg(test)]
@@ -289,8 +292,7 @@ pub mod test_utils {
 		where
 			T: AsRef<Path>,
 		{
-			self.data
-				.push(Template::new(name, "url", path));
+			self.data.push(Template::new(name, "url", path));
 
 			self
 		}
@@ -338,9 +340,7 @@ mod tests {
 		if init_content {
 			let store_file = temp_dir_path.join(Store::FILE_NAME);
 			fs::create_dir(&foo_path)?;
-			let content = StoreJsonMocker::new()
-				.push("foo", &foo_path)
-				.build();
+			let content = StoreJsonMocker::new().push("foo", &foo_path).build();
 			fs::write(store_file, content)?;
 		}
 
@@ -376,9 +376,7 @@ mod tests {
 		store.save()?;
 
 		let content = fs::read_to_string(store.path)?;
-		let expected = StoreJsonMocker::new()
-			.push("foo", &foo_path)
-			.build();
+		let expected = StoreJsonMocker::new().push("foo", &foo_path).build();
 
 		assert_eq!(content, expected);
 
@@ -406,10 +404,7 @@ mod tests {
 
 		assert_eq!(store.templates.len(), 1);
 		assert!(store.templates.contains_key("foo"));
-		assert_eq!(
-			store.changes.inner,
-			vec!["- foo", "+ foo"]
-		);
+		assert_eq!(store.changes.inner, vec!["- foo", "+ foo"]);
 
 		Ok(())
 	}
@@ -446,10 +441,7 @@ mod tests {
 		assert_eq!(store.templates.len(), 1);
 		assert!(!store.templates.contains_key("foo"));
 		assert!(store.templates.contains_key("bar"));
-		assert_eq!(
-			store.changes.inner,
-			vec!["- foo", "+ bar"]
-		);
+		assert_eq!(store.changes.inner, vec!["- foo", "+ bar"]);
 
 		Ok(())
 	}
@@ -505,6 +497,15 @@ mod tests {
 			Vec::from_iter(store.print_table().unwrap().lines()),
 			Vec::from_iter(expected.lines())
 		);
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_similar_name() -> Result<()> {
+		let (store, _dir, _) = mock_store(true)?;
+
+		assert_eq!(store.get_similar_name("fop"), Some("foo"));
 
 		Ok(())
 	}

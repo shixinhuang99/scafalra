@@ -98,10 +98,7 @@ impl From<ReleaseResponseData> for Release {
 }
 
 pub fn build_release_query() -> GraphQLQuery {
-	GraphQLQuery::new(
-		RELEASE_GQL,
-		ReleaseVariables::new().to_json(),
-	)
+	GraphQLQuery::new(RELEASE_GQL, ReleaseVariables::new().to_json())
 }
 
 #[cfg(test)]

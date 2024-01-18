@@ -88,7 +88,7 @@ And the configuration file looks like this:
 
 ```json
 {
-  "linking": {
+  "copyOnAdd": {
     "a": ["common.txt", "copy-dir", "copy-all-in-dir/**", "shared-a"]
   }
 }

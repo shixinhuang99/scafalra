@@ -43,17 +43,12 @@ impl Repository {
 	pub fn parse(input: &str) -> Result<Self> {
 		let caps = repo_re()
 			.captures(input)
-			.ok_or(anyhow::anyhow!(
-				"Could not parse the input: `{}`",
-				input
-			))?;
+			.ok_or(anyhow::anyhow!("Could not parse the input: `{}`", input))?;
 
 		let owner = caps[1].to_string();
 		let name = caps[2].to_string();
 
-		let subdir = caps
-			.get(3)
-			.map(|v| PathBuf::from(v.as_str()));
+		let subdir = caps.get(3).map(|v| PathBuf::from(v.as_str()));
 		let query_kind = caps.get(4).map(|v| v.as_str());
 		let query_val = caps.get(5).map(|v| v.as_str().to_string());
 
@@ -177,10 +172,7 @@ mod tests {
 		let caps = caps.unwrap();
 		assert_eq!(&caps[1], "foo");
 		assert_eq!(&caps[2], "bar");
-		assert_eq!(
-			caps.get(3).unwrap().as_str(),
-			"/path/to/dir"
-		);
+		assert_eq!(caps.get(3).unwrap().as_str(), "/path/to/dir");
 		assert_eq!(&caps[4], "branch");
 		assert_eq!(&caps[5], "main");
 	}
@@ -198,16 +190,10 @@ mod tests {
 		assert_eq!(repo.owner, "foo");
 		assert_eq!(repo.name, "bar");
 		assert_eq!(
-			repo.subdir
-				.unwrap()
-				.to_string_lossy()
-				.to_string(),
+			repo.subdir.unwrap().to_string_lossy().to_string(),
 			"/path/to/dir"
 		);
-		assert_eq!(
-			repo.query.unwrap(),
-			Query::Branch("main".to_string())
-		);
+		assert_eq!(repo.query.unwrap(), Query::Branch("main".to_string()));
 
 		Ok(())
 	}
@@ -236,11 +222,7 @@ mod tests {
 		repo.cache(&server.url(), temp_dir_path)?;
 
 		mock.assert();
-		assert!(
-			temp_dir_path
-				.join_slash("shixinhuang99/scafalra")
-				.is_dir()
-		);
+		assert!(temp_dir_path.join_slash("shixinhuang99/scafalra").is_dir());
 		assert!(!temp_dir_path.join("t").exists());
 
 		Ok(())
