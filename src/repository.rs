@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
+use fs_err as fs;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
 
@@ -40,6 +41,9 @@ pub enum Query {
 }
 
 impl Repository {
+	pub const TMP_REPO_DIR_NAME: &'static str = "t";
+	pub const TARBALL_EXT: &'static str = "tar.gz";
+
 	pub fn parse(input: &str) -> Result<Self> {
 		let caps = repo_re()
 			.captures(input)
@@ -68,8 +72,8 @@ impl Repository {
 	}
 
 	pub fn cache(&self, url: &str, cache_dir: &Path) -> Result<PathBuf> {
-		let temp_dir = cache_dir.join("t");
-		let tarball = temp_dir.with_extension("tar.gz");
+		let temp_dir = cache_dir.join(Self::TMP_REPO_DIR_NAME);
+		let tarball = temp_dir.with_extension(Self::TARBALL_EXT);
 
 		download(url, &tarball)?;
 
@@ -92,6 +96,8 @@ impl Repository {
 		dircpy::copy_dir(first_inner_dir, &template_dir)?;
 
 		remove_dir_all(temp_dir)?;
+
+		fs::remove_file(tarball)?;
 
 		Ok(template_dir)
 	}
@@ -221,9 +227,13 @@ mod tests {
 		let repo = Repository::parse("shixinhuang99/scafalra")?;
 		repo.cache(&server.url(), temp_dir_path)?;
 
+		let tmp_repo_dir = temp_dir_path.join(Repository::TMP_REPO_DIR_NAME);
+		let tarball = tmp_repo_dir.with_extension(Repository::TARBALL_EXT);
+
 		mock.assert();
 		assert!(temp_dir_path.join_slash("shixinhuang99/scafalra").is_dir());
-		assert!(!temp_dir_path.join("t").exists());
+		assert!(!tmp_repo_dir.exists());
+		assert!(!tarball.exists());
 
 		Ok(())
 	}
