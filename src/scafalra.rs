@@ -207,7 +207,11 @@ impl Scafalra {
 		debug!("args: {:#?}", args);
 
 		let Some(template) = self.store.get(&args.name) else {
-			anyhow::bail!("No such template `{}`", args.name);
+			let mut msg = format!("No such template `{}`", args.name);
+			if let Some(name) = self.store.get_similar_name(&args.name) {
+				msg = format!("{}\nA similar template is `{}`", msg, name);
+			}
+			anyhow::bail!(msg);
 		};
 
 		let cwd = env::current_dir()?;

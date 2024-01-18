@@ -253,6 +253,22 @@ impl Store {
 	pub fn get(&self, name: &str) -> Option<&Template> {
 		self.templates.get(name)
 	}
+
+	pub fn get_similar_name(&self, target: &str) -> Option<&str> {
+		use strsim::normalized_levenshtein;
+
+		self.templates
+			.keys()
+			.filter_map(|name| {
+				let score = normalized_levenshtein(target, name).abs();
+				if score > 0.5 {
+					return Some((name, score));
+				}
+				None
+			})
+			.min_by(|x, y| x.1.total_cmp(&y.1))
+			.map(|v| v.0.as_str())
+	}
 }
 
 #[cfg(test)]
