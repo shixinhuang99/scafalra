@@ -500,4 +500,13 @@ mod tests {
 
 		Ok(())
 	}
+
+	#[test]
+	fn test_similar_name() -> Result<()> {
+		let (store, _dir, _) = mock_store(true)?;
+
+		assert_eq!(store.get_similar_name("fop"), Some("foo"));
+
+		Ok(())
+	}
 }
