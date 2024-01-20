@@ -16,18 +16,16 @@ use release::{build_release_query, Release, ReleaseResponseData};
 pub use repo::mock_repo_response_json;
 use repo::{build_repo_query, RemoteRepo, RepoResponseData};
 use serde::de::DeserializeOwned;
-use ureq::Agent;
 
 use crate::{
 	debug,
 	repository::Repository,
-	utils::{build_proxy_agent, get_self_version},
+	utils::{get_self_version, global_agent},
 };
 
 pub struct GitHubApi {
 	token: RefCell<Option<String>>,
 	endpoint: String,
-	agent: Agent,
 }
 
 impl GitHubApi {
@@ -36,12 +34,9 @@ impl GitHubApi {
 			.unwrap_or("https://api.github.com/graphql")
 			.to_string();
 
-		let agent = build_proxy_agent();
-
 		Self {
 			token: RefCell::new(None),
 			endpoint,
-			agent,
 		}
 	}
 
@@ -58,7 +53,7 @@ impl GitHubApi {
 		))?;
 
 		let response: GraphQLResponse<T> = serde_json::from_reader(
-			self.agent
+			global_agent()
 				.post(&self.endpoint)
 				.set("authorization", &format!("bearer {}", token))
 				.set("content-type", "application/json")

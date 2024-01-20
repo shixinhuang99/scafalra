@@ -1,22 +1,26 @@
-use std::{env, io, path::Path};
+use std::{env, io, path::Path, sync::OnceLock};
 
 use anyhow::Result;
 use flate2::read::GzDecoder;
 use fs_err as fs;
 use ureq::{Agent, AgentBuilder, Proxy};
 
-pub fn build_proxy_agent() -> Agent {
-	let env_proxy = env::var("https_proxy").or_else(|_| env::var("http_proxy"));
-	let agent = AgentBuilder::new();
+pub fn global_agent() -> &'static Agent {
+	static AGENT: OnceLock<Agent> = OnceLock::new();
 
-	if let Ok(env_proxy) = env_proxy {
-		let proxy = Proxy::new(env_proxy);
-		if let Ok(proxy) = proxy {
-			return agent.proxy(proxy).build();
+	AGENT.get_or_init(|| {
+		let proxy = env::var("https_proxy").or_else(|_| env::var("http_proxy"));
+		let agent_builder = AgentBuilder::new();
+
+		if let Ok(env_proxy) = proxy {
+			let proxy = Proxy::new(env_proxy);
+			if let Ok(proxy) = proxy {
+				return agent_builder.proxy(proxy).build();
+			}
 		}
-	}
 
-	agent.build()
+		agent_builder.build()
+	})
 }
 
 #[cfg(feature = "self_update")]
@@ -29,8 +33,7 @@ pub fn get_self_version() -> &'static str {
 }
 
 pub fn download(url: &str, file_path: &Path) -> Result<()> {
-	let agent = build_proxy_agent();
-	let response = agent.get(url).call()?;
+	let response = global_agent().get(url).call()?;
 	let mut file = fs::File::create(file_path)?;
 
 	io::copy(&mut response.into_reader(), &mut file)?;
