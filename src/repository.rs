@@ -68,7 +68,7 @@ impl Repository {
 	pub fn cache(&self, url: &str, cache_dir: &Path) -> Result<PathBuf> {
 		let tmp_dir = cache_dir.join(Self::TMP_DIR_NAME);
 
-		Downloader::new(url, &tmp_dir)
+		Downloader::new(url, &tmp_dir, "tar.gz")
 			.download()?
 			.unpack(&tmp_dir)?;
 

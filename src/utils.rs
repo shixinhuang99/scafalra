@@ -37,13 +37,7 @@ pub struct Downloader {
 }
 
 impl Downloader {
-	pub fn new(url: &str, file: &Path) -> Self {
-		let ext = if cfg!(all(windows, feature = "self_update")) {
-			"zip"
-		} else {
-			"tar.gz"
-		};
-
+	pub fn new(url: &str, file: &Path, ext: &str) -> Self {
 		Self {
 			url: url.to_string(),
 			file: file.with_extension(ext),
@@ -59,9 +53,10 @@ impl Downloader {
 	}
 
 	pub fn unpack(&self, dst: &Path) -> Result<()> {
+		let file = fs::File::open(&self.file)?;
+
 		#[cfg(not(all(windows, feature = "self_update")))]
 		{
-			let file = fs::File::open(&self.file)?;
 			let dec = flate2::read::GzDecoder::new(file);
 			let mut tar = tar::Archive::new(dec);
 			tar.unpack(dst)?;
@@ -69,7 +64,6 @@ impl Downloader {
 
 		#[cfg(all(windows, feature = "self_update"))]
 		{
-			let file = fs::File::open(&self.file)?;
 			let mut archive = zip::ZipArchive::new(file)?;
 			archive.extract(dst)?;
 		}

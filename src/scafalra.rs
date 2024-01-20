@@ -307,8 +307,13 @@ impl Scafalra {
 		}
 
 		let archive = self.update_dir.join("t");
+		let ext = if cfg!(windows) {
+			"zip"
+		} else {
+			"tar.gz"
+		};
 
-		Downloader::new(&release.assets_url, &archive)
+		Downloader::new(&release.assets_url, &archive, ext)
 			.download()?
 			.unpack(&self.update_dir)?;
 
