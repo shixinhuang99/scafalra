@@ -70,7 +70,7 @@ impl Repository {
 
 		Downloader::new(url, &tmp_dir, "tar.gz")
 			.download()?
-			.unpack(&tmp_dir)?;
+			.tar_unpack(&tmp_dir)?;
 
 		let first_dir = tmp_dir
 			.read_dir()?

@@ -52,22 +52,21 @@ impl Downloader {
 		Ok(self)
 	}
 
-	pub fn unpack(&self, dst: &Path) -> Result<()> {
+	pub fn tar_unpack(&self, dst: &Path) -> Result<()> {
 		let file = fs::File::open(&self.file)?;
+		let dec = flate2::read::GzDecoder::new(file);
+		let mut tar = tar::Archive::new(dec);
+		tar.unpack(dst)?;
+		fs::remove_file(&self.file)?;
 
-		#[cfg(not(all(windows, feature = "self_update")))]
-		{
-			let dec = flate2::read::GzDecoder::new(file);
-			let mut tar = tar::Archive::new(dec);
-			tar.unpack(dst)?;
-		}
+		Ok(())
+	}
 
-		#[cfg(all(windows, feature = "self_update"))]
-		{
-			let mut archive = zip::ZipArchive::new(file)?;
-			archive.extract(dst)?;
-		}
-
+	#[cfg(all(windows, feature = "self_update"))]
+	pub fn zip_unpack(&self, dst: &Path) -> Result<()> {
+		let file = fs::File::open(&self.file)?;
+		let mut archive = zip::ZipArchive::new(file)?;
+		archive.extract(dst)?;
 		fs::remove_file(&self.file)?;
 
 		Ok(())
