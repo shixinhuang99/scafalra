@@ -4,15 +4,10 @@ use std::{
 };
 
 use anyhow::Result;
-use fs_err as fs;
 use regex::Regex;
 use remove_dir_all::remove_dir_all;
 
-use crate::{
-	debug,
-	path_ext::*,
-	utils::{download, tar_unpack},
-};
+use crate::{debug, path_ext::*, utils::Downloader};
 
 fn repo_re() -> &'static Regex {
 	static REPO_RE: OnceLock<Regex> = OnceLock::new();
@@ -42,7 +37,6 @@ pub enum Query {
 
 impl Repository {
 	pub const TMP_DIR_NAME: &'static str = "t";
-	pub const TARBALL_EXT: &'static str = "tar.gz";
 
 	pub fn parse(input: &str) -> Result<Self> {
 		let caps = repo_re()
@@ -72,20 +66,19 @@ impl Repository {
 	}
 
 	pub fn cache(&self, url: &str, cache_dir: &Path) -> Result<PathBuf> {
-		let temp_dir = cache_dir.join(Self::TMP_DIR_NAME);
-		let tarball = temp_dir.with_extension(Self::TARBALL_EXT);
+		let tmp_dir = cache_dir.join(Self::TMP_DIR_NAME);
 
-		download(url, &tarball)?;
+		Downloader::new(url, &tmp_dir)
+			.download()?
+			.unpack(&tmp_dir)?;
 
-		tar_unpack(&tarball, &temp_dir)?;
-
-		let first_inner_dir = temp_dir
+		let first_dir = tmp_dir
 			.read_dir()?
 			.next()
 			.ok_or(anyhow::anyhow!("Empty directory"))??
 			.path();
 
-		debug!("first_inner_dir: {:?}", first_inner_dir);
+		debug!("first_dir: {:?}", first_dir);
 
 		let template_dir = cache_dir.join_iter([&self.owner, &self.name]);
 
@@ -93,11 +86,9 @@ impl Repository {
 			remove_dir_all(&template_dir)?;
 		}
 
-		dircpy::copy_dir(first_inner_dir, &template_dir)?;
+		dircpy::copy_dir(first_dir, &template_dir)?;
 
-		remove_dir_all(temp_dir)?;
-
-		fs::remove_file(tarball)?;
+		remove_dir_all(tmp_dir)?;
 
 		Ok(template_dir)
 	}
@@ -228,7 +219,7 @@ mod tests {
 		repo.cache(&server.url(), temp_dir_path)?;
 
 		let tmp_repo_dir = temp_dir_path.join(Repository::TMP_DIR_NAME);
-		let tarball = tmp_repo_dir.with_extension(Repository::TARBALL_EXT);
+		let tarball = tmp_repo_dir.with_extension("tar.gz");
 
 		mock.assert();
 		assert!(temp_dir_path.join_slash("shixinhuang99/scafalra").is_dir());

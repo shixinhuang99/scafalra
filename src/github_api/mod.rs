@@ -7,8 +7,7 @@ use std::cell::RefCell;
 
 use anyhow::Result;
 use gql::{GraphQLQuery, GraphQLResponse};
-#[cfg(test)]
-#[cfg(feature = "self_update")]
+#[cfg(all(test, feature = "self_update"))]
 pub use release::mock_release_response_json;
 #[cfg(feature = "self_update")]
 use release::{build_release_query, Release, ReleaseResponseData};
@@ -20,7 +19,7 @@ use serde::de::DeserializeOwned;
 use crate::{
 	debug,
 	repository::Repository,
-	utils::{get_self_version, global_agent},
+	utils::{global_agent, SELF_VERSION},
 };
 
 pub struct GitHubApi {
@@ -57,7 +56,7 @@ impl GitHubApi {
 				.post(&self.endpoint)
 				.set("authorization", &format!("bearer {}", token))
 				.set("content-type", "application/json")
-				.set("user-agent", &format!("scafalra/{}", get_self_version()))
+				.set("user-agent", &format!("scafalra/{}", SELF_VERSION))
 				.send_bytes(&serde_json::to_vec(&query)?)?
 				.into_reader(),
 		)?;

@@ -1,4 +1,8 @@
-use std::{env, io, path::Path, sync::OnceLock};
+use std::{
+	env, io,
+	path::{Path, PathBuf},
+	sync::OnceLock,
+};
 
 use anyhow::Result;
 use flate2::read::GzDecoder;
@@ -23,39 +27,56 @@ pub fn global_agent() -> &'static Agent {
 	})
 }
 
+pub const SELF_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 #[cfg(feature = "self_update")]
-pub fn get_self_target() -> &'static str {
-	env!("TARGET")
+pub const SELF_TARGET: &str = env!("TARGET");
+
+pub struct Downloader {
+	url: String,
+	file: PathBuf,
 }
 
-pub fn get_self_version() -> &'static str {
-	env!("CARGO_PKG_VERSION")
-}
+impl Downloader {
+	pub fn new(url: &str, file: &Path) -> Self {
+		let ext = if cfg!(all(windows, feature = "self_update")) {
+			"zip"
+		} else {
+			"tar.gz"
+		};
 
-pub fn download(url: &str, file_path: &Path) -> Result<()> {
-	let response = global_agent().get(url).call()?;
-	let mut file = fs::File::create(file_path)?;
+		Self {
+			url: url.to_string(),
+			file: file.with_extension(ext),
+		}
+	}
 
-	io::copy(&mut response.into_reader(), &mut file)?;
+	pub fn download(&self) -> Result<&Self> {
+		let response = global_agent().get(&self.url).call()?;
+		let mut file = fs::File::create(&self.file)?;
+		io::copy(&mut response.into_reader(), &mut file)?;
 
-	Ok(())
-}
+		Ok(self)
+	}
 
-pub fn tar_unpack(file_path: &Path, dst: &Path) -> Result<()> {
-	let file = fs::File::open(file_path)?;
-	let dec = GzDecoder::new(file);
-	let mut tar = tar::Archive::new(dec);
+	pub fn unpack(&self, dst: &Path) -> Result<()> {
+		#[cfg(not(all(windows, feature = "self_update")))]
+		{
+			let file = fs::File::open(&self.file)?;
+			let dec = GzDecoder::new(file);
+			let mut tar = tar::Archive::new(dec);
+			tar.unpack(dst)?;
+		}
 
-	tar.unpack(dst)?;
+		#[cfg(all(windows, feature = "self_update"))]
+		{
+			let file = fs::File::open(file_path)?;
+			let mut archive = zip::ZipArchive::new(file)?;
+			archive.extract(dst)?;
+		}
 
-	Ok(())
-}
+		fs::remove_file(&self.file)?;
 
-#[cfg(all(windows, feature = "self_update"))]
-pub fn zip_unpack(file_path: &Path, dst: &Path) -> Result<()> {
-	let file = fs::File::open(file_path)?;
-	let mut archive = zip::ZipArchive::new(file)?;
-	archive.extract(dst)?;
-
-	Ok(())
+		Ok(())
+	}
 }

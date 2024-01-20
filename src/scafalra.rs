@@ -6,10 +6,6 @@ use std::{
 use anyhow::Result;
 use fs_err as fs;
 
-#[cfg(all(unix, feature = "self_update"))]
-use crate::utils::tar_unpack;
-#[cfg(all(windows, feature = "self_update"))]
-use crate::utils::zip_unpack;
 use crate::{
 	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
 	config::Config,
@@ -22,7 +18,7 @@ use crate::{
 #[cfg(feature = "self_update")]
 use crate::{
 	cli::{UninstallArgs, UpdateArgs},
-	utils::download,
+	utils::Downloader,
 };
 
 pub struct Scafalra {
@@ -310,21 +306,11 @@ impl Scafalra {
 			fs::create_dir_all(&self.update_dir)?;
 		}
 
-		let mut archive = self.update_dir.join("t");
+		let archive = self.update_dir.join("t");
 
-		#[cfg(unix)]
-		{
-			archive.set_extension("tar.gz");
-			download(&release.assets_url, &archive)?;
-			tar_unpack(&archive, &self.update_dir)?;
-		}
-
-		#[cfg(windows)]
-		{
-			archive.set_extension("zip");
-			download(&release.assets_url, &archive)?;
-			zip_unpack(&archive, &self.update_dir)?;
-		}
+		Downloader::new(&release.assets_url, &archive)
+			.download()?
+			.unpack(&self.update_dir)?;
 
 		let mut new_executable: Option<PathBuf> = None;
 
@@ -403,7 +389,7 @@ mod test_utils {
 	#[cfg(feature = "self_update")]
 	use crate::{
 		github_api::mock_release_response_json,
-		utils::{get_self_target, get_self_version},
+		utils::{SELF_TARGET, SELF_VERSION},
 	};
 	use crate::{
 		github_api::mock_repo_response_json,
@@ -523,7 +509,7 @@ mod test_utils {
 			let mut server = mockito::Server::new();
 
 			let higher_ver = {
-				let mut v = semver::Version::parse(get_self_version()).unwrap();
+				let mut v = semver::Version::parse(SELF_VERSION).unwrap();
 				v.major += 1;
 				v.to_string()
 			};
@@ -544,7 +530,7 @@ mod test_utils {
 					format!(
 						"/scafalra-{}-{}{}",
 						higher_ver,
-						get_self_target(),
+						SELF_TARGET,
 						if cfg!(windows) {
 							".zip"
 						} else {

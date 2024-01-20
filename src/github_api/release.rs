@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use super::gql::GraphQLQuery;
 use crate::{
 	json::ToJson,
-	utils::{get_self_target, get_self_version},
+	utils::{SELF_TARGET, SELF_VERSION},
 };
 
 const RELEASE_GQL: &str = include_str!("release.gql");
@@ -67,21 +67,19 @@ fn parse_ver(ver: &str) -> Version {
 
 impl From<ReleaseResponseData> for Release {
 	fn from(value: ReleaseResponseData) -> Self {
-		let target = get_self_target();
-
 		let node = value
 			.repository
 			.latest_release
 			.release_assets
 			.nodes
 			.into_iter()
-			.find(|v| v.download_url.contains(target))
+			.find(|v| v.download_url.contains(SELF_TARGET))
 			.expect("Should find a matching release");
 
 		let Node {
 			download_url,
 		} = node;
-		let self_ver = parse_ver(get_self_version());
+		let self_ver = parse_ver(SELF_VERSION);
 		let release_ver = parse_ver(
 			download_url
 				.split('-')
