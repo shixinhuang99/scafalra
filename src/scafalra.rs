@@ -199,7 +199,7 @@ impl Scafalra {
 			.collect::<Vec<(&Template, GlobWalker)>>();
 
 		for (template, gw) in template_gw_list {
-			copy_by_glob_walker(gw, &template.path);
+			glob_walk_and_copy(gw, &template.path);
 		}
 	}
 
@@ -262,7 +262,7 @@ impl Scafalra {
 			.case_insensitive(true)
 			.build()
 		{
-			copy_by_glob_walker(gw, dest);
+			glob_walk_and_copy(gw, dest);
 		}
 	}
 
@@ -374,7 +374,7 @@ impl Scafalra {
 	}
 }
 
-fn copy_by_glob_walker(gw: globwalk::GlobWalker, dest: &Path) {
+fn glob_walk_and_copy(gw: globwalk::GlobWalker, dest: &Path) {
 	for matching in gw.filter_map(|ret| ret.ok()) {
 		let matching_path = matching.path();
 		debug!("matching_path: {:?}", matching_path);
@@ -393,297 +393,386 @@ fn copy_by_glob_walker(gw: globwalk::GlobWalker, dest: &Path) {
 }
 
 #[cfg(test)]
+mod test_utils {
+	use std::{fs, path::PathBuf};
+
+	use mockito::{Mock, ServerGuard};
+	use tempfile::{tempdir, TempDir};
+
+	use super::Scafalra;
+	#[cfg(feature = "self_update")]
+	use crate::{
+		github_api::mock_release_response_json,
+		utils::{get_self_target, get_self_version},
+	};
+	use crate::{
+		github_api::mock_repo_response_json,
+		store::{test_utils::StoreJsonMock, Store},
+	};
+
+	pub struct ScafalraMock {
+		pub scafalra: Scafalra,
+		pub tmpdir: TempDir,
+		endpoint_cache: Option<String>,
+	}
+
+	impl ScafalraMock {
+		pub fn new() -> Self {
+			let tmpdir = tempdir().unwrap();
+			let scafalra = Scafalra::new(
+				tmpdir.path().join("scafalra"),
+				None,
+				Some("token"),
+			)
+			.unwrap();
+
+			Self {
+				scafalra,
+				tmpdir,
+				endpoint_cache: None,
+			}
+		}
+
+		pub fn endpoint(self, endpoint: &str) -> Self {
+			let scafalra = Scafalra::new(
+				self.scafalra.path,
+				Some(endpoint),
+				Some("token"),
+			)
+			.unwrap();
+
+			Self {
+				scafalra,
+				endpoint_cache: Some(endpoint.to_string()),
+				..self
+			}
+		}
+
+		pub fn with_content(self) -> Self {
+			use crate::path_ext::*;
+
+			let store_file = self.scafalra.path.join(Store::FILE_NAME);
+			let bar_dir = self.scafalra.path.join_iter([
+				Scafalra::CACHE_DIR_NAME,
+				"foo",
+				"bar",
+			]);
+			fs::create_dir_all(&bar_dir).unwrap();
+			fs::write(bar_dir.join("baz.txt"), "").unwrap();
+			fs::write(
+				store_file,
+				StoreJsonMock::new().push("bar", bar_dir).build(),
+			)
+			.unwrap();
+			let scafalra = Scafalra::new(
+				self.scafalra.path,
+				self.endpoint_cache.as_deref(),
+				Some("token"),
+			)
+			.unwrap();
+
+			Self {
+				scafalra,
+				..self
+			}
+		}
+	}
+
+	pub struct RepoServerMock {
+		pub server: ServerGuard,
+		pub query_repo_mock: Mock,
+		pub download_mock: Mock,
+	}
+
+	impl RepoServerMock {
+		pub fn new() -> Self {
+			let mut server = mockito::Server::new();
+
+			let query_repo_mock = server
+				.mock("POST", "/")
+				.with_status(200)
+				.with_header("content-type", "application/json")
+				.with_body(mock_repo_response_json(&server.url()))
+				.create();
+
+			let download_mock = server
+				.mock("GET", "/tarball")
+				.with_status(200)
+				.with_header("content-type", "application/gzip")
+				.with_body_from_file("fixtures/scafalra-test.tar.gz")
+				.create();
+
+			Self {
+				server,
+				query_repo_mock,
+				download_mock,
+			}
+		}
+	}
+
+	#[cfg(feature = "self_update")]
+	pub struct ReleaseServerMock {
+		pub server: ServerGuard,
+		pub query_release_mock: Mock,
+		pub download_mock: Mock,
+	}
+
+	#[cfg(feature = "self_update")]
+	impl ReleaseServerMock {
+		pub fn new() -> Self {
+			let mut server = mockito::Server::new();
+
+			let higher_ver = {
+				let mut v = semver::Version::parse(get_self_version()).unwrap();
+				v.major += 1;
+				v.to_string()
+			};
+
+			let query_release_mock = server
+				.mock("POST", "/")
+				.with_status(200)
+				.with_header("content-type", "application/json")
+				.with_body(mock_release_response_json(
+					&server.url(),
+					&higher_ver,
+				))
+				.create();
+
+			let download_mock = server
+				.mock(
+					"GET",
+					format!(
+						"/scafalra-{}-{}{}",
+						higher_ver,
+						get_self_target(),
+						if cfg!(windows) {
+							".zip"
+						} else {
+							".tar.gz"
+						}
+					)
+					.as_str(),
+				)
+				.with_status(200)
+				.with_header(
+					"content-type",
+					if cfg!(windows) {
+						"application/zip"
+					} else {
+						"application/gzip"
+					},
+				)
+				.with_body_from_file(PathBuf::from_iter([
+					"fixtures",
+					if cfg!(windows) {
+						"scafalra-update-windows.zip"
+					} else {
+						"scafalra-update-unix.tar.gz"
+					},
+				]))
+				.create();
+
+			Self {
+				server,
+				query_release_mock,
+				download_mock,
+			}
+		}
+	}
+}
+
+#[cfg(test)]
 mod tests {
 	use std::{fs, path::PathBuf};
 
 	use anyhow::Result;
-	use mockito::{Mock, ServerGuard};
 	use similar_asserts::assert_eq;
-	use tempfile::{tempdir, TempDir};
+	use tempfile::tempdir;
 
-	use super::Scafalra;
+	use super::test_utils::{ReleaseServerMock, RepoServerMock, ScafalraMock};
+	#[cfg(feature = "self_update")]
+	use crate::cli::{UninstallArgs, UpdateArgs};
 	use crate::{
 		cli::{AddArgs, CreateArgs},
-		github_api::mock_repo_response_json,
 		path_ext::*,
-		store::{test_utils::StoreJsonMocker, Store},
+		store::test_utils::StoreJsonMock,
 	};
-	#[cfg(feature = "self_update")]
-	use crate::{
-		cli::{UninstallArgs, UpdateArgs},
-		github_api::mock_release_response_json,
-		utils::{get_self_target, get_self_version},
-	};
-
-	fn mock_scafalra(
-		endpoint: &str,
-		init_content: bool,
-	) -> Result<(Scafalra, TempDir)> {
-		let temp_dir = tempdir()?;
-		let proj_dir = temp_dir.path().join("scafalra");
-
-		if init_content {
-			let store_file = proj_dir.join(Store::FILE_NAME);
-			let bar_dir =
-				proj_dir.join_iter([Scafalra::CACHE_DIR_NAME, "foo", "bar"]);
-			fs::create_dir_all(&bar_dir)?;
-			fs::write(bar_dir.join("baz.txt"), "")?;
-			fs::write(
-				store_file,
-				StoreJsonMocker::new().push("bar", bar_dir).build(),
-			)?;
-		}
-
-		let scafalra = Scafalra::new(proj_dir, Some(endpoint), Some("token"))?;
-
-		Ok((scafalra, temp_dir))
-	}
-
-	fn mock_repo_server() -> Result<(ServerGuard, Mock, Mock)> {
-		let mut server = mockito::Server::new();
-
-		let query_repo_mock = server
-			.mock("POST", "/")
-			.with_status(200)
-			.with_header("content-type", "application/json")
-			.with_body(mock_repo_response_json(&server.url()))
-			.create();
-
-		let downlowd_mock = server
-			.mock("GET", "/tarball")
-			.with_status(200)
-			.with_header("content-type", "application/gzip")
-			.with_body_from_file("fixtures/scafalra-test.tar.gz")
-			.create();
-
-		Ok((server, query_repo_mock, downlowd_mock))
-	}
-
-	#[cfg(feature = "self_update")]
-	fn mock_release_server() -> Result<(ServerGuard, Mock, Mock)> {
-		let mut server = mockito::Server::new();
-
-		let higher_ver = {
-			let mut v = semver::Version::parse(get_self_version()).unwrap();
-			v.major += 1;
-			v.to_string()
-		};
-
-		let query_release_mock = server
-			.mock("POST", "/")
-			.with_status(200)
-			.with_header("content-type", "application/json")
-			.with_body(mock_release_response_json(&server.url(), &higher_ver))
-			.create();
-
-		let download_mock = server
-			.mock(
-				"GET",
-				format!(
-					"/scafalra-{}-{}{}",
-					higher_ver,
-					get_self_target(),
-					if cfg!(windows) {
-						".zip"
-					} else {
-						".tar.gz"
-					}
-				)
-				.as_str(),
-			)
-			.with_status(200)
-			.with_header(
-				"content-type",
-				if cfg!(windows) {
-					"application/zip"
-				} else {
-					"application/gzip"
-				},
-			)
-			.with_body_from_file(PathBuf::from_iter([
-				"fixtures",
-				if cfg!(windows) {
-					"scafalra-update-windows.zip"
-				} else {
-					"scafalra-update-unix.tar.gz"
-				},
-			]))
-			.create();
-
-		Ok((server, query_release_mock, download_mock))
-	}
 
 	#[test]
-	fn test_scafalra_new() -> Result<()> {
-		let (scafalra, _dir) = mock_scafalra("", false)?;
+	fn test_scafalra_new() {
+		let scafalra_mock = ScafalraMock::new();
 
-		assert!(scafalra.cache_dir.exists());
-		assert!(scafalra.store.path.exists());
-		assert!(scafalra.config.path.exists());
-
-		Ok(())
+		assert!(scafalra_mock.scafalra.cache_dir.exists());
+		assert!(scafalra_mock.scafalra.store.path.exists());
+		assert!(scafalra_mock.scafalra.config.path.exists());
 	}
 
 	#[test]
 	fn test_scafalra_add() -> Result<()> {
-		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
-		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+		let repo_server_mock = RepoServerMock::new();
+		let mut scafalra_mock =
+			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra.add(AddArgs {
+		scafalra_mock.scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
 			depth: 0,
 			name: None,
 		})?;
 
-		query_repo_mock.assert();
-		download_mock.assert();
+		repo_server_mock.query_repo_mock.assert();
+		repo_server_mock.download_mock.assert();
 
-		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = StoreJsonMocker::new().push("bar", &bar_dir).build();
+		let bar_dir = scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
+		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		let expect = StoreJsonMock::new().push("bar", &bar_dir).build();
 
 		assert!(bar_dir.exists());
-		assert_eq!(store_content, expected);
+		assert_eq!(actual, expect);
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_add_specified_name() -> Result<()> {
-		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
-		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+		let repo_server_mock = RepoServerMock::new();
+		let mut scafalra_mock =
+			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra.add(AddArgs {
+		scafalra_mock.scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
 			depth: 0,
 			name: Some("foo".to_string()),
 		})?;
 
-		query_repo_mock.assert();
-		download_mock.assert();
+		repo_server_mock.query_repo_mock.assert();
+		repo_server_mock.download_mock.assert();
 
-		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = StoreJsonMocker::new().push("foo", &bar_dir).build();
+		let bar_dir = scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
+		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		let expect = StoreJsonMock::new().push("foo", &bar_dir).build();
 
 		assert!(bar_dir.exists());
-		assert_eq!(store_content, expected);
+		assert_eq!(actual, expect);
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_add_depth_1() -> Result<()> {
-		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
-		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+		let repo_server_mock = RepoServerMock::new();
+		let mut scafalra_mock =
+			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra.add(AddArgs {
+		scafalra_mock.scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
 			depth: 1,
 			name: Some("foo".to_string()),
 		})?;
 
-		query_repo_mock.assert();
-		download_mock.assert();
+		repo_server_mock.query_repo_mock.assert();
+		repo_server_mock.download_mock.assert();
 
-		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
-		let expected = StoreJsonMocker::new()
+		let bar_dir = scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
+		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		let expect = StoreJsonMock::new()
 			.push("a", bar_dir.join("a"))
 			.push("b", bar_dir.join("b"))
 			.push("c", bar_dir.join("c"))
 			.push("node_modules", bar_dir.join("node_modules"))
-			.all_to_sub_template()
+			.all_sub_template()
 			.build();
 
 		assert!(bar_dir.exists());
-		assert_eq!(store_content, expected);
+		assert_eq!(actual, expect);
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_add_subdir() -> Result<()> {
-		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
-		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+		let repo_server_mock = RepoServerMock::new();
+		let mut scafalra_mock =
+			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra.add(AddArgs {
+		scafalra_mock.scafalra.add(AddArgs {
 			repository: "foo/bar/a/a1".to_string(),
 			depth: 0,
 			name: None,
 		})?;
 
-		query_repo_mock.assert();
-		download_mock.assert();
+		repo_server_mock.query_repo_mock.assert();
+		repo_server_mock.download_mock.assert();
 
-		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a1_dir = scafalra.cache_dir.join_slash("foo/bar/a/a1");
-		let expected = StoreJsonMocker::new().push("a1", &a1_dir).build();
+		let a1_dir =
+			scafalra_mock.scafalra.cache_dir.join_slash("foo/bar/a/a1");
+		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		let expect = StoreJsonMock::new().push("a1", &a1_dir).build();
 
 		assert!(a1_dir.exists());
-		assert_eq!(store_content, expected);
+		assert_eq!(actual, expect);
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_add_subdir_and_depth_1() -> Result<()> {
-		let (server, query_repo_mock, download_mock) = mock_repo_server()?;
-		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+		let repo_server_mock = RepoServerMock::new();
+		let mut scafalra_mock =
+			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra.add(AddArgs {
+		scafalra_mock.scafalra.add(AddArgs {
 			repository: "foo/bar/a".to_string(),
 			depth: 1,
 			name: None,
 		})?;
 
-		query_repo_mock.assert();
-		download_mock.assert();
+		repo_server_mock.query_repo_mock.assert();
+		repo_server_mock.download_mock.assert();
 
-		let store_content = fs::read_to_string(&scafalra.store.path)?;
-		let a_dir = scafalra.cache_dir.join_slash("foo/bar/a");
+		let a_dir = scafalra_mock.scafalra.cache_dir.join_slash("foo/bar/a");
 		let a1_dir = a_dir.join("a1");
 		let a2_dir = a_dir.join("a2");
 		let a3_dir = a_dir.join("a3");
-		let expected = StoreJsonMocker::new()
+		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		let expect = StoreJsonMock::new()
 			.push("a1", &a1_dir)
 			.push("a2", &a2_dir)
 			.push("a3", &a3_dir)
-			.all_to_sub_template()
+			.all_sub_template()
 			.build();
 
 		assert!(a1_dir.exists());
 		assert!(a2_dir.exists());
 		assert!(a3_dir.exists());
-		assert_eq!(store_content, expected);
+		assert_eq!(actual, expect);
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_create() -> Result<()> {
-		let (scafalra, temp_dir) = mock_scafalra("", true)?;
+		let scafalra_mock = ScafalraMock::new().with_content();
 
-		let temp_dir_path = temp_dir.path();
+		let tmpdir_path = scafalra_mock.tmpdir.path();
 
-		scafalra.create(CreateArgs {
+		scafalra_mock.scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
-			directory: Some(temp_dir_path.join("bar")),
+			directory: Some(tmpdir_path.join("bar")),
 			with: None,
 		})?;
 
-		assert!(temp_dir_path.join_slash("bar/baz.txt").exists());
+		assert!(tmpdir_path.join_slash("bar/baz.txt").exists());
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_create_not_found() -> Result<()> {
-		let (scafalra, _dir) = mock_scafalra("", false)?;
+		let scafalra_mock = ScafalraMock::new();
 
-		let ret = scafalra.create(CreateArgs {
+		let ret = scafalra_mock.scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			directory: None,
 			with: None,
@@ -697,15 +786,16 @@ mod tests {
 	#[test]
 	#[cfg(feature = "self_update")]
 	fn test_scafalra_update_check() -> Result<()> {
-		let (server, query_release_mock, _) = mock_release_server()?;
-		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
+		let release_server_mock = ReleaseServerMock::new();
+		let scafalra_mock =
+			ScafalraMock::new().endpoint(&release_server_mock.server.url());
 
-		scafalra.update(UpdateArgs {
+		scafalra_mock.scafalra.update(UpdateArgs {
 			check: true,
 		})?;
 
-		query_release_mock.assert();
-		assert!(!scafalra.update_dir.exists());
+		release_server_mock.query_release_mock.assert();
+		assert!(!scafalra_mock.scafalra.update_dir.exists());
 
 		Ok(())
 	}
@@ -713,17 +803,17 @@ mod tests {
 	#[test]
 	#[cfg(feature = "self_update")]
 	fn test_scafalra_update() -> Result<()> {
-		let (server, query_release_mock, download_mock) =
-			mock_release_server()?;
-		let (scafalra, _temp_dir) = mock_scafalra(&server.url(), false)?;
+		let release_server_mock = ReleaseServerMock::new();
+		let scafalra_mock =
+			ScafalraMock::new().endpoint(&release_server_mock.server.url());
 
-		scafalra.update(UpdateArgs {
+		scafalra_mock.scafalra.update(UpdateArgs {
 			check: false,
 		})?;
 
-		query_release_mock.assert();
-		download_mock.assert();
-		assert!(!scafalra.update_dir.exists());
+		release_server_mock.query_release_mock.assert();
+		release_server_mock.download_mock.assert();
+		assert!(!scafalra_mock.scafalra.update_dir.exists());
 
 		Ok(())
 	}
@@ -731,13 +821,13 @@ mod tests {
 	#[test]
 	#[cfg(feature = "self_update")]
 	fn test_scafalra_uninstall() -> Result<()> {
-		let (scafalra, _temp_dir) = mock_scafalra("", false)?;
+		let scafalra_mock = ScafalraMock::new();
 
-		scafalra.uninstall(UninstallArgs {
+		scafalra_mock.scafalra.uninstall(UninstallArgs {
 			keep_data: false,
 		})?;
 
-		assert!(!scafalra.path.exists());
+		assert!(!scafalra_mock.scafalra.path.exists());
 
 		Ok(())
 	}
@@ -745,13 +835,13 @@ mod tests {
 	#[test]
 	#[cfg(feature = "self_update")]
 	fn test_scafalra_uninstall_keep_data() -> Result<()> {
-		let (scafalra, _temp_dir) = mock_scafalra("", false)?;
+		let scafalra_mock = ScafalraMock::new();
 
-		scafalra.uninstall(UninstallArgs {
+		scafalra_mock.scafalra.uninstall(UninstallArgs {
 			keep_data: true,
 		})?;
 
-		assert!(scafalra.path.exists());
+		assert!(scafalra_mock.scafalra.path.exists());
 
 		Ok(())
 	}
@@ -762,16 +852,18 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_copy_on_add() -> Result<()> {
-		let (server, _query_repo_mock, _download_mock) = mock_repo_server()?;
-		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+		let repo_server_mock = RepoServerMock::new();
+		let mut scafalra_mock =
+			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra.add(AddArgs {
+		scafalra_mock.scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
 			depth: 1,
 			name: Some("foo".to_string()),
 		})?;
 
-		let template_dir = scafalra.cache_dir.join_slash("foo/bar");
+		let template_dir =
+			scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
 
 		let a_dir = template_dir.join("a");
 		assert!(is_all_exists(&[
@@ -794,10 +886,11 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_copy_on_create() -> Result<()> {
-		let (server, _query_repo_mock, _download_mock) = mock_repo_server()?;
-		let (mut scafalra, _dir) = mock_scafalra(&server.url(), false)?;
+		let repo_server_mock = RepoServerMock::new();
+		let mut scafalra_mock =
+			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra.add(AddArgs {
+		scafalra_mock.scafalra.add(AddArgs {
 			repository: "foo/bar".to_string(),
 			depth: 1,
 			name: Some("foo".to_string()),
@@ -806,7 +899,7 @@ mod tests {
 		let tmp_dir = tempdir()?;
 		let dest = tmp_dir.path().join("dest");
 
-		scafalra.create(CreateArgs {
+		scafalra_mock.scafalra.create(CreateArgs {
 			name: "b".to_string(),
 			directory: Some(dest.clone()),
 			with: Some("common.txt,copy-dir,copy-all-in-dir/**".to_string()),

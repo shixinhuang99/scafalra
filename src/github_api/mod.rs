@@ -107,38 +107,97 @@ impl GitHubApi {
 }
 
 #[cfg(test)]
-mod tests {
-	use anyhow::Result;
+mod test_utils {
+	use mockito::{Mock, ServerGuard};
 
 	use super::GitHubApi;
 	use crate::repository::Repository;
 
-	fn mock_repo() -> Repository {
-		Repository {
-			owner: "shixinhuang99".to_string(),
-			name: "scafalra".to_string(),
-			..Repository::default()
+	pub struct RepositoryMock {
+		owner: String,
+		name: String,
+	}
+
+	impl RepositoryMock {
+		pub fn new() -> Self {
+			Self {
+				owner: "shixinhuang99".to_string(),
+				name: "scafalra".to_string(),
+			}
+		}
+
+		pub fn build(self) -> Repository {
+			Repository {
+				owner: self.owner,
+				name: self.name,
+				..Repository::default()
+			}
+		}
+
+		pub fn owner(self, owner: &str) -> Self {
+			Self {
+				owner: owner.to_string(),
+				..self
+			}
+		}
+
+		pub fn name(self, name: &str) -> Self {
+			Self {
+				name: name.to_string(),
+				..self
+			}
 		}
 	}
 
+	pub struct GitHubApiMock {
+		pub github_api: GitHubApi,
+		pub server: ServerGuard,
+		pub mock: Mock,
+	}
+
+	impl GitHubApiMock {
+		pub fn new(fixture: &str) -> Self {
+			let mut server = mockito::Server::new();
+
+			let mock = server
+				.mock("POST", "/")
+				.with_status(200)
+				.with_header("content-type", "application/json")
+				.with_body_from_file(fixture)
+				.create();
+
+			let github_api = GitHubApi::new(Some(&server.url()));
+
+			Self {
+				github_api,
+				server,
+				mock,
+			}
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use anyhow::Result;
+
+	use super::{
+		test_utils::{GitHubApiMock, RepositoryMock},
+		GitHubApi,
+	};
+
 	#[test]
 	fn test_repo_query() -> Result<()> {
-		let mut server = mockito::Server::new();
+		let github_api_mock =
+			GitHubApiMock::new("fixtures/repo-query-response.json");
 
-		let mock = server
-			.mock("POST", "/")
-			.with_status(200)
-			.with_header("content-type", "application/json")
-			.with_body_from_file("fixtures/repo-query-response.json")
-			.create();
+		github_api_mock.github_api.set_token("token");
 
-		let github_api = GitHubApi::new(Some(&server.url()));
+		let repo_urls = github_api_mock
+			.github_api
+			.query_remote_repo(&RepositoryMock::new().build())?;
 
-		github_api.set_token("token");
-
-		let repo_urls = github_api.query_remote_repo(&mock_repo())?;
-
-		mock.assert();
+		github_api_mock.mock.assert();
 		assert_eq!(repo_urls.url, "url");
 		assert_eq!(repo_urls.tarball_url, "tarballUrl");
 
@@ -148,33 +207,24 @@ mod tests {
 	#[test]
 	fn test_github_api_request_no_token() {
 		let github_api = GitHubApi::new(None);
-		let api_result = github_api.query_remote_repo(&mock_repo());
+		let api_result =
+			github_api.query_remote_repo(&RepositoryMock::new().build());
 
 		assert!(api_result.is_err());
 	}
 
 	#[test]
 	fn test_github_api_request_error() -> Result<()> {
-		let mut server = mockito::Server::new();
+		let github_api_mock =
+			GitHubApiMock::new("fixtures/repo-query-error.json");
 
-		let mock = server
-			.mock("POST", "/")
-			.with_status(200)
-			.with_header("content-type", "application/json")
-			.with_body_from_file("fixtures/repo-query-error.json")
-			.create();
+		github_api_mock.github_api.set_token("token");
 
-		let github_api = GitHubApi::new(Some(&server.url()));
+		let api_result = github_api_mock.github_api.query_remote_repo(
+			&RepositoryMock::new().owner("foo").name("bar").build(),
+		);
 
-		github_api.set_token("token");
-
-		let api_result = github_api.query_remote_repo(&Repository {
-			owner: "foo".to_string(),
-			name: "bar".to_string(),
-			..Repository::default()
-		});
-
-		mock.assert();
+		github_api_mock.mock.assert();
 		assert!(api_result.is_err());
 
 		Ok(())
@@ -183,22 +233,14 @@ mod tests {
 	#[test]
 	#[cfg(feature = "self_update")]
 	fn test_release_query() -> Result<()> {
-		let mut server = mockito::Server::new();
+		let github_api_mock =
+			GitHubApiMock::new("fixtures/release-query-response.json");
 
-		let mock = server
-			.mock("POST", "/")
-			.with_status(200)
-			.with_header("content-type", "application/json")
-			.with_body_from_file("fixtures/release-query-response.json")
-			.create();
+		github_api_mock.github_api.set_token("token");
 
-		let github_api = GitHubApi::new(Some(&server.url()));
+		let release = github_api_mock.github_api.query_release()?;
 
-		github_api.set_token("token");
-
-		let release = github_api.query_release()?;
-
-		mock.assert();
+		github_api_mock.mock.assert();
 		assert_eq!(release.version.to_string(), "0.6.0");
 
 		Ok(())

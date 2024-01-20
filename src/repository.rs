@@ -14,9 +14,9 @@ use crate::{
 	utils::{download, tar_unpack},
 };
 
-static REPO_RE: OnceLock<Regex> = OnceLock::new();
-
 fn repo_re() -> &'static Regex {
+	static REPO_RE: OnceLock<Regex> = OnceLock::new();
+
 	REPO_RE.get_or_init(|| {
 		Regex::new(
 			r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$",
@@ -41,7 +41,7 @@ pub enum Query {
 }
 
 impl Repository {
-	pub const TMP_REPO_DIR_NAME: &'static str = "t";
+	pub const TMP_DIR_NAME: &'static str = "t";
 	pub const TARBALL_EXT: &'static str = "tar.gz";
 
 	pub fn parse(input: &str) -> Result<Self> {
@@ -72,7 +72,7 @@ impl Repository {
 	}
 
 	pub fn cache(&self, url: &str, cache_dir: &Path) -> Result<PathBuf> {
-		let temp_dir = cache_dir.join(Self::TMP_REPO_DIR_NAME);
+		let temp_dir = cache_dir.join(Self::TMP_DIR_NAME);
 		let tarball = temp_dir.with_extension(Self::TARBALL_EXT);
 
 		download(url, &tarball)?;
@@ -227,7 +227,7 @@ mod tests {
 		let repo = Repository::parse("shixinhuang99/scafalra")?;
 		repo.cache(&server.url(), temp_dir_path)?;
 
-		let tmp_repo_dir = temp_dir_path.join(Repository::TMP_REPO_DIR_NAME);
+		let tmp_repo_dir = temp_dir_path.join(Repository::TMP_DIR_NAME);
 		let tarball = tmp_repo_dir.with_extension(Repository::TARBALL_EXT);
 
 		mock.assert();

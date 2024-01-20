@@ -30,32 +30,68 @@ impl RepositoryConfig {
 }
 
 #[cfg(test)]
-mod tests {
-	use std::{collections::HashMap, path::PathBuf};
+mod test_utils {
+	use std::path::PathBuf;
 
-	use anyhow::Result;
+	use tempfile::{tempdir, TempDir};
 
 	use super::RepositoryConfig;
 
+	pub struct RepositoryConfigMock {
+		pub repo_cfg: RepositoryConfig,
+		pub tmpdir: TempDir,
+		pub path: PathBuf,
+	}
+
+	impl RepositoryConfigMock {
+		pub fn new() -> Self {
+			let tmpdir = tempdir().unwrap();
+			let tmpdir_path = tmpdir.path().to_path_buf();
+			let repo_cfg = RepositoryConfig::load(&tmpdir_path);
+
+			Self {
+				repo_cfg,
+				tmpdir,
+				path: tmpdir_path,
+			}
+		}
+
+		pub fn with_fixture(self) -> Self {
+			let fixture_path = PathBuf::from("fixtures");
+			let repo_cfg = RepositoryConfig::load(&fixture_path);
+
+			Self {
+				repo_cfg,
+				path: fixture_path,
+				..self
+			}
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::HashMap;
+
+	use anyhow::Result;
+
+	use super::test_utils::RepositoryConfigMock;
+
 	#[test]
-	fn test_config_file_exists() -> Result<()> {
-		let template_dir = PathBuf::from("fixtures");
-		let repo_cfg = RepositoryConfig::load(&template_dir);
+	fn test_config_file_load() {
+		let repo_cfg_mock = RepositoryConfigMock::new().with_fixture();
 
 		assert_eq!(
-			repo_cfg.copy_on_add,
+			repo_cfg_mock.repo_cfg.copy_on_add,
 			HashMap::from_iter([("foo".to_string(), vec!["baz".to_string()])])
 		);
-
-		Ok(())
 	}
 
 	#[test]
-	fn test_config_file_not_exists() -> Result<()> {
-		let template_dir = tempfile::tempdir()?;
-		let repo_cfg = RepositoryConfig::load(template_dir.path());
+	fn test_config_load_file_not_exists() -> Result<()> {
+		let repo_cfg_mock = RepositoryConfigMock::new();
 
-		assert!(repo_cfg.copy_on_add.is_empty());
+		assert!(repo_cfg_mock.repo_cfg.copy_on_add.is_empty());
 
 		Ok(())
 	}
