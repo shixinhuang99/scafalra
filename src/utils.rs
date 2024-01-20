@@ -5,7 +5,6 @@ use std::{
 };
 
 use anyhow::Result;
-use flate2::read::GzDecoder;
 use fs_err as fs;
 use ureq::{Agent, AgentBuilder, Proxy};
 
@@ -63,14 +62,14 @@ impl Downloader {
 		#[cfg(not(all(windows, feature = "self_update")))]
 		{
 			let file = fs::File::open(&self.file)?;
-			let dec = GzDecoder::new(file);
+			let dec = flate2::read::GzDecoder::new(file);
 			let mut tar = tar::Archive::new(dec);
 			tar.unpack(dst)?;
 		}
 
 		#[cfg(all(windows, feature = "self_update"))]
 		{
-			let file = fs::File::open(file_path)?;
+			let file = fs::File::open(&self.file)?;
 			let mut archive = zip::ZipArchive::new(file)?;
 			archive.extract(dst)?;
 		}
