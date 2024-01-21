@@ -35,7 +35,7 @@ pub enum Command {
 	/// Rename a template
 	Mv(MvArgs),
 
-	/// Add templates from GitHub repository
+	/// Add template from GitHub repository
 	Add(AddArgs),
 
 	/// Copy the template folder to the specified directory
@@ -72,8 +72,9 @@ pub struct MvArgs {
 }
 
 #[derive(Args, Debug)]
+#[cfg_attr(test, derive(Clone))]
 pub struct AddArgs {
-	/// owner/name/.../subdir?(branch|tag|commit)=...
+	/// owner/name/.../subdir
 	pub repository: String,
 
 	/// The depth to go when recursing repository
@@ -90,6 +91,18 @@ pub struct AddArgs {
 	/// subdir will be used as the name
 	#[arg(long)]
 	pub name: Option<String>,
+
+	/// Specify branch
+	#[arg(long)]
+	pub branch: Option<String>,
+
+	/// Specify tag
+	#[arg(long)]
+	pub tag: Option<String>,
+
+	/// Specify commit
+	#[arg(long)]
+	pub commit: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -124,6 +137,70 @@ pub struct UninstallArgs {
 	/// Keep the data
 	#[arg(long)]
 	pub keep_data: bool,
+}
+
+#[cfg(test)]
+pub mod test_utils {
+	use super::AddArgs;
+
+	pub struct AddArgsMock {
+		args: AddArgs,
+	}
+
+	impl AddArgsMock {
+		pub fn new() -> Self {
+			Self {
+				args: AddArgs {
+					repository: "".to_string(),
+					depth: 0,
+					name: None,
+					branch: None,
+					tag: None,
+					commit: None,
+				},
+			}
+		}
+
+		pub fn build(&self) -> AddArgs {
+			self.args.clone()
+		}
+
+		pub fn repository(&mut self, repository: &str) -> &mut Self {
+			self.args.repository = repository.to_string();
+
+			self
+		}
+
+		pub fn depth(&mut self, depth: u8) -> &mut Self {
+			self.args.depth = depth;
+
+			self
+		}
+
+		pub fn name(&mut self, name: &str) -> &mut Self {
+			self.args.name = Some(name.to_string());
+
+			self
+		}
+
+		pub fn branch(&mut self, branch: &str) -> &mut Self {
+			self.args.branch = Some(branch.to_string());
+
+			self
+		}
+
+		pub fn tag(&mut self, tag: &str) -> &mut Self {
+			self.args.tag = Some(tag.to_string());
+
+			self
+		}
+
+		pub fn commit(&mut self, commit: &str) -> &mut Self {
+			self.args.commit = Some(commit.to_string());
+
+			self
+		}
+	}
 }
 
 #[cfg(test)]

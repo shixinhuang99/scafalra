@@ -107,7 +107,7 @@ impl Scafalra {
 
 		println!("Downloading `{}` ...", args.repository);
 
-		let remote_repo = self.github_api.query_remote_repo(&repo)?;
+		let remote_repo = self.github_api.query_remote_repo(&repo, &args)?;
 
 		let mut template_name = args.name.unwrap_or(repo.name.clone());
 
@@ -589,7 +589,7 @@ mod tests {
 	#[cfg(feature = "self_update")]
 	use crate::cli::{UninstallArgs, UpdateArgs};
 	use crate::{
-		cli::{AddArgs, CreateArgs},
+		cli::{test_utils::AddArgsMock, CreateArgs},
 		path_ext::*,
 		store::test_utils::StoreJsonMock,
 	};
@@ -609,11 +609,9 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock.scafalra.add(AddArgs {
-			repository: "foo/bar".to_string(),
-			depth: 0,
-			name: None,
-		})?;
+		scafalra_mock
+			.scafalra
+			.add(AddArgsMock::new().repository("foo/bar").build())?;
 
 		repo_server_mock.query_repo_mock.assert();
 		repo_server_mock.download_mock.assert();
@@ -634,11 +632,9 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock.scafalra.add(AddArgs {
-			repository: "foo/bar".to_string(),
-			depth: 0,
-			name: Some("foo".to_string()),
-		})?;
+		scafalra_mock.scafalra.add(
+			AddArgsMock::new().repository("foo/bar").name("foo").build(),
+		)?;
 
 		repo_server_mock.query_repo_mock.assert();
 		repo_server_mock.download_mock.assert();
@@ -659,11 +655,9 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock.scafalra.add(AddArgs {
-			repository: "foo/bar".to_string(),
-			depth: 1,
-			name: Some("foo".to_string()),
-		})?;
+		scafalra_mock
+			.scafalra
+			.add(AddArgsMock::new().repository("foo/bar").depth(1).build())?;
 
 		repo_server_mock.query_repo_mock.assert();
 		repo_server_mock.download_mock.assert();
@@ -690,11 +684,9 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock.scafalra.add(AddArgs {
-			repository: "foo/bar/a/a1".to_string(),
-			depth: 0,
-			name: None,
-		})?;
+		scafalra_mock
+			.scafalra
+			.add(AddArgsMock::new().repository("foo/bar/a/a1").build())?;
 
 		repo_server_mock.query_repo_mock.assert();
 		repo_server_mock.download_mock.assert();
@@ -716,11 +708,9 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock.scafalra.add(AddArgs {
-			repository: "foo/bar/a".to_string(),
-			depth: 1,
-			name: None,
-		})?;
+		scafalra_mock
+			.scafalra
+			.add(AddArgsMock::new().repository("foo/bar/a").depth(1).build())?;
 
 		repo_server_mock.query_repo_mock.assert();
 		repo_server_mock.download_mock.assert();
@@ -852,11 +842,9 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock.scafalra.add(AddArgs {
-			repository: "foo/bar".to_string(),
-			depth: 1,
-			name: Some("foo".to_string()),
-		})?;
+		scafalra_mock
+			.scafalra
+			.add(AddArgsMock::new().repository("foo/bar").depth(1).build())?;
 
 		let template_dir =
 			scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
@@ -886,11 +874,9 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock.scafalra.add(AddArgs {
-			repository: "foo/bar".to_string(),
-			depth: 1,
-			name: Some("foo".to_string()),
-		})?;
+		scafalra_mock
+			.scafalra
+			.add(AddArgsMock::new().repository("foo/bar").depth(1).build())?;
 
 		let tmp_dir = tempdir()?;
 		let dest = tmp_dir.path().join("dest");

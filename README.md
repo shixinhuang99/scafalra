@@ -33,7 +33,7 @@ Commands:
   list    List all templates
   remove  Remove specified templates
   mv      Rename a template
-  add     Add templates from GitHub repository
+  add     Add template from GitHub repository
   create  Copy the template folder to the specified directory
   token   Configure or display your GitHub personal access token
   help    Print this message or the help of the given subcommand(s)
@@ -47,6 +47,31 @@ Options:
 ```
 
 ## Example
+
+### Basic
+
+```bash
+sca add user/repo
+
+# subdir
+sca add user/repo/path/to/dir
+
+# GitHub url
+sca add https://github.com/user/repo.git
+
+# branch
+sca add user/repo --branch branch
+
+# tag
+sca add user/repo --tag tag
+
+# commit
+sca add user/repo --commit e763a43519ea4c209df2452c6e2a5b7dffdfdd3d
+```
+
+```bash
+sca create repo
+```
 
 ### Proxy support
 

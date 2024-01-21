@@ -1,12 +1,9 @@
 use serde::{Deserialize, Serialize};
 
 use super::gql::GraphQLQuery;
-use crate::{
-	json::ToJson,
-	repository::{Query, Repository},
-};
+use crate::{cli::AddArgs, json::ToJson, repository::Repository};
 
-const REPO_GQL: &str = include_str!("repo.gql");
+static REPO_GQL: &str = include_str!("repo.gql");
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,29 +13,6 @@ struct RepoVariables {
 	expression: Option<String>,
 	oid: Option<String>,
 	is_default_branch: bool,
-}
-
-impl RepoVariables {
-	pub fn new(repo: &Repository) -> Self {
-		let (expression, oid) = match &repo.query {
-			Some(Query::Branch(branch)) => {
-				(Some(format!("refs/heads/{}", branch)), None)
-			}
-			Some(Query::Tag(tag)) => (Some(format!("refs/tags/{}", tag)), None),
-			Some(Query::Commit(oid)) => (None, Some(oid.clone())),
-			_ => (None, None),
-		};
-
-		let is_default_branch = expression.is_none() && oid.is_none();
-
-		RepoVariables {
-			name: repo.name.clone(),
-			owner: repo.owner.clone(),
-			expression,
-			oid,
-			is_default_branch,
-		}
-	}
 }
 
 impl ToJson for RepoVariables {}
@@ -93,8 +67,41 @@ impl From<RepoResponseData> for RemoteRepo {
 	}
 }
 
-pub fn build_repo_query(repo: &Repository) -> GraphQLQuery {
-	GraphQLQuery::new(REPO_GQL, RepoVariables::new(repo).to_json())
+pub struct RepoQuery {
+	query: &'static str,
+	variables: RepoVariables,
+}
+
+impl RepoQuery {
+	pub fn new(repo: &Repository, args: &AddArgs) -> Self {
+		let expression = args
+			.branch
+			.clone()
+			.map(|branch| format!("refs/heads/{}", branch))
+			.or_else(|| {
+				args.tag.clone().map(|tag| format!("refs/tags/{}", tag))
+			});
+		let oid = args.commit.clone();
+		let is_default_branch = expression.is_none() && oid.is_none();
+
+		Self {
+			query: REPO_GQL,
+			variables: RepoVariables {
+				name: repo.name.clone(),
+				owner: repo.owner.clone(),
+				expression,
+				oid,
+				is_default_branch,
+			},
+		}
+	}
+
+	pub fn build(self) -> GraphQLQuery {
+		GraphQLQuery {
+			query: self.query,
+			variables: self.variables.to_json(),
+		}
+	}
 }
 
 #[cfg(test)]
@@ -122,67 +129,104 @@ pub fn mock_repo_response_json(url: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-	use super::{Query, RepoVariables, Repository};
+pub mod test_utils {
+	use super::RepoQuery;
+	use crate::{
+		cli::test_utils::AddArgsMock, repository::test_utils::RepositoryMock,
+	};
 
-	fn build_repository() -> Repository {
-		Repository {
-			owner: "shixinhuang99".to_string(),
-			name: "scafalra".to_string(),
-			..Repository::default()
+	pub struct RepoQueryMock {
+		repo_query: RepoQuery,
+	}
+
+	impl RepoQueryMock {
+		pub fn new() -> Self {
+			Self {
+				repo_query: RepoQuery::new(
+					&RepositoryMock::new().build(),
+					&AddArgsMock::new().build(),
+				),
+			}
+		}
+
+		pub fn branch(self, branch: &str) -> Self {
+			Self {
+				repo_query: RepoQuery::new(
+					&RepositoryMock::new().build(),
+					&AddArgsMock::new().branch(branch).build(),
+				),
+			}
+		}
+
+		pub fn tag(self, tag: &str) -> Self {
+			Self {
+				repo_query: RepoQuery::new(
+					&RepositoryMock::new().build(),
+					&AddArgsMock::new().tag(tag).build(),
+				),
+			}
+		}
+
+		pub fn commit(self, commit: &str) -> Self {
+			Self {
+				repo_query: RepoQuery::new(
+					&RepositoryMock::new().build(),
+					&AddArgsMock::new().commit(commit).build(),
+				),
+			}
+		}
+
+		pub fn build(self) -> RepoQuery {
+			self.repo_query
 		}
 	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::test_utils::RepoQueryMock;
 
 	#[test]
-	fn test_variable_new() {
-		let v = RepoVariables::new(&build_repository());
+	fn test_repo_query() {
+		let repo_query = RepoQueryMock::new().build();
 
-		assert_eq!(&v.name, "scafalra");
-		assert_eq!(&v.owner, "shixinhuang99");
-		assert_eq!(v.oid, None);
-		assert_eq!(v.expression, None);
-		assert!(v.is_default_branch);
+		assert_eq!(repo_query.variables.name, "scafalra");
+		assert_eq!(repo_query.variables.owner, "shixinhuang99");
+		assert_eq!(repo_query.variables.oid, None);
+		assert_eq!(repo_query.variables.expression, None);
+		assert!(repo_query.variables.is_default_branch);
 	}
 
 	#[test]
-	fn test_variable_query_branch() {
-		let v = RepoVariables::new(&Repository {
-			query: Some(Query::Branch("foo".to_string())),
-			..build_repository()
-		});
+	fn test_repo_query_branch() {
+		let repo_query = RepoQueryMock::new().branch("foo").build();
 
-		assert_eq!(&v.name, "scafalra");
-		assert_eq!(&v.owner, "shixinhuang99");
-		assert_eq!(v.oid, None);
-		assert_eq!(v.expression, Some("refs/heads/foo".to_string()));
-		assert!(!v.is_default_branch);
+		assert_eq!(repo_query.variables.oid, None);
+		assert_eq!(
+			repo_query.variables.expression,
+			Some("refs/heads/foo".to_string())
+		);
+		assert!(!repo_query.variables.is_default_branch);
 	}
 
 	#[test]
-	fn test_variable_query_tag() {
-		let v = RepoVariables::new(&Repository {
-			query: Some(Query::Tag("foo".to_string())),
-			..build_repository()
-		});
+	fn test_repo_query_tag() {
+		let repo_query = RepoQueryMock::new().tag("foo").build();
 
-		assert_eq!(&v.name, "scafalra");
-		assert_eq!(&v.owner, "shixinhuang99");
-		assert_eq!(v.oid, None);
-		assert_eq!(v.expression, Some("refs/tags/foo".to_string()));
-		assert!(!v.is_default_branch);
+		assert_eq!(repo_query.variables.oid, None);
+		assert_eq!(
+			repo_query.variables.expression,
+			Some("refs/tags/foo".to_string())
+		);
+		assert!(!repo_query.variables.is_default_branch);
 	}
 
 	#[test]
-	fn test_variable_query_commit() {
-		let v = RepoVariables::new(&Repository {
-			query: Some(Query::Commit("foo".to_string())),
-			..build_repository()
-		});
+	fn test_repo_query_commit() {
+		let repo_query = RepoQueryMock::new().commit("foo").build();
 
-		assert_eq!(&v.name, "scafalra");
-		assert_eq!(&v.owner, "shixinhuang99");
-		assert_eq!(v.oid, Some("foo".to_string()));
-		assert_eq!(v.expression, None);
-		assert!(!v.is_default_branch);
+		assert_eq!(repo_query.variables.oid, Some("foo".to_string()));
+		assert_eq!(repo_query.variables.expression, None,);
+		assert!(!repo_query.variables.is_default_branch);
 	}
 }

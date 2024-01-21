@@ -14,7 +14,7 @@ fn repo_re() -> &'static Regex {
 
 	REPO_RE.get_or_init(|| {
 		Regex::new(
-			r"^([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\?(branch|tag|commit)=([^\s]+))?$",
+			r"^(?:https://github\.com/)?([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\.git)?$",
 		)
 		.unwrap()
 	})
@@ -25,14 +25,6 @@ pub struct Repository {
 	pub owner: String,
 	pub name: String,
 	pub subdir: Option<PathBuf>,
-	pub query: Option<Query>,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum Query {
-	Branch(String),
-	Tag(String),
-	Commit(String),
 }
 
 impl Repository {
@@ -45,23 +37,12 @@ impl Repository {
 
 		let owner = caps[1].to_string();
 		let name = caps[2].to_string();
-
 		let subdir = caps.get(3).map(|v| PathBuf::from(v.as_str()));
-		let query_kind = caps.get(4).map(|v| v.as_str());
-		let query_val = caps.get(5).map(|v| v.as_str().to_string());
-
-		let query = match (query_kind, query_val) {
-			(Some("branch"), Some(val)) => Some(Query::Branch(val)),
-			(Some("tag"), Some(val)) => Some(Query::Tag(val)),
-			(Some("commit"), Some(val)) => Some(Query::Commit(val)),
-			_ => None,
-		};
 
 		Ok(Self {
 			owner,
 			name,
 			subdir,
-			query,
 		})
 	}
 
@@ -95,10 +76,53 @@ impl Repository {
 }
 
 #[cfg(test)]
+pub mod test_utils {
+	use super::Repository;
+
+	pub struct RepositoryMock {
+		owner: String,
+		name: String,
+	}
+
+	impl RepositoryMock {
+		pub fn new() -> Self {
+			Self {
+				owner: "shixinhuang99".to_string(),
+				name: "scafalra".to_string(),
+			}
+		}
+
+		pub fn build(self) -> Repository {
+			Repository {
+				owner: self.owner,
+				name: self.name,
+				..Repository::default()
+			}
+		}
+
+		pub fn owner(self, owner: &str) -> Self {
+			Self {
+				owner: owner.to_string(),
+				..self
+			}
+		}
+
+		pub fn name(self, name: &str) -> Self {
+			Self {
+				name: name.to_string(),
+				..self
+			}
+		}
+	}
+}
+
+#[cfg(test)]
 mod tests {
+	use std::path::PathBuf;
+
 	use anyhow::Result;
 
-	use super::{repo_re, Query, Repository};
+	use super::{repo_re, Repository};
 	use crate::path_ext::*;
 
 	#[test]
@@ -121,60 +145,6 @@ mod tests {
 	}
 
 	#[test]
-	fn test_repo_re_branch() {
-		let caps = repo_re().captures("foo/bar?branch=main");
-		assert!(caps.is_some());
-		let caps = caps.unwrap();
-		assert_eq!(&caps[1], "foo");
-		assert_eq!(&caps[2], "bar");
-		assert_eq!(caps.get(3), None);
-		assert_eq!(&caps[4], "branch");
-		assert_eq!(&caps[5], "main");
-	}
-
-	#[test]
-	fn test_repo_re_tag() {
-		let caps = repo_re().captures("foo/bar?tag=v1.0.0");
-		assert!(caps.is_some());
-		let caps = caps.unwrap();
-		assert_eq!(&caps[1], "foo");
-		assert_eq!(&caps[2], "bar");
-		assert_eq!(caps.get(3), None);
-		assert_eq!(&caps[4], "tag");
-		assert_eq!(&caps[5], "v1.0.0");
-	}
-
-	#[test]
-	fn test_repo_re_commit() {
-		let caps = repo_re().captures("foo/bar?commit=abc123");
-		assert!(caps.is_some());
-		let caps = caps.unwrap();
-		assert_eq!(&caps[1], "foo");
-		assert_eq!(&caps[2], "bar");
-		assert_eq!(caps.get(3), None);
-		assert_eq!(&caps[4], "commit");
-		assert_eq!(&caps[5], "abc123");
-	}
-
-	#[test]
-	fn test_repo_re_query_empty() {
-		let caps = repo_re().captures("foo/bar?commit= ");
-		assert!(caps.is_none());
-	}
-
-	#[test]
-	fn test_repo_re_full() {
-		let caps = repo_re().captures("foo/bar/path/to/dir?branch=main");
-		assert!(caps.is_some());
-		let caps = caps.unwrap();
-		assert_eq!(&caps[1], "foo");
-		assert_eq!(&caps[2], "bar");
-		assert_eq!(caps.get(3).unwrap().as_str(), "/path/to/dir");
-		assert_eq!(&caps[4], "branch");
-		assert_eq!(&caps[5], "main");
-	}
-
-	#[test]
 	fn test_repo_re_none_match() {
 		let caps = repo_re().captures("foo");
 		assert!(caps.is_none());
@@ -182,15 +152,31 @@ mod tests {
 
 	#[test]
 	fn test_repo_new() -> Result<()> {
-		let repo = Repository::parse("foo/bar/path/to/dir?branch=main")?;
+		let repo = Repository::parse("foo/bar")?;
 
 		assert_eq!(repo.owner, "foo");
 		assert_eq!(repo.name, "bar");
-		assert_eq!(
-			repo.subdir.unwrap().to_string_lossy().to_string(),
-			"/path/to/dir"
-		);
-		assert_eq!(repo.query.unwrap(), Query::Branch("main".to_string()));
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_repo_new_subdir() -> Result<()> {
+		let repo = Repository::parse("foo/bar/path/to/dir")?;
+		assert_eq!(repo.owner, "foo");
+		assert_eq!(repo.name, "bar");
+		assert_eq!(repo.subdir, Some(PathBuf::from("/path/to/dir")));
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_repo_new_git_url() -> Result<()> {
+		let repo =
+			Repository::parse("https://github.com/foo/bar/path/to/dir.git")?;
+		assert_eq!(repo.owner, "foo");
+		assert_eq!(repo.name, "bar");
+		assert_eq!(repo.subdir, Some(PathBuf::from("/path/to/dir")));
 
 		Ok(())
 	}
