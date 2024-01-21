@@ -4,24 +4,15 @@ use serde::{Deserialize, Serialize};
 use super::gql::GraphQLQuery;
 use crate::{
 	json::ToJson,
-	utils::{get_self_target, get_self_version},
+	utils::{SELF_TARGET, SELF_VERSION},
 };
 
-const RELEASE_GQL: &str = include_str!("release.gql");
+static RELEASE_GQL: &str = include_str!("release.gql");
 
 #[derive(Serialize)]
 struct ReleaseVariables {
 	name: &'static str,
 	owner: &'static str,
-}
-
-impl ReleaseVariables {
-	pub fn new() -> Self {
-		ReleaseVariables {
-			name: "scafalra",
-			owner: "shixinhuang99",
-		}
-	}
 }
 
 impl ToJson for ReleaseVariables {}
@@ -67,21 +58,19 @@ fn parse_ver(ver: &str) -> Version {
 
 impl From<ReleaseResponseData> for Release {
 	fn from(value: ReleaseResponseData) -> Self {
-		let target = get_self_target();
-
 		let node = value
 			.repository
 			.latest_release
 			.release_assets
 			.nodes
 			.into_iter()
-			.find(|v| v.download_url.contains(target))
+			.find(|v| v.download_url.contains(SELF_TARGET))
 			.expect("Should find a matching release");
 
 		let Node {
 			download_url,
 		} = node;
-		let self_ver = parse_ver(get_self_version());
+		let self_ver = parse_ver(SELF_VERSION);
 		let release_ver = parse_ver(
 			download_url
 				.split('-')
@@ -97,8 +86,28 @@ impl From<ReleaseResponseData> for Release {
 	}
 }
 
-pub fn build_release_query() -> GraphQLQuery {
-	GraphQLQuery::new(RELEASE_GQL, ReleaseVariables::new().to_json())
+pub struct ReleaseQuery {
+	query: &'static str,
+	variables: ReleaseVariables,
+}
+
+impl ReleaseQuery {
+	pub fn new() -> Self {
+		Self {
+			query: RELEASE_GQL,
+			variables: ReleaseVariables {
+				name: "scafalra",
+				owner: "shixinhuang99",
+			},
+		}
+	}
+
+	pub fn build(self) -> GraphQLQuery {
+		GraphQLQuery {
+			query: self.query,
+			variables: self.variables.to_json(),
+		}
+	}
 }
 
 #[cfg(test)]

@@ -7,27 +7,25 @@ use std::cell::RefCell;
 
 use anyhow::Result;
 use gql::{GraphQLQuery, GraphQLResponse};
-#[cfg(test)]
-#[cfg(feature = "self_update")]
+#[cfg(all(test, feature = "self_update"))]
 pub use release::mock_release_response_json;
 #[cfg(feature = "self_update")]
-use release::{build_release_query, Release, ReleaseResponseData};
+use release::{Release, ReleaseQuery, ReleaseResponseData};
 #[cfg(test)]
 pub use repo::mock_repo_response_json;
-use repo::{build_repo_query, RemoteRepo, RepoResponseData};
+use repo::{RemoteRepo, RepoQuery, RepoResponseData};
 use serde::de::DeserializeOwned;
-use ureq::Agent;
 
 use crate::{
+	cli::AddArgs,
 	debug,
 	repository::Repository,
-	utils::{build_proxy_agent, get_self_version},
+	utils::{global_agent, SELF_VERSION},
 };
 
 pub struct GitHubApi {
 	token: RefCell<Option<String>>,
 	endpoint: String,
-	agent: Agent,
 }
 
 impl GitHubApi {
@@ -36,12 +34,9 @@ impl GitHubApi {
 			.unwrap_or("https://api.github.com/graphql")
 			.to_string();
 
-		let agent = build_proxy_agent();
-
 		Self {
 			token: RefCell::new(None),
 			endpoint,
-			agent,
 		}
 	}
 
@@ -53,28 +48,25 @@ impl GitHubApi {
 	where
 		T: DeserializeOwned + std::fmt::Debug,
 	{
+		debug!("GraphQL variables json: {}", query.variables);
+
 		let token = self.token.borrow().clone().ok_or(anyhow::anyhow!(
 			"No GitHub personal access token configured"
 		))?;
 
 		let response: GraphQLResponse<T> = serde_json::from_reader(
-			self.agent
+			global_agent()
 				.post(&self.endpoint)
 				.set("authorization", &format!("bearer {}", token))
 				.set("content-type", "application/json")
-				.set("user-agent", &format!("scafalra/{}", get_self_version()))
+				.set("user-agent", &format!("scafalra/{}", SELF_VERSION))
 				.send_bytes(&serde_json::to_vec(&query)?)?
 				.into_reader(),
 		)?;
 
 		debug!("response: {:#?}", response);
 
-		let GraphQLResponse {
-			data,
-			errors,
-		} = response;
-
-		if let Some(errors) = errors {
+		if let Some(errors) = response.errors {
 			if errors.is_empty() {
 				anyhow::bail!("Call to GitHub api error");
 			} else {
@@ -85,12 +77,16 @@ impl GitHubApi {
 			}
 		}
 
-		data.ok_or(anyhow::anyhow!("No response data"))
+		response.data.ok_or(anyhow::anyhow!("No response data"))
 	}
 
-	pub fn query_remote_repo(&self, repo: &Repository) -> Result<RemoteRepo> {
+	pub fn query_remote_repo(
+		&self,
+		repo: &Repository,
+		args: &AddArgs,
+	) -> Result<RemoteRepo> {
 		let remote_repo: RemoteRepo = self
-			.request::<RepoResponseData>(build_repo_query(repo))?
+			.request::<RepoResponseData>(RepoQuery::new(repo, args).build())?
 			.into();
 
 		Ok(remote_repo)
@@ -99,7 +95,7 @@ impl GitHubApi {
 	#[cfg(feature = "self_update")]
 	pub fn query_release(&self) -> Result<Release> {
 		let release: Release = self
-			.request::<ReleaseResponseData>(build_release_query())?
+			.request::<ReleaseResponseData>(ReleaseQuery::new().build())?
 			.into();
 
 		Ok(release)
@@ -111,43 +107,6 @@ mod test_utils {
 	use mockito::{Mock, ServerGuard};
 
 	use super::GitHubApi;
-	use crate::repository::Repository;
-
-	pub struct RepositoryMock {
-		owner: String,
-		name: String,
-	}
-
-	impl RepositoryMock {
-		pub fn new() -> Self {
-			Self {
-				owner: "shixinhuang99".to_string(),
-				name: "scafalra".to_string(),
-			}
-		}
-
-		pub fn build(self) -> Repository {
-			Repository {
-				owner: self.owner,
-				name: self.name,
-				..Repository::default()
-			}
-		}
-
-		pub fn owner(self, owner: &str) -> Self {
-			Self {
-				owner: owner.to_string(),
-				..self
-			}
-		}
-
-		pub fn name(self, name: &str) -> Self {
-			Self {
-				name: name.to_string(),
-				..self
-			}
-		}
-	}
 
 	pub struct GitHubApiMock {
 		pub github_api: GitHubApi,
@@ -181,9 +140,9 @@ mod test_utils {
 mod tests {
 	use anyhow::Result;
 
-	use super::{
-		test_utils::{GitHubApiMock, RepositoryMock},
-		GitHubApi,
+	use super::test_utils::GitHubApiMock;
+	use crate::{
+		cli::test_utils::AddArgsMock, repository::test_utils::RepositoryMock,
 	};
 
 	#[test]
@@ -193,24 +152,29 @@ mod tests {
 
 		github_api_mock.github_api.set_token("token");
 
-		let repo_urls = github_api_mock
-			.github_api
-			.query_remote_repo(&RepositoryMock::new().build())?;
+		let ret = github_api_mock.github_api.query_remote_repo(
+			&RepositoryMock::new().build(),
+			&AddArgsMock::new().build(),
+		)?;
 
 		github_api_mock.mock.assert();
-		assert_eq!(repo_urls.url, "url");
-		assert_eq!(repo_urls.tarball_url, "tarballUrl");
+		assert_eq!(ret.url, "url");
+		assert_eq!(ret.tarball_url, "tarballUrl");
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_github_api_request_no_token() {
-		let github_api = GitHubApi::new(None);
-		let api_result =
-			github_api.query_remote_repo(&RepositoryMock::new().build());
+		let github_api_mock =
+			GitHubApiMock::new("fixtures/repo-query-response.json");
 
-		assert!(api_result.is_err());
+		let ret = github_api_mock.github_api.query_remote_repo(
+			&RepositoryMock::new().build(),
+			&AddArgsMock::new().build(),
+		);
+
+		assert!(ret.is_err());
 	}
 
 	#[test]
@@ -220,12 +184,13 @@ mod tests {
 
 		github_api_mock.github_api.set_token("token");
 
-		let api_result = github_api_mock.github_api.query_remote_repo(
+		let ret = github_api_mock.github_api.query_remote_repo(
 			&RepositoryMock::new().owner("foo").name("bar").build(),
+			&AddArgsMock::new().build(),
 		);
 
 		github_api_mock.mock.assert();
-		assert!(api_result.is_err());
+		assert!(ret.is_err());
 
 		Ok(())
 	}
