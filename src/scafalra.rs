@@ -711,9 +711,13 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock
-			.scafalra
-			.add(AddArgsMock::new().repository("foo/bar/a").depth(1).build())?;
+		scafalra_mock.scafalra.add(
+			AddArgsMock::new()
+				.repository("foo/bar")
+				.subdir("/a")
+				.depth(1)
+				.build(),
+		)?;
 
 		repo_server_mock.query_repo_mock.assert();
 		repo_server_mock.download_mock.assert();
