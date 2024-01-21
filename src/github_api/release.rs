@@ -7,21 +7,12 @@ use crate::{
 	utils::{SELF_TARGET, SELF_VERSION},
 };
 
-const RELEASE_GQL: &str = include_str!("release.gql");
+static RELEASE_GQL: &str = include_str!("release.gql");
 
 #[derive(Serialize)]
 struct ReleaseVariables {
 	name: &'static str,
 	owner: &'static str,
-}
-
-impl ReleaseVariables {
-	pub fn new() -> Self {
-		ReleaseVariables {
-			name: "scafalra",
-			owner: "shixinhuang99",
-		}
-	}
 }
 
 impl ToJson for ReleaseVariables {}
@@ -95,8 +86,28 @@ impl From<ReleaseResponseData> for Release {
 	}
 }
 
-pub fn build_release_query() -> GraphQLQuery {
-	GraphQLQuery::new(RELEASE_GQL, ReleaseVariables::new().to_json())
+pub struct ReleaseQuery {
+	query: &'static str,
+	variables: ReleaseVariables,
+}
+
+impl ReleaseQuery {
+	pub fn new() -> Self {
+		Self {
+			query: RELEASE_GQL,
+			variables: ReleaseVariables {
+				name: "scafalra",
+				owner: "shixinhuang99",
+			},
+		}
+	}
+
+	pub fn build(self) -> GraphQLQuery {
+		GraphQLQuery {
+			query: self.query,
+			variables: self.variables.to_json(),
+		}
+	}
 }
 
 #[cfg(test)]

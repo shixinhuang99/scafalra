@@ -92,6 +92,10 @@ pub struct AddArgs {
 	#[arg(long)]
 	pub name: Option<String>,
 
+	/// Specify sub directory
+	#[arg(long)]
+	pub subdir: Option<String>,
+
 	/// Specify branch
 	#[arg(long)]
 	pub branch: Option<String>,
@@ -154,6 +158,7 @@ pub mod test_utils {
 					repository: "".to_string(),
 					depth: 0,
 					name: None,
+					subdir: None,
 					branch: None,
 					tag: None,
 					commit: None,
@@ -179,6 +184,12 @@ pub mod test_utils {
 
 		pub fn name(&mut self, name: &str) -> &mut Self {
 			self.args.name = Some(name.to_string());
+
+			self
+		}
+
+		pub fn subdir(&mut self, subdir: &str) -> &mut Self {
+			self.args.subdir = Some(subdir.to_string());
 
 			self
 		}

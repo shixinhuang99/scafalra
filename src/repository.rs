@@ -14,7 +14,7 @@ fn repo_re() -> &'static Regex {
 
 	REPO_RE.get_or_init(|| {
 		Regex::new(
-			r"^(?:https://github\.com/)?([^/\s]+)/([^/\s?]+)(?:((?:/[^/\s?]+)+))?(?:\.git)?$",
+			r"^(?:https://github\.com/)?([^/\s]+)/([^/\s.git]+)(?:\.git)?$",
 		)
 		.unwrap()
 	})
@@ -24,7 +24,6 @@ fn repo_re() -> &'static Regex {
 pub struct Repository {
 	pub owner: String,
 	pub name: String,
-	pub subdir: Option<PathBuf>,
 }
 
 impl Repository {
@@ -37,12 +36,10 @@ impl Repository {
 
 		let owner = caps[1].to_string();
 		let name = caps[2].to_string();
-		let subdir = caps.get(3).map(|v| PathBuf::from(v.as_str()));
 
 		Ok(Self {
 			owner,
 			name,
-			subdir,
 		})
 	}
 
@@ -96,7 +93,6 @@ pub mod test_utils {
 			Repository {
 				owner: self.owner,
 				name: self.name,
-				..Repository::default()
 			}
 		}
 
@@ -118,37 +114,11 @@ pub mod test_utils {
 
 #[cfg(test)]
 mod tests {
-	use std::path::PathBuf;
 
 	use anyhow::Result;
 
-	use super::{repo_re, Repository};
+	use super::Repository;
 	use crate::path_ext::*;
-
-	#[test]
-	fn test_repo_re_basic() {
-		let caps = repo_re().captures("foo/bar");
-		assert!(caps.is_some());
-		let caps = caps.unwrap();
-		assert_eq!(&caps[1], "foo");
-		assert_eq!(&caps[2], "bar");
-	}
-
-	#[test]
-	fn test_repo_re_subdir() {
-		let caps = repo_re().captures("foo/bar/path/to/dir");
-		assert!(caps.is_some());
-		let caps = caps.unwrap();
-		assert_eq!(&caps[1], "foo");
-		assert_eq!(&caps[2], "bar");
-		assert_eq!(&caps[3], "/path/to/dir");
-	}
-
-	#[test]
-	fn test_repo_re_none_match() {
-		let caps = repo_re().captures("foo");
-		assert!(caps.is_none());
-	}
 
 	#[test]
 	fn test_repo_new() -> Result<()> {
@@ -161,22 +131,10 @@ mod tests {
 	}
 
 	#[test]
-	fn test_repo_new_subdir() -> Result<()> {
-		let repo = Repository::parse("foo/bar/path/to/dir")?;
-		assert_eq!(repo.owner, "foo");
-		assert_eq!(repo.name, "bar");
-		assert_eq!(repo.subdir, Some(PathBuf::from("/path/to/dir")));
-
-		Ok(())
-	}
-
-	#[test]
 	fn test_repo_new_git_url() -> Result<()> {
-		let repo =
-			Repository::parse("https://github.com/foo/bar/path/to/dir.git")?;
+		let repo = Repository::parse("https://github.com/foo/bar.git")?;
 		assert_eq!(repo.owner, "foo");
 		assert_eq!(repo.name, "bar");
-		assert_eq!(repo.subdir, Some(PathBuf::from("/path/to/dir")));
 
 		Ok(())
 	}

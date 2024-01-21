@@ -10,7 +10,7 @@ use gql::{GraphQLQuery, GraphQLResponse};
 #[cfg(all(test, feature = "self_update"))]
 pub use release::mock_release_response_json;
 #[cfg(feature = "self_update")]
-use release::{build_release_query, Release, ReleaseResponseData};
+use release::{Release, ReleaseQuery, ReleaseResponseData};
 #[cfg(test)]
 pub use repo::mock_repo_response_json;
 use repo::{RemoteRepo, RepoQuery, RepoResponseData};
@@ -48,6 +48,8 @@ impl GitHubApi {
 	where
 		T: DeserializeOwned + std::fmt::Debug,
 	{
+		debug!("GraphQL variables json: {}", query.variables);
+
 		let token = self.token.borrow().clone().ok_or(anyhow::anyhow!(
 			"No GitHub personal access token configured"
 		))?;
@@ -93,7 +95,7 @@ impl GitHubApi {
 	#[cfg(feature = "self_update")]
 	pub fn query_release(&self) -> Result<Release> {
 		let release: Release = self
-			.request::<ReleaseResponseData>(build_release_query())?
+			.request::<ReleaseResponseData>(ReleaseQuery::new().build())?
 			.into();
 
 		Ok(release)

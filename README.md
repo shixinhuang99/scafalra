@@ -53,11 +53,11 @@ Options:
 ```bash
 sca add user/repo
 
-# subdir
-sca add user/repo/path/to/dir
-
 # GitHub url
 sca add https://github.com/user/repo.git
+
+# subdir
+sca add user/repo --subdir /path/to/dir
 
 # branch
 sca add user/repo --branch branch

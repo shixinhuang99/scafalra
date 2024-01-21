@@ -116,8 +116,8 @@ impl Scafalra {
 
 		debug!("template_dir: {:?}", template_dir);
 
-		if let Some(subdir) = repo.subdir {
-			subdir
+		if let Some(subdir) = args.subdir {
+			Path::new(&subdir)
 				.components()
 				.filter(|c| matches!(c, Component::Normal(_)))
 				.for_each(|c| {
@@ -684,9 +684,12 @@ mod tests {
 		let mut scafalra_mock =
 			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
 
-		scafalra_mock
-			.scafalra
-			.add(AddArgsMock::new().repository("foo/bar/a/a1").build())?;
+		scafalra_mock.scafalra.add(
+			AddArgsMock::new()
+				.repository("foo/bar")
+				.subdir("/a/a1")
+				.build(),
+		)?;
 
 		repo_server_mock.query_repo_mock.assert();
 		repo_server_mock.download_mock.assert();

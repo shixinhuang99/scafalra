@@ -76,10 +76,10 @@ impl RepoQuery {
 	pub fn new(repo: &Repository, args: &AddArgs) -> Self {
 		let expression = args
 			.branch
-			.clone()
+			.as_ref()
 			.map(|branch| format!("refs/heads/{}", branch))
 			.or_else(|| {
-				args.tag.clone().map(|tag| format!("refs/tags/{}", tag))
+				args.tag.as_ref().map(|tag| format!("refs/tags/{}", tag))
 			});
 		let oid = args.commit.clone();
 		let is_default_branch = expression.is_none() && oid.is_none();
