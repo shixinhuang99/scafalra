@@ -4,11 +4,25 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug",
+      "name": "Debug executable 'sca'",
       "cargo": {
-        "args": ["build", "--bin=scafalra", "--package=scafalra"],
+        "args": ["build", "--bin=sca", "--package=scafalra"],
         "filter": {
-          "name": "scafalra",
+          "name": "sca",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'sca'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=sca", "--package=scafalra"],
+        "filter": {
+          "name": "sca",
           "kind": "bin"
         }
       },

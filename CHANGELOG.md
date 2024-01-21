@@ -2,9 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2024-01-21
+
+[e763a43](e763a43519ea4c209df2452c6e2a5b7dffdfdd3d)...[003f99d](003f99d23f62d5f4cf971e44fbde31967ab3f361)
+
+### Bug Fixes
+
+- Tarball not removed after cache repository (#52) ([637753d](637753dfbf02e4c021bd496165711064ea0bedae))
+
+### Features
+
+- Tell user similar name when template not found (#51) ([f879132](f8791322e07060b1eee53ade5793b85b65da72ed))
+
+### Refactor
+
+- Support git url for add (#54) ([003f99d](003f99d23f62d5f4cf971e44fbde31967ab3f361))
+
+### Testing
+
+- Test utils (#53) ([0fd29a7](0fd29a7cb0b292637188732f9621233315d8c5ec))
+
 ## [1.2.2] - 2024-01-06
 
-[2e3691f](2e3691f87259731eb3c5e9ddc38c511dd2da1e01)...[4474080](4474080cf9bddcdf197cf419fd3476e199b90289)
+[2e3691f](2e3691f87259731eb3c5e9ddc38c511dd2da1e01)...[e763a43](e763a43519ea4c209df2452c6e2a5b7dffdfdd3d)
 
 ### Bug Fixes
 
