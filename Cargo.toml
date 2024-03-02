@@ -9,13 +9,13 @@ license = "MIT"
 categories = ["command-line-utilities"]
 keywords = ["scaffold", "template"]
 include = [
-	"Cargo.toml",
-	"Cargo.lock",
-	"README.md",
-	"LICENSE",
-	"src/**",
-	"build.rs",
-	".cargo",
+  "Cargo.toml",
+  "Cargo.lock",
+  "README.md",
+  "LICENSE",
+  "src/**",
+  "build.rs",
+  ".cargo",
 ]
 
 [[bin]]
