@@ -1,43 +1,36 @@
-#[cfg(not(test))]
-use owo_colors::{colors::xterm, OwoColorize};
-
-pub trait Colorize {
-	fn blue(&self) -> String;
-
-	fn red(&self) -> String;
-
-	fn green(&self) -> String;
+macro_rules! trait_colorize {
+	($($method:ident),+) => {
+		pub trait Colorize {
+			$(
+				fn $method(&self) -> String;
+			)*
+		}
+	};
 }
 
-#[cfg(not(test))]
-impl Colorize for str {
-	fn blue(&self) -> String {
-		self.fg::<xterm::UserBlue>().to_string()
-	}
+macro_rules! impl_colorize_for_str {
+	($(($method:ident, $color:ident)),+) => {
+		impl Colorize for str {
+			$(
+				#[cfg(not(test))]
+				fn $method(&self) -> String {
+					use owo_colors::{colors::xterm, OwoColorize};
 
-	fn green(&self) -> String {
-		self.fg::<xterm::UserGreen>().to_string()
-	}
+					self.fg::<xterm::$color>().to_string()
+				}
 
-	fn red(&self) -> String {
-		self.fg::<xterm::UserRed>().to_string()
-	}
+				#[cfg(test)]
+				fn $method(&self) -> String {
+					self.to_string()
+				}
+			)*
+		}
+	};
 }
 
-#[cfg(test)]
-impl Colorize for str {
-	fn blue(&self) -> String {
-		self.to_string()
-	}
+trait_colorize!(blue, red, green);
 
-	fn green(&self) -> String {
-		self.to_string()
-	}
-
-	fn red(&self) -> String {
-		self.to_string()
-	}
-}
+impl_colorize_for_str!((blue, UserBlue), (red, UserRed), (green, UserGreen));
 
 #[cfg(test)]
 mod tests {

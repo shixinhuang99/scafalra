@@ -12,9 +12,9 @@ pub fn is_debug_mode() -> bool {
 
 #[macro_export]
 macro_rules! debug {
-    ($($arg:tt)*) => {{
+    ($($arg:tt)*) => {
         if $crate::debug::is_debug_mode() {
             println!($($arg)*);
         }
-    }};
+    };
 }
