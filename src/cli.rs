@@ -43,14 +43,6 @@ pub enum Command {
 
 	/// Configure or display your GitHub personal access token
 	Token(TokenArgs),
-
-	/// Update self
-	#[cfg(feature = "self_update")]
-	Update(UpdateArgs),
-
-	/// Uninstall self
-	#[cfg(feature = "self_update")]
-	Uninstall(UninstallArgs),
 }
 
 #[derive(Args, Debug)]
@@ -127,22 +119,6 @@ pub struct TokenArgs {
 	pub token: Option<String>,
 }
 
-#[cfg(feature = "self_update")]
-#[derive(Args, Debug)]
-pub struct UpdateArgs {
-	/// Check for updates to self
-	#[arg(long)]
-	pub check: bool,
-}
-
-#[cfg(feature = "self_update")]
-#[derive(Args, Debug)]
-pub struct UninstallArgs {
-	/// Keep the data
-	#[arg(long)]
-	pub keep_data: bool,
-}
-
 #[cfg(test)]
 pub mod test_utils {
 	use super::AddArgs;
@@ -155,7 +131,7 @@ pub mod test_utils {
 		pub fn new() -> Self {
 			Self {
 				args: AddArgs {
-					repository: "".to_string(),
+					repository: "foo/bar".to_string(),
 					depth: 0,
 					name: None,
 					subdir: None,
@@ -168,12 +144,6 @@ pub mod test_utils {
 
 		pub fn build(&self) -> AddArgs {
 			self.args.clone()
-		}
-
-		pub fn repository(&mut self, repository: &str) -> &mut Self {
-			self.args.repository = repository.to_string();
-
-			self
 		}
 
 		pub fn depth(&mut self, depth: u8) -> &mut Self {
@@ -190,24 +160,6 @@ pub mod test_utils {
 
 		pub fn subdir(&mut self, subdir: &str) -> &mut Self {
 			self.args.subdir = Some(subdir.to_string());
-
-			self
-		}
-
-		pub fn branch(&mut self, branch: &str) -> &mut Self {
-			self.args.branch = Some(branch.to_string());
-
-			self
-		}
-
-		pub fn tag(&mut self, tag: &str) -> &mut Self {
-			self.args.tag = Some(tag.to_string());
-
-			self
-		}
-
-		pub fn commit(&mut self, commit: &str) -> &mut Self {
-			self.args.commit = Some(commit.to_string());
 
 			self
 		}
