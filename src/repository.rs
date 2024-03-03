@@ -7,10 +7,8 @@ fn repo_re() -> &'static Regex {
 	static REPO_RE: OnceLock<Regex> = OnceLock::new();
 
 	REPO_RE.get_or_init(|| {
-		Regex::new(
-			r"^(?:https://github\.com/)?([^/\s]+)/([^/\s]+)(?:\.git)?$",
-		)
-		.unwrap()
+		let re = r"^(?:https://github\.com/)?([^/\s]+)/([^/\s]+)(?:\.git)?$";
+		Regex::new(re).unwrap()
 	})
 }
 
