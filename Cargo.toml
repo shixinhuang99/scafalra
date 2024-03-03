@@ -46,6 +46,7 @@ mockito = "1.0.2"
 path-slash = "0.2.1"
 similar-asserts = "1.5.0"
 tempfile = "3.5.0"
+test-case = "=3.3.1"
 
 [profile.release]
 strip = true
