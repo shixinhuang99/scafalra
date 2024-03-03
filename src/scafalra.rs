@@ -329,7 +329,7 @@ mod test_utils {
 	use std::fs;
 
 	use mockito::{Mock, ServerGuard};
-	use tempfile::{tempdir_in, TempDir};
+	use tempfile::{tempdir, TempDir};
 
 	use super::Scafalra;
 	use crate::store::{test_utils::StoreJsonMock, Store};
@@ -342,7 +342,7 @@ mod test_utils {
 
 	impl ScafalraMock {
 		pub fn new() -> Self {
-			let tmpdir = tempdir_in("tmp").unwrap();
+			let tmpdir = tempdir().unwrap();
 			let scafalra = Scafalra::new(
 				tmpdir.path().join("scafalra"),
 				None,
