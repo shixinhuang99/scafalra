@@ -5,7 +5,6 @@ max_width = 80
 group_imports = "StdExternalCrate"
 imports_granularity = "Crate"
 use_field_init_shorthand = true
-wrap_comments = true
 hard_tabs = true
 combine_control_expr = false
 newline_style = "Unix"

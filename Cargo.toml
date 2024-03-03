@@ -9,13 +9,13 @@ license = "MIT"
 categories = ["command-line-utilities"]
 keywords = ["scaffold", "template"]
 include = [
-	"Cargo.toml",
-	"Cargo.lock",
-	"README.md",
-	"LICENSE",
-	"src/**",
-	"build.rs",
-	".cargo",
+  "Cargo.toml",
+  "Cargo.lock",
+  "README.md",
+  "LICENSE",
+  "src/**",
+  "build.rs",
+  ".cargo",
 ]
 
 [[bin]]
@@ -28,25 +28,19 @@ chrono = "0.4.24"
 clap = { version = "4.1.13", features = ["derive"] }
 dircpy = { version = "0.3.15", default-features = false }
 directories = "5.0.1"
-flate2 = "1.0.25"
 fs-err = "2.9.0"
 globwalk = "0.9.0"
 owo-colors = "3.5.0"
 path-slash = "0.2.1"
 regex = "1.7.3"
 remove_dir_all = "0.8.2"
-self-replace = { version = "1.3.7", optional = true }
-semver = { version = "1.0.20", optional = true }
 serde = { version = "1.0.158", features = ["derive"] }
 serde_json = { version = "1.0.108", features = ["preserve_order"] }
 strsim = "0.11.0"
 tabled = { version = "0.14.0", features = ["color"] }
-tar = "0.4.38"
 term_grid = "0.2.0"
 ureq = "2.6.2"
-
-[target.'cfg(windows)'.dependencies]
-zip = { version = "0.6.6", optional = true }
+zip = "0.6.6"
 
 [dev-dependencies]
 mockito = "1.0.2"
@@ -57,6 +51,4 @@ tempfile = "3.5.0"
 strip = true
 lto = true
 panic = "abort"
-
-[features]
-self_update = ["self-replace", "zip", "semver"]
+codegen-units = 1

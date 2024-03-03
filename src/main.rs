@@ -1,15 +1,14 @@
+mod api;
 mod cli;
 mod colorize;
 mod config;
 mod debug;
-mod github_api;
 mod json;
 mod path_ext;
 mod repository;
 mod repository_config;
 mod scafalra;
 mod store;
-mod utils;
 
 use std::env;
 
@@ -34,12 +33,9 @@ fn run() -> Result<()> {
 	}
 
 	let scfalra_dir = ProjectDirs::from("", "", "scafalra")
-		.ok_or_else(|| {
-			anyhow::anyhow!(
-				"No valid home directory path could be retrieved from your \
-				 operating system"
-			)
-		})?
+		.ok_or(anyhow::anyhow!(
+			"Failed to create scafalra project directory"
+		))?
 		.config_dir()
 		.to_path_buf();
 
@@ -58,10 +54,6 @@ fn run() -> Result<()> {
 			Command::Add(args) => scafalra.add(args)?,
 			Command::Create(args) => scafalra.create(args)?,
 			Command::Token(args) => scafalra.token(args)?,
-			#[cfg(feature = "self_update")]
-			Command::Update(args) => scafalra.update(args)?,
-			#[cfg(feature = "self_update")]
-			Command::Uninstall(args) => scafalra.uninstall(args)?,
 		}
 	}
 
