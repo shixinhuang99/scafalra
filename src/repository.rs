@@ -8,7 +8,7 @@ fn repo_re() -> &'static Regex {
 
 	REPO_RE.get_or_init(|| {
 		Regex::new(
-			r"^(?:https://github\.com/)?([^/\s]+)/([^/\s.git]+)(?:\.git)?$",
+			r"^(?:https://github\.com/)?([^/\s]+)/([^/\s]+)(?:\.git)?$",
 		)
 		.unwrap()
 	})
@@ -52,11 +52,11 @@ mod tests {
 	use super::Repository;
 
 	#[test]
-	fn test_repo_parse() -> Result<()> {
-		let repo = Repository::parse("foo/bar")?;
+	fn test_repo_parse_basic() -> Result<()> {
+		let repo = Repository::parse("foo/barg")?;
 
 		assert_eq!(repo.owner, "foo");
-		assert_eq!(repo.name, "bar");
+		assert_eq!(repo.name, "barg");
 
 		Ok(())
 	}
