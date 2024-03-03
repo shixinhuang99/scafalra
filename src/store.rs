@@ -254,10 +254,14 @@ impl Store {
 		self.templates.get(name)
 	}
 
-	pub fn get_similar_name(&self, target: &str) -> Option<&str> {
+	pub fn similar_name_suggestion<'a: 'b, 'b>(
+		&'a self,
+		target: &'a str,
+	) -> Suggestion<'b> {
 		use strsim::normalized_levenshtein;
 
-		self.templates
+		let similar = self
+			.templates
 			.keys()
 			.filter_map(|name| {
 				let score = normalized_levenshtein(target, name).abs();
@@ -266,8 +270,30 @@ impl Store {
 				}
 				None
 			})
-			.min_by(|x, y| x.1.total_cmp(&y.1))
-			.map(|v| v.0.as_str())
+			.max_by(|x, y| x.1.total_cmp(&y.1))
+			.map(|v| v.0.as_str());
+
+		Suggestion {
+			target,
+			similar,
+		}
+	}
+}
+
+pub struct Suggestion<'a> {
+	pub target: &'a str,
+	pub similar: Option<&'a str>,
+}
+
+impl std::fmt::Display for Suggestion<'_> {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		let mut msg = format!("No such template `{}`", self.target);
+
+		if let Some(similar) = self.similar {
+			msg.push_str(&format!("\nA similar template is `{}`", similar));
+		}
+
+		write!(f, "{}", msg)
 	}
 }
 
@@ -520,9 +546,12 @@ mod tests {
 	}
 
 	#[test]
-	fn test_similar_name() {
+	fn test_store_similar_name() {
 		let store_mock = StoreMock::new().with_content();
 
-		assert_eq!(store_mock.store.get_similar_name("fop"), Some("foo"));
+		assert_eq!(
+			store_mock.store.similar_name_suggestion("fop").similar,
+			Some("foo")
+		);
 	}
 }
