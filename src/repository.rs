@@ -7,10 +7,8 @@ fn repo_re() -> &'static Regex {
 	static REPO_RE: OnceLock<Regex> = OnceLock::new();
 
 	REPO_RE.get_or_init(|| {
-		Regex::new(
-			r"^(?:https://github\.com/)?([^/\s]+)/([^/\s.git]+)(?:\.git)?$",
-		)
-		.unwrap()
+		let re = r"^(?:https://github\.com/)?([^/\s]+)/([^/\s]+)$";
+		Regex::new(re).unwrap()
 	})
 }
 
@@ -27,7 +25,11 @@ impl Repository {
 			.ok_or(anyhow::anyhow!("Could not parse the input: `{}`", input))?;
 
 		let owner = caps[1].to_string();
-		let name = caps[2].to_string();
+		let mut name = caps[2].to_string();
+
+		if name.ends_with(".git") {
+			name.truncate(name.len() - 4);
+		}
 
 		Ok(Self {
 			owner,
@@ -48,12 +50,16 @@ impl Repository {
 mod tests {
 
 	use anyhow::Result;
+	use test_case::test_case;
 
 	use super::Repository;
 
-	#[test]
-	fn test_repo_parse() -> Result<()> {
-		let repo = Repository::parse("foo/bar")?;
+	#[test_case("foo/bar"; "basic")]
+	#[test_case("https://github.com/foo/bar.git"; "complete url")]
+	#[test_case("foo/bar.git"; "url but no header")]
+	#[test_case("https://github.com/foo/bar"; "url but no extension")]
+	fn test_repo_parse_basic(input: &str) -> Result<()> {
+		let repo = Repository::parse(input)?;
 
 		assert_eq!(repo.owner, "foo");
 		assert_eq!(repo.name, "bar");
@@ -61,18 +67,11 @@ mod tests {
 		Ok(())
 	}
 
-	#[test]
-	fn test_repo_parse_git_url() -> Result<()> {
-		let repo = Repository::parse("https://github.com/foo/bar.git")?;
-		assert_eq!(repo.owner, "foo");
-		assert_eq!(repo.name, "bar");
-
-		Ok(())
-	}
-
-	#[test]
-	fn test_repo_parse_err() {
-		let repo = Repository::parse("foo");
+	#[test_case(""; "empty")]
+	#[test_case("foo"; "incomplete")]
+	#[test_case("foo/bar/baz"; "paths exceeded")]
+	fn test_repo_parse_err(input: &str) {
+		let repo = Repository::parse(input);
 		assert!(repo.is_err());
 	}
 }
