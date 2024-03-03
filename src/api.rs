@@ -1,5 +1,4 @@
 use std::{
-	cell::RefCell,
 	env, io,
 	path::{Path, PathBuf},
 	sync::OnceLock,
@@ -30,7 +29,7 @@ fn global_agent() -> &'static Agent {
 }
 
 pub struct GitHubApi {
-	token: RefCell<Option<String>>,
+	token: Option<String>,
 	endpoint: String,
 }
 
@@ -39,13 +38,13 @@ impl GitHubApi {
 		let endpoint = endpoint.unwrap_or("https://api.github.com").to_string();
 
 		Self {
-			token: RefCell::new(None),
+			token: None,
 			endpoint,
 		}
 	}
 
-	pub fn set_token(&self, token: &str) {
-		self.token.replace(Some(token.to_string()));
+	pub fn set_token(&mut self, token: &str) {
+		self.token = Some(token.to_string());
 	}
 
 	pub fn download(
@@ -76,7 +75,7 @@ impl GitHubApi {
 			.set("User-Agent", "scafalra")
 			.set("X-GitHub-Api-Version", "2022-11-28");
 
-		if let Some(token) = self.token.borrow().as_deref() {
+		if let Some(token) = &self.token {
 			req = req.set("Authorization", &format!("Bearer {}", token));
 		}
 

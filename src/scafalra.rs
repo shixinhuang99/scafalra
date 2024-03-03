@@ -43,7 +43,7 @@ impl Scafalra {
 
 		let config = Config::new(&scfalra_dir)?;
 		let store = Store::new(&scfalra_dir)?;
-		let github_api = GitHubApi::new(endpoint);
+		let mut github_api = GitHubApi::new(endpoint);
 
 		if let Some(token) = token.or_else(|| config.token()) {
 			github_api.set_token(token);
@@ -226,7 +226,7 @@ impl Scafalra {
 		let Some(template) = self.store.get(&args.name) else {
 			let mut msg = format!("No such template `{}`", args.name);
 			if let Some(name) = self.store.get_similar_name(&args.name) {
-				msg = format!("{}\nA similar template is `{}`", msg, name);
+				msg.push_str(&format!("\nA similar template is `{}`", name));
 			}
 			anyhow::bail!(msg);
 		};
@@ -273,6 +273,7 @@ impl Scafalra {
 			.split(',')
 			.filter(|v| !v.is_empty())
 			.collect::<Vec<_>>();
+
 		globs.dedup();
 
 		if let Ok(gw) = globwalk::GlobWalkerBuilder::from_patterns(from, &globs)
