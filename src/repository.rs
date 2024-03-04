@@ -38,11 +38,7 @@ impl Repository {
 	}
 
 	pub fn url(&self) -> String {
-		if cfg!(test) {
-			"url".to_string()
-		} else {
-			format!("https://github.com/{}/{}", &self.owner, &self.name)
-		}
+		format!("https://github.com/{}/{}", &self.owner, &self.name)
 	}
 }
 
@@ -71,6 +67,16 @@ mod tests {
 	#[test_case("foo/bar/baz"; "paths exceeded")]
 	fn test_repo_parse_err(input: &str) {
 		let repo = Repository::parse(input);
+
 		assert!(repo.is_err());
+	}
+
+	#[test]
+	fn test_repo_build_url() -> Result<()> {
+		let repo = Repository::parse("foo/bar")?;
+
+		assert_eq!(repo.url(), "https://github.com/foo/bar");
+
+		Ok(())
 	}
 }

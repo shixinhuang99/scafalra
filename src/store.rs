@@ -2,7 +2,6 @@ use std::{
 	collections::BTreeMap,
 	ops::{Deref, DerefMut},
 	path::{Path, PathBuf},
-	slice::Iter,
 };
 
 use anyhow::Result;
@@ -135,8 +134,10 @@ impl Changes {
 		self
 	}
 
-	fn iter(&self) -> Iter<'_, String> {
-		self.inner.iter()
+	fn print_all(&self) {
+		for ele in &self.inner {
+			println!("{}", ele);
+		}
 	}
 }
 
@@ -163,10 +164,7 @@ impl Store {
 
 	pub fn save(&self) -> Result<()> {
 		self.templates.save(&self.path)?;
-
-		self.changes.iter().for_each(|v| {
-			println!("{}", v);
-		});
+		self.changes.print_all();
 
 		Ok(())
 	}
@@ -185,7 +183,6 @@ impl Store {
 	pub fn remove(&mut self, name: &str) -> Result<()> {
 		if let Some(template) = self.templates.get(name) {
 			remove_dir_all(&template.path)?;
-
 			self.changes.push_remove(name);
 			self.templates.remove(name);
 		}
@@ -366,28 +363,28 @@ pub mod test_utils {
 
 	pub struct StoreMock {
 		pub store: Store,
-		pub tmpdir: TempDir,
+		pub tmp_dir: TempDir,
 		pub path: PathBuf,
 	}
 
 	impl StoreMock {
 		pub fn new() -> Self {
-			let tmpdir = tempdir().unwrap();
-			let tmp_dir_path = tmpdir.path();
-			let foo_path = tmp_dir_path.join("foo");
+			let tmp_dir = tempdir().unwrap();
+			let tmp_dir_path = tmp_dir.path();
+			let path = tmp_dir_path.join("foo");
 			let store = Store::new(tmp_dir_path).unwrap();
 
 			Self {
 				store,
-				tmpdir,
-				path: foo_path,
+				tmp_dir,
+				path,
 			}
 		}
 
 		pub fn with_content(self) -> Self {
 			fs::create_dir(&self.path).unwrap();
 			let content = StoreJsonMock::new().push("foo", &self.path).build();
-			let tmp_dir_path = self.tmpdir.path();
+			let tmp_dir_path = self.tmp_dir.path();
 			let store_file = tmp_dir_path.join(Store::FILE_NAME);
 			fs::write(store_file, content).unwrap();
 			let store = Store::new(tmp_dir_path).unwrap();
@@ -411,28 +408,36 @@ mod tests {
 
 	#[test]
 	fn test_store_new_file_not_exists() {
-		let store_mock = StoreMock::new();
+		let StoreMock {
+			store, ..
+		} = StoreMock::new();
 
-		assert_eq!(store_mock.store.templates.len(), 0);
-		assert_eq!(store_mock.store.changes.inner.len(), 0);
+		assert_eq!(store.templates.len(), 0);
+		assert_eq!(store.changes.inner.len(), 0);
 	}
 
 	#[test]
 	fn test_store_new() {
-		let store_mock = StoreMock::new().with_content();
+		let StoreMock {
+			store, ..
+		} = StoreMock::new().with_content();
 
-		assert_eq!(store_mock.store.templates.len(), 1);
-		assert!(store_mock.store.templates.contains_key("foo"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
 	}
 
 	#[test]
 	fn test_store_save() -> Result<()> {
-		let store_mock = StoreMock::new().with_content();
+		let StoreMock {
+			store,
+			path,
+			..
+		} = StoreMock::new().with_content();
 
-		store_mock.store.save()?;
+		store.save()?;
 
-		let actual = fs::read_to_string(store_mock.store.path)?;
-		let expect = StoreJsonMock::new().push("foo", &store_mock.path).build();
+		let actual = fs::read_to_string(store.path)?;
+		let expect = StoreJsonMock::new().push("foo", &path).build();
 
 		assert_eq!(actual, expect);
 
@@ -441,111 +446,125 @@ mod tests {
 
 	#[test]
 	fn test_store_add() {
-		let mut store_mock = StoreMock::new();
+		let StoreMock {
+			mut store, ..
+		} = StoreMock::new();
 
-		store_mock.store.add(TemplateMock::build("foo"));
+		store.add(TemplateMock::build("foo"));
 
-		assert_eq!(store_mock.store.templates.len(), 1);
-		assert!(store_mock.store.templates.contains_key("foo"));
-		assert_eq!(store_mock.store.changes.inner, vec!["+ foo"]);
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
+		assert_eq!(store.changes.inner, vec!["+ foo"]);
 	}
 
 	#[test]
 	fn test_store_add_same() {
-		let mut store_mock = StoreMock::new().with_content();
+		let StoreMock {
+			mut store, ..
+		} = StoreMock::new().with_content();
 
-		store_mock.store.add(TemplateMock::build("foo"));
+		store.add(TemplateMock::build("foo"));
 
-		assert_eq!(store_mock.store.templates.len(), 1);
-		assert!(store_mock.store.templates.contains_key("foo"));
-		assert_eq!(store_mock.store.changes.inner, vec!["- foo", "+ foo"]);
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
+		assert_eq!(store.changes.inner, vec!["- foo", "+ foo"]);
 	}
 
 	#[test]
 	fn test_store_remove() -> Result<()> {
-		let mut store_mock = StoreMock::new().with_content();
+		let StoreMock {
+			mut store,
+			path,
+			..
+		} = StoreMock::new().with_content();
 
-		store_mock.store.remove("foo")?;
+		store.remove("foo")?;
 
-		assert!(!store_mock.path.exists());
-		assert_eq!(store_mock.store.templates.len(), 0);
-		assert_eq!(store_mock.store.changes.inner, vec!["- foo"]);
+		assert!(!path.exists());
+		assert_eq!(store.templates.len(), 0);
+		assert_eq!(store.changes.inner, vec!["- foo"]);
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_store_remove_not_found() -> Result<()> {
-		let mut store_mock = StoreMock::new().with_content();
+		let StoreMock {
+			mut store, ..
+		} = StoreMock::new().with_content();
 
-		store_mock.store.remove("bar")?;
+		store.remove("bar")?;
 
-		assert_eq!(store_mock.store.changes.inner.len(), 0);
+		assert_eq!(store.changes.inner.len(), 0);
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_store_rename() {
-		let mut store_mock = StoreMock::new().with_content();
+		let StoreMock {
+			mut store, ..
+		} = StoreMock::new().with_content();
 
-		store_mock.store.rename("foo", "bar");
+		store.rename("foo", "bar");
 
-		assert_eq!(store_mock.store.templates.len(), 1);
-		assert!(!store_mock.store.templates.contains_key("foo"));
-		assert!(store_mock.store.templates.contains_key("bar"));
-		assert_eq!(store_mock.store.changes.inner, vec!["- foo", "+ bar"]);
+		assert_eq!(store.templates.len(), 1);
+		assert!(!store.templates.contains_key("foo"));
+		assert!(store.templates.contains_key("bar"));
+		assert_eq!(store.changes.inner, vec!["- foo", "+ bar"]);
 	}
 
 	#[test]
 	fn store_rename_exists_or_not_found() {
-		let mut store_mock = StoreMock::new().with_content();
+		let StoreMock {
+			mut store, ..
+		} = StoreMock::new().with_content();
 
-		store_mock.store.rename("foo", "foo");
+		store.rename("foo", "foo");
 
-		assert_eq!(store_mock.store.templates.len(), 1);
-		assert!(store_mock.store.templates.contains_key("foo"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
 
-		store_mock.store.rename("bar", "foo");
+		store.rename("bar", "foo");
 
-		assert_eq!(store_mock.store.templates.len(), 1);
-		assert!(store_mock.store.templates.contains_key("foo"));
+		assert_eq!(store.templates.len(), 1);
+		assert!(store.templates.contains_key("foo"));
 	}
 
 	#[test]
 	fn test_print_grid() {
-		let mut store_mock = StoreMock::new();
+		let StoreMock {
+			mut store, ..
+		} = StoreMock::new();
 
-		assert_eq!(store_mock.store.print_grid(), None);
+		assert_eq!(store.print_grid(), None);
 
 		for i in 0..7 {
-			store_mock
-				.store
-				.add(TemplateMock::build(&format!("foo-{}", i)));
+			store.add(TemplateMock::build(&format!("foo-{}", i)));
 		}
 
 		assert_eq!(
-			store_mock.store.print_grid().unwrap(),
+			store.print_grid().unwrap(),
 			"foo-0    foo-1    foo-2    foo-3    foo-4    foo-5\nfoo-6"
 		);
 	}
 
 	#[test]
 	fn test_print_table() -> Result<()> {
-		let mut store_mock = StoreMock::new();
+		let StoreMock {
+			mut store, ..
+		} = StoreMock::new();
 
-		assert_eq!(store_mock.store.print_table(), None);
+		assert_eq!(store.print_table(), None);
 
 		for i in 0..2 {
-			store_mock
-				.store
-				.add(TemplateMock::build(&format!("foo-{}", i)));
+			store.add(TemplateMock::build(&format!("foo-{}", i)));
 		}
 
 		let expect = fs::read_to_string("fixtures/print-table.txt")?;
 
 		assert_eq!(
-			Vec::from_iter(store_mock.store.print_table().unwrap().lines()),
+			Vec::from_iter(store.print_table().unwrap().lines()),
 			Vec::from_iter(expect.lines())
 		);
 
@@ -554,11 +573,10 @@ mod tests {
 
 	#[test]
 	fn test_store_similar_name() {
-		let store_mock = StoreMock::new().with_content();
+		let StoreMock {
+			store, ..
+		} = StoreMock::new().with_content();
 
-		assert_eq!(
-			store_mock.store.similar_name_suggestion("fop").similar,
-			Some("foo")
-		);
+		assert_eq!(store.similar_name_suggestion("fop").similar, Some("foo"));
 	}
 }
