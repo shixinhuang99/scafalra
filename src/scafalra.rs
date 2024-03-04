@@ -9,7 +9,7 @@ use remove_dir_all::remove_dir_all;
 
 use crate::{
 	api::GitHubApi,
-	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
+	cli::{AddArgs, CreateArgs, ListArgs, RemoveArgs, RenameArgs, TokenArgs},
 	config::Config,
 	debug,
 	path_ext::*,
@@ -281,12 +281,14 @@ impl Scafalra {
 		}
 	}
 
-	pub fn mv(&mut self, args: MvArgs) -> Result<()> {
+	pub fn rename(&mut self, args: RenameArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		self.store.rename(&args.name, &args.new_name);
+		let is_renamed = self.store.rename(&args.name, &args.new_name);
 
-		self.store.save()?;
+		if is_renamed {
+			self.store.save()?;
+		}
 
 		Ok(())
 	}

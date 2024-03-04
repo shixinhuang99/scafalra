@@ -193,21 +193,28 @@ impl Store {
 		Ok(())
 	}
 
-	pub fn rename(&mut self, name: &str, new_name: &str) {
+	pub fn rename(&mut self, name: &str, new_name: &str) -> bool {
 		if self.templates.contains_key(new_name) {
 			println!("`{}` already exists", new_name);
-			return;
+			return false;
 		}
 
-		match self.templates.remove(name) {
+		let ret = match self.templates.remove(name) {
 			Some(template) => {
 				self.templates.insert(new_name.to_string(), template);
 				self.changes.push_remove(name).push_add(new_name);
+
+				true
 			}
 			None => {
-				println!("No such template `{}`", name);
+				let suggestion = self.similar_name_suggestion(name);
+				println!("{}", suggestion);
+
+				false
 			}
 		};
+
+		ret
 	}
 
 	pub fn print_grid(&self) -> Option<String> {

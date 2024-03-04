@@ -32,7 +32,7 @@ Usage: sca [OPTIONS] [COMMAND]
 Commands:
   list    List all templates
   remove  Remove specified templates
-  mv      Rename a template
+  rename  Rename a template
   add     Add template from GitHub repository
   create  Copy the template folder to the specified directory
   token   Configure or display your GitHub personal access token
