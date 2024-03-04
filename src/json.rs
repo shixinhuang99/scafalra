@@ -16,6 +16,7 @@ where
 				return Ok(value);
 			}
 		}
+
 		let default = Self::default();
 		fs::write(file_path, serde_json::to_string_pretty(&default)?)?;
 
@@ -48,24 +49,24 @@ mod test_utils {
 
 	pub struct JsonContentMock {
 		pub foo: Foo,
-		pub tmpdir: TempDir,
+		pub tmp_dir: TempDir,
 		pub path: PathBuf,
 	}
 
 	impl JsonContentMock {
 		pub fn new() -> Self {
-			let tmpdir = tempdir().unwrap();
-			let file_path = tmpdir.path().join("foo.json");
-			let foo = Foo::load(&file_path).unwrap();
+			let tmp_dir = tempdir().unwrap();
+			let path = tmp_dir.path().join("foo.json");
+			let foo = Foo::load(&path).unwrap();
 
 			Self {
 				foo,
-				tmpdir,
-				path: file_path,
+				tmp_dir,
+				path,
 			}
 		}
 
-		pub fn with_empty_content(self) -> Self {
+		pub fn no_content(self) -> Self {
 			fs::write(&self.path, "").unwrap();
 
 			let foo = Foo::load(&self.path).unwrap();
@@ -99,34 +100,50 @@ mod tests {
 
 	#[test]
 	fn test_json_load_file() {
-		let json_content_mock = JsonContentMock::new().with_content();
+		let JsonContentMock {
+			tmp_dir: _tmp_dir,
+			foo,
+			..
+		} = JsonContentMock::new().with_content();
 
-		assert_eq!(json_content_mock.foo.bar, "bar");
+		assert_eq!(foo.bar, "bar");
 	}
 
 	#[test]
-	fn test_json_load_empty_content() {
-		let json_content_mock = JsonContentMock::new().with_empty_content();
+	fn test_json_load_no_content() {
+		let JsonContentMock {
+			tmp_dir: _tmp_dir,
+			foo,
+			..
+		} = JsonContentMock::new().no_content();
 
-		assert_eq!(json_content_mock.foo.bar, "");
+		assert_eq!(foo.bar, "");
 	}
 
 	#[test]
 	fn test_json_load_file_not_exists() {
-		let json_content_mock = JsonContentMock::new();
+		let JsonContentMock {
+			tmp_dir: _tmp_dir,
+			foo,
+			path,
+		} = JsonContentMock::new();
 
-		assert_eq!(json_content_mock.foo.bar, "");
-		assert!(json_content_mock.path.exists());
+		assert_eq!(foo.bar, "");
+		assert!(path.exists());
 	}
 
 	#[test]
 	fn test_json_save() -> Result<()> {
-		let mut json_content_mock = JsonContentMock::new().with_content();
+		let JsonContentMock {
+			tmp_dir: _tmp_dir,
+			mut foo,
+			path,
+		} = JsonContentMock::new().with_content();
 
-		json_content_mock.foo.bar = "bar2".to_string();
-		json_content_mock.foo.save(&json_content_mock.path)?;
+		foo.bar = "bar2".to_string();
+		foo.save(&path)?;
 
-		let actual = fs::read_to_string(&json_content_mock.path)?;
+		let actual = fs::read_to_string(&path)?;
 		assert_eq!(actual, "{\n  \"bar\": \"bar2\"\n}");
 
 		Ok(())

@@ -173,7 +173,7 @@ impl Scafalra {
 						self.store.add(
 							TemplateBuilder::new(
 								&file_name,
-								&repo.url(),
+								repo.url(),
 								&sub_template_dir,
 							)
 							.sub_template(true)
@@ -271,6 +271,7 @@ impl Scafalra {
 			.filter(|v| !v.is_empty())
 			.collect::<Vec<_>>();
 
+		globs.sort_unstable();
 		globs.dedup();
 
 		if let Ok(gw) = globwalk::GlobWalkerBuilder::from_patterns(from, &globs)
@@ -284,9 +285,9 @@ impl Scafalra {
 	pub fn rename(&mut self, args: RenameArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let is_renamed = self.store.rename(&args.name, &args.new_name);
+		let renamed = self.store.rename(&args.name, &args.new_name);
 
-		if is_renamed {
+		if renamed {
 			self.store.save()?;
 		}
 
@@ -336,15 +337,15 @@ mod test_utils {
 
 	pub struct ScafalraMock {
 		pub scafalra: Scafalra,
-		pub tmpdir: TempDir,
+		pub tmp_dir: TempDir,
 		endpoint_cache: Option<String>,
 	}
 
 	impl ScafalraMock {
 		pub fn new() -> Self {
-			let tmpdir = tempdir().unwrap();
+			let tmp_dir = tempdir().unwrap();
 			let scafalra = Scafalra::new(
-				tmpdir.path().join("scafalra"),
+				tmp_dir.path().join("scafalra"),
 				None,
 				Some("token"),
 			)
@@ -352,7 +353,7 @@ mod test_utils {
 
 			Self {
 				scafalra,
-				tmpdir,
+				tmp_dir,
 				endpoint_cache: None,
 			}
 		}
@@ -443,25 +444,36 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_new() {
-		let scafalra_mock = ScafalraMock::new();
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			scafalra,
+			..
+		} = ScafalraMock::new();
 
-		assert!(scafalra_mock.scafalra.cache_dir.exists());
-		assert!(scafalra_mock.scafalra.store.path.exists());
-		assert!(scafalra_mock.scafalra.config.path.exists());
+		assert!(scafalra.cache_dir.exists());
+		assert!(scafalra.store.path.exists());
+		assert!(scafalra.config.path.exists());
 	}
 
 	#[test]
 	fn test_scafalra_add() -> Result<()> {
-		let repo_server_mock = ServerMock::new();
-		let mut scafalra_mock =
-			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
+		let ServerMock {
+			server,
+			download_mock,
+		} = ServerMock::new();
 
-		scafalra_mock.scafalra.add(AddArgsMock::new().build())?;
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new().endpoint(&server.url());
 
-		repo_server_mock.download_mock.assert();
+		scafalra.add(AddArgsMock::new().build())?;
 
-		let bar_dir = scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
-		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		download_mock.assert();
+
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
+		let actual = fs::read_to_string(&scafalra.store.path)?;
 		let expect = StoreJsonMock::new().push("bar", &bar_dir).build();
 
 		assert!(bar_dir.exists());
@@ -472,18 +484,23 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_specified_name() -> Result<()> {
-		let repo_server_mock = ServerMock::new();
-		let mut scafalra_mock =
-			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
+		let ServerMock {
+			server,
+			download_mock,
+		} = ServerMock::new();
 
-		scafalra_mock
-			.scafalra
-			.add(AddArgsMock::new().name("foo").build())?;
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new().endpoint(&server.url());
 
-		repo_server_mock.download_mock.assert();
+		scafalra.add(AddArgsMock::new().name("foo").build())?;
 
-		let bar_dir = scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
-		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		download_mock.assert();
+
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
+		let actual = fs::read_to_string(&scafalra.store.path)?;
 		let expect = StoreJsonMock::new().push("foo", &bar_dir).build();
 
 		assert!(bar_dir.exists());
@@ -494,18 +511,23 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_depth_1() -> Result<()> {
-		let repo_server_mock = ServerMock::new();
-		let mut scafalra_mock =
-			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
+		let ServerMock {
+			server,
+			download_mock,
+		} = ServerMock::new();
 
-		scafalra_mock
-			.scafalra
-			.add(AddArgsMock::new().depth(1).build())?;
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new().endpoint(&server.url());
 
-		repo_server_mock.download_mock.assert();
+		scafalra.add(AddArgsMock::new().depth(1).build())?;
 
-		let bar_dir = scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
-		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		download_mock.assert();
+
+		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
+		let actual = fs::read_to_string(&scafalra.store.path)?;
 		let expect = StoreJsonMock::new()
 			.push("a", bar_dir.join("a"))
 			.push("b", bar_dir.join("b"))
@@ -522,19 +544,23 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_subdir() -> Result<()> {
-		let repo_server_mock = ServerMock::new();
-		let mut scafalra_mock =
-			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
+		let ServerMock {
+			server,
+			download_mock,
+		} = ServerMock::new();
 
-		scafalra_mock
-			.scafalra
-			.add(AddArgsMock::new().subdir("/a/a1").build())?;
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new().endpoint(&server.url());
 
-		repo_server_mock.download_mock.assert();
+		scafalra.add(AddArgsMock::new().subdir("/a/a1").build())?;
 
-		let a1_dir =
-			scafalra_mock.scafalra.cache_dir.join_slash("foo/bar/a/a1");
-		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		download_mock.assert();
+
+		let a1_dir = scafalra.cache_dir.join_slash("foo/bar/a/a1");
+		let actual = fs::read_to_string(&scafalra.store.path)?;
 		let expect = StoreJsonMock::new().push("a1", &a1_dir).build();
 
 		assert!(a1_dir.exists());
@@ -545,21 +571,26 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_add_subdir_and_depth_1() -> Result<()> {
-		let repo_server_mock = ServerMock::new();
-		let mut scafalra_mock =
-			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
+		let ServerMock {
+			server,
+			download_mock,
+		} = ServerMock::new();
 
-		scafalra_mock
-			.scafalra
-			.add(AddArgsMock::new().subdir("/a").depth(1).build())?;
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new().endpoint(&server.url());
 
-		repo_server_mock.download_mock.assert();
+		scafalra.add(AddArgsMock::new().subdir("/a").depth(1).build())?;
 
-		let a_dir = scafalra_mock.scafalra.cache_dir.join_slash("foo/bar/a");
+		download_mock.assert();
+
+		let a_dir = scafalra.cache_dir.join_slash("foo/bar/a");
 		let a1_dir = a_dir.join("a1");
 		let a2_dir = a_dir.join("a2");
 		let a3_dir = a_dir.join("a3");
-		let actual = fs::read_to_string(&scafalra_mock.scafalra.store.path)?;
+		let actual = fs::read_to_string(&scafalra.store.path)?;
 		let expect = StoreJsonMock::new()
 			.push("a1", &a1_dir)
 			.push("a2", &a2_dir)
@@ -577,28 +608,36 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_create() -> Result<()> {
-		let scafalra_mock = ScafalraMock::new().with_content();
+		let ScafalraMock {
+			tmp_dir,
+			scafalra,
+			..
+		} = ScafalraMock::new().with_content();
 
-		let tmpdir_path = scafalra_mock.tmpdir.path();
+		let tmp_dir_path = tmp_dir.path();
 
-		scafalra_mock.scafalra.create(CreateArgs {
+		scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
-			directory: Some(tmpdir_path.join("bar")),
+			directory: Some(tmp_dir_path.join("bar")),
 			with: None,
 		})?;
 
-		assert!(tmpdir_path.join_slash("bar/baz.txt").exists());
+		assert!(tmp_dir_path.join_slash("bar/baz.txt").exists());
 
 		Ok(())
 	}
 
 	#[test]
 	fn test_scafalra_create_not_found() -> Result<()> {
-		let scafalra_mock = ScafalraMock::new();
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			scafalra,
+			..
+		} = ScafalraMock::new();
 
-		let ret = scafalra_mock.scafalra.create(CreateArgs {
+		let ret = scafalra.create(CreateArgs {
 			name: "bar".to_string(),
 			directory: None,
 			with: None,
@@ -615,16 +654,19 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_copy_on_add() -> Result<()> {
-		let repo_server_mock = ServerMock::new();
-		let mut scafalra_mock =
-			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
+		let ServerMock {
+			server, ..
+		} = ServerMock::new();
 
-		scafalra_mock
-			.scafalra
-			.add(AddArgsMock::new().depth(1).build())?;
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new().endpoint(&server.url());
 
-		let template_dir =
-			scafalra_mock.scafalra.cache_dir.join_slash("foo/bar");
+		scafalra.add(AddArgsMock::new().depth(1).build())?;
+
+		let template_dir = scafalra.cache_dir.join_slash("foo/bar");
 
 		let a_dir = template_dir.join("a");
 		assert!(is_all_exists(&[
@@ -647,18 +689,22 @@ mod tests {
 
 	#[test]
 	fn test_scafalra_copy_on_create() -> Result<()> {
-		let repo_server_mock = ServerMock::new();
-		let mut scafalra_mock =
-			ScafalraMock::new().endpoint(&repo_server_mock.server.url());
+		let ServerMock {
+			server, ..
+		} = ServerMock::new();
 
-		scafalra_mock
-			.scafalra
-			.add(AddArgsMock::new().depth(1).build())?;
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new().endpoint(&server.url());
+
+		scafalra.add(AddArgsMock::new().depth(1).build())?;
 
 		let tmp_dir = tempdir()?;
 		let dest = tmp_dir.path().join("dest");
 
-		scafalra_mock.scafalra.create(CreateArgs {
+		scafalra.create(CreateArgs {
 			name: "b".to_string(),
 			directory: Some(dest.clone()),
 			with: Some("common.txt,copy-dir,copy-all-in-dir/**".to_string()),

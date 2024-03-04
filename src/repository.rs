@@ -71,6 +71,7 @@ mod tests {
 	#[test_case("foo/bar/baz"; "paths exceeded")]
 	fn test_repo_parse_err(input: &str) {
 		let repo = Repository::parse(input);
+
 		assert!(repo.is_err());
 	}
 }

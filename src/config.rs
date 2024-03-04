@@ -53,30 +53,30 @@ mod test_utils {
 
 	pub struct ConfigMock {
 		pub config: Config,
-		pub tmpdir: TempDir,
+		pub tmp_dir: TempDir,
 	}
 
 	impl ConfigMock {
 		pub fn new() -> Self {
-			let tmpdir = tempdir().unwrap();
-			let config = Config::new(tmpdir.path()).unwrap();
+			let tmp_dir = tempdir().unwrap();
+			let config = Config::new(tmp_dir.path()).unwrap();
 
 			Self {
-				tmpdir,
+				tmp_dir,
 				config,
 			}
 		}
 
 		pub fn with_content(self) -> Self {
-			let tmpdir_path = self.tmpdir.path();
+			let tmp_dir_path = self.tmp_dir.path();
 
 			fs::write(
-				tmpdir_path.join(Config::FILE_NAME),
+				tmp_dir_path.join(Config::FILE_NAME),
 				"{\n  \"token\": \"token\"\n}",
 			)
 			.unwrap();
 
-			let config = Config::new(tmpdir_path).unwrap();
+			let config = Config::new(tmp_dir_path).unwrap();
 
 			Self {
 				config,
@@ -96,26 +96,35 @@ mod tests {
 
 	#[test]
 	fn test_config_new_not_exists() {
-		let config_mock = ConfigMock::new();
+		let ConfigMock {
+			tmp_dir: _tmp_dir,
+			config,
+		} = ConfigMock::new();
 
-		assert_eq!(config_mock.config.token(), None);
+		assert_eq!(config.token(), None);
 	}
 
 	#[test]
 	fn test_config_new_exists() {
-		let config_mock = ConfigMock::new().with_content();
+		let ConfigMock {
+			tmp_dir: _tmp_dir,
+			config,
+		} = ConfigMock::new().with_content();
 
-		assert_eq!(config_mock.config.token(), Some("token"));
+		assert_eq!(config.token(), Some("token"));
 	}
 
 	#[test]
 	fn test_config_save() -> Result<()> {
-		let mut config_mock = ConfigMock::new();
+		let ConfigMock {
+			tmp_dir: _tmp_dir,
+			mut config,
+		} = ConfigMock::new();
 
-		config_mock.config.set_token("token2");
-		config_mock.config.save()?;
+		config.set_token("token2");
+		config.save()?;
 
-		let actual = fs::read_to_string(&config_mock.config.path)?;
+		let actual = fs::read_to_string(&config.path)?;
 		assert_eq!(actual, "{\n  \"token\": \"token2\"\n}");
 
 		Ok(())

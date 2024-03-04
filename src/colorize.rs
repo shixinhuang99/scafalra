@@ -31,7 +31,7 @@ mod tests {
 	use super::Colorize;
 
 	#[test]
-	fn test_no_color() {
+	fn test_no_color_when_test() {
 		assert_eq!("foo".blue(), "foo");
 		assert_eq!("foo".to_string().blue(), "foo");
 	}
