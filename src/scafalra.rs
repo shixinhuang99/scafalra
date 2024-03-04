@@ -9,7 +9,7 @@ use remove_dir_all::remove_dir_all;
 
 use crate::{
 	api::GitHubApi,
-	cli::{AddArgs, CreateArgs, ListArgs, MvArgs, RemoveArgs, TokenArgs},
+	cli::{AddArgs, CreateArgs, ListArgs, RemoveArgs, RenameArgs, TokenArgs},
 	config::Config,
 	debug,
 	path_ext::*,
@@ -224,11 +224,8 @@ impl Scafalra {
 		debug!("args: {:#?}", args);
 
 		let Some(template) = self.store.get(&args.name) else {
-			let mut msg = format!("No such template `{}`", args.name);
-			if let Some(name) = self.store.get_similar_name(&args.name) {
-				msg.push_str(&format!("\nA similar template is `{}`", name));
-			}
-			anyhow::bail!(msg);
+			let suggestion = self.store.similar_name_suggestion(&args.name);
+			anyhow::bail!("{}", suggestion);
 		};
 
 		let cwd = env::current_dir()?;
@@ -284,12 +281,14 @@ impl Scafalra {
 		}
 	}
 
-	pub fn mv(&mut self, args: MvArgs) -> Result<()> {
+	pub fn rename(&mut self, args: RenameArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		self.store.rename(&args.name, &args.new_name);
+		let is_renamed = self.store.rename(&args.name, &args.new_name);
 
-		self.store.save()?;
+		if is_renamed {
+			self.store.save()?;
+		}
 
 		Ok(())
 	}

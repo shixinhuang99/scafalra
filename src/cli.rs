@@ -33,7 +33,7 @@ pub enum Command {
 	Remove(RemoveArgs),
 
 	/// Rename a template
-	Mv(MvArgs),
+	Rename(RenameArgs),
 
 	/// Add template from GitHub repository
 	Add(AddArgs),
@@ -58,7 +58,7 @@ pub struct RemoveArgs {
 }
 
 #[derive(Args, Debug)]
-pub struct MvArgs {
+pub struct RenameArgs {
 	pub name: String,
 	pub new_name: String,
 }

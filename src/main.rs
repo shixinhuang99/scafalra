@@ -50,7 +50,7 @@ fn run() -> Result<()> {
 		match command {
 			Command::List(args) => scafalra.list(args),
 			Command::Remove(args) => scafalra.remove(args)?,
-			Command::Mv(args) => scafalra.mv(args)?,
+			Command::Rename(args) => scafalra.rename(args)?,
 			Command::Add(args) => scafalra.add(args)?,
 			Command::Create(args) => scafalra.create(args)?,
 			Command::Token(args) => scafalra.token(args)?,

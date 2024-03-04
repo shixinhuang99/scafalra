@@ -48,7 +48,6 @@ impl Repository {
 
 #[cfg(test)]
 mod tests {
-
 	use anyhow::Result;
 	use test_case::test_case;
 
