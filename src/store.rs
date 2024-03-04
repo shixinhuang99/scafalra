@@ -409,7 +409,9 @@ mod tests {
 	#[test]
 	fn test_store_new_file_not_exists() {
 		let StoreMock {
-			store, ..
+			tmp_dir: _tmp_dir,
+			store,
+			..
 		} = StoreMock::new();
 
 		assert_eq!(store.templates.len(), 0);
@@ -419,7 +421,9 @@ mod tests {
 	#[test]
 	fn test_store_new() {
 		let StoreMock {
-			store, ..
+			tmp_dir: _tmp_dir,
+			store,
+			..
 		} = StoreMock::new().with_content();
 
 		assert_eq!(store.templates.len(), 1);
@@ -429,9 +433,9 @@ mod tests {
 	#[test]
 	fn test_store_save() -> Result<()> {
 		let StoreMock {
+			tmp_dir: _tmp_dir,
 			store,
 			path,
-			..
 		} = StoreMock::new().with_content();
 
 		store.save()?;
@@ -447,7 +451,9 @@ mod tests {
 	#[test]
 	fn test_store_add() {
 		let StoreMock {
-			mut store, ..
+			tmp_dir: _tmp_dir,
+			mut store,
+			..
 		} = StoreMock::new();
 
 		store.add(TemplateMock::build("foo"));
@@ -460,7 +466,9 @@ mod tests {
 	#[test]
 	fn test_store_add_same() {
 		let StoreMock {
-			mut store, ..
+			tmp_dir: _tmp_dir,
+			mut store,
+			..
 		} = StoreMock::new().with_content();
 
 		store.add(TemplateMock::build("foo"));
@@ -473,9 +481,9 @@ mod tests {
 	#[test]
 	fn test_store_remove() -> Result<()> {
 		let StoreMock {
+			tmp_dir: _tmp_dir,
 			mut store,
 			path,
-			..
 		} = StoreMock::new().with_content();
 
 		store.remove("foo")?;
@@ -490,7 +498,9 @@ mod tests {
 	#[test]
 	fn test_store_remove_not_found() -> Result<()> {
 		let StoreMock {
-			mut store, ..
+			tmp_dir: _tmp_dir,
+			mut store,
+			..
 		} = StoreMock::new().with_content();
 
 		store.remove("bar")?;
@@ -503,7 +513,9 @@ mod tests {
 	#[test]
 	fn test_store_rename() {
 		let StoreMock {
-			mut store, ..
+			tmp_dir: _tmp_dir,
+			mut store,
+			..
 		} = StoreMock::new().with_content();
 
 		store.rename("foo", "bar");
@@ -517,7 +529,9 @@ mod tests {
 	#[test]
 	fn store_rename_exists_or_not_found() {
 		let StoreMock {
-			mut store, ..
+			tmp_dir: _tmp_dir,
+			mut store,
+			..
 		} = StoreMock::new().with_content();
 
 		store.rename("foo", "foo");
@@ -534,7 +548,9 @@ mod tests {
 	#[test]
 	fn test_print_grid() {
 		let StoreMock {
-			mut store, ..
+			tmp_dir: _tmp_dir,
+			mut store,
+			..
 		} = StoreMock::new();
 
 		assert_eq!(store.print_grid(), None);
@@ -552,7 +568,9 @@ mod tests {
 	#[test]
 	fn test_print_table() -> Result<()> {
 		let StoreMock {
-			mut store, ..
+			tmp_dir: _tmp_dir,
+			mut store,
+			..
 		} = StoreMock::new();
 
 		assert_eq!(store.print_table(), None);
@@ -574,7 +592,9 @@ mod tests {
 	#[test]
 	fn test_store_similar_name() {
 		let StoreMock {
-			store, ..
+			tmp_dir: _tmp_dir,
+			store,
+			..
 		} = StoreMock::new().with_content();
 
 		assert_eq!(store.similar_name_suggestion("fop").similar, Some("foo"));

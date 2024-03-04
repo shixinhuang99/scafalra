@@ -101,7 +101,9 @@ mod tests {
 	#[test]
 	fn test_json_load_file() {
 		let JsonContentMock {
-			foo, ..
+			tmp_dir: _tmp_dir,
+			foo,
+			..
 		} = JsonContentMock::new().with_content();
 
 		assert_eq!(foo.bar, "bar");
@@ -110,7 +112,9 @@ mod tests {
 	#[test]
 	fn test_json_load_no_content() {
 		let JsonContentMock {
-			foo, ..
+			tmp_dir: _tmp_dir,
+			foo,
+			..
 		} = JsonContentMock::new().no_content();
 
 		assert_eq!(foo.bar, "");
@@ -119,9 +123,9 @@ mod tests {
 	#[test]
 	fn test_json_load_file_not_exists() {
 		let JsonContentMock {
+			tmp_dir: _tmp_dir,
 			foo,
 			path,
-			..
 		} = JsonContentMock::new();
 
 		assert_eq!(foo.bar, "");
@@ -131,9 +135,9 @@ mod tests {
 	#[test]
 	fn test_json_save() -> Result<()> {
 		let JsonContentMock {
+			tmp_dir: _tmp_dir,
 			mut foo,
 			path,
-			..
 		} = JsonContentMock::new().with_content();
 
 		foo.bar = "bar2".to_string();

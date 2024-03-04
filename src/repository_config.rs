@@ -78,7 +78,9 @@ mod tests {
 	#[test]
 	fn test_config_file_load() {
 		let RepositoryConfigMock {
-			repo_cfg, ..
+			tmp_dir: _tmp_dir,
+			repo_cfg,
+			..
 		} = RepositoryConfigMock::new().with_fixture();
 
 		assert_eq!(
@@ -90,7 +92,9 @@ mod tests {
 	#[test]
 	fn test_config_load_file_not_exists() {
 		let RepositoryConfigMock {
-			repo_cfg, ..
+			tmp_dir: _tmp_dir,
+			repo_cfg,
+			..
 		} = RepositoryConfigMock::new();
 
 		assert!(repo_cfg.copy_on_add.is_empty());

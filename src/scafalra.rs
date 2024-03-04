@@ -445,7 +445,9 @@ mod tests {
 	#[test]
 	fn test_scafalra_new() {
 		let ScafalraMock {
-			scafalra, ..
+			tmp_dir: _tmp_dir,
+			scafalra,
+			..
 		} = ScafalraMock::new();
 
 		assert!(scafalra.cache_dir.exists());
@@ -461,7 +463,9 @@ mod tests {
 		} = ServerMock::new();
 
 		let ScafalraMock {
-			mut scafalra, ..
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
 		scafalra.add(AddArgsMock::new().build())?;
@@ -486,7 +490,9 @@ mod tests {
 		} = ServerMock::new();
 
 		let ScafalraMock {
-			mut scafalra, ..
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
 		scafalra.add(AddArgsMock::new().name("foo").build())?;
@@ -511,7 +517,9 @@ mod tests {
 		} = ServerMock::new();
 
 		let ScafalraMock {
-			mut scafalra, ..
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
 		scafalra.add(AddArgsMock::new().depth(1).build())?;
@@ -542,7 +550,9 @@ mod tests {
 		} = ServerMock::new();
 
 		let ScafalraMock {
-			mut scafalra, ..
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
 		scafalra.add(AddArgsMock::new().subdir("/a/a1").build())?;
@@ -567,7 +577,9 @@ mod tests {
 		} = ServerMock::new();
 
 		let ScafalraMock {
-			mut scafalra, ..
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
 		scafalra.add(AddArgsMock::new().subdir("/a").depth(1).build())?;
@@ -597,8 +609,8 @@ mod tests {
 	#[test]
 	fn test_scafalra_create() -> Result<()> {
 		let ScafalraMock {
-			scafalra,
 			tmp_dir,
+			scafalra,
 			..
 		} = ScafalraMock::new().with_content();
 
@@ -620,7 +632,9 @@ mod tests {
 	#[test]
 	fn test_scafalra_create_not_found() -> Result<()> {
 		let ScafalraMock {
-			scafalra, ..
+			tmp_dir: _tmp_dir,
+			scafalra,
+			..
 		} = ScafalraMock::new();
 
 		let ret = scafalra.create(CreateArgs {
@@ -645,7 +659,9 @@ mod tests {
 		} = ServerMock::new();
 
 		let ScafalraMock {
-			mut scafalra, ..
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
 		scafalra.add(AddArgsMock::new().depth(1).build())?;
@@ -678,7 +694,9 @@ mod tests {
 		} = ServerMock::new();
 
 		let ScafalraMock {
-			mut scafalra, ..
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
 		scafalra.add(AddArgsMock::new().depth(1).build())?;

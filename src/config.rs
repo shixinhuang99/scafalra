@@ -97,7 +97,8 @@ mod tests {
 	#[test]
 	fn test_config_new_not_exists() {
 		let ConfigMock {
-			config, ..
+			tmp_dir: _tmp_dir,
+			config,
 		} = ConfigMock::new();
 
 		assert_eq!(config.token(), None);
@@ -106,7 +107,8 @@ mod tests {
 	#[test]
 	fn test_config_new_exists() {
 		let ConfigMock {
-			config, ..
+			tmp_dir: _tmp_dir,
+			config,
 		} = ConfigMock::new().with_content();
 
 		assert_eq!(config.token(), Some("token"));
@@ -115,7 +117,8 @@ mod tests {
 	#[test]
 	fn test_config_save() -> Result<()> {
 		let ConfigMock {
-			mut config, ..
+			tmp_dir: _tmp_dir,
+			mut config,
 		} = ConfigMock::new();
 
 		config.set_token("token2");
