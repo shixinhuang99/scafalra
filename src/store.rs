@@ -38,6 +38,12 @@ impl Template {
 	}
 }
 
+impl std::fmt::Display for Template {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{}", self.name)
+	}
+}
+
 pub struct TemplateBuilder {
 	pub name: String,
 	pub url: String,
@@ -281,6 +287,10 @@ impl Store {
 			target,
 			similar,
 		}
+	}
+
+	pub fn all_templates(&self) -> Vec<&Template> {
+		self.templates.values().collect::<Vec<&Template>>()
 	}
 }
 

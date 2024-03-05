@@ -104,7 +104,7 @@ pub struct AddArgs {
 #[derive(Args, Debug)]
 pub struct CreateArgs {
 	/// Template name
-	pub name: String,
+	pub name: Option<String>, // todo: as arg
 
 	/// Specified directory(defaults to the current directory)
 	pub directory: Option<PathBuf>,
@@ -112,6 +112,10 @@ pub struct CreateArgs {
 	/// Comma-separated list of glob
 	#[arg(long)]
 	pub with: Option<String>,
+
+	/// Interactive mode
+	#[arg(short, long)]
+	pub interactive: bool,
 }
 
 #[derive(Args, Debug)]

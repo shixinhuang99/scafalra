@@ -223,8 +223,23 @@ impl Scafalra {
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let Some(template) = self.store.get(&args.name) else {
-			let suggestion = self.store.similar_name_suggestion(&args.name);
+		let tpl_name = match (&args.name, args.interactive) {
+			(Some(arg_name), false) => Some(arg_name.as_ref()),
+			(_, true) => self.fuzzy_select()?,
+			_ => {
+				anyhow::bail!(
+					"Please provide a template name or use the interactive mode \
+					via the `-i` argument"
+				)
+			}
+		};
+
+		let Some(tpl_name) = tpl_name else {
+			return Ok(());
+		};
+
+		let Some(template) = self.store.get(tpl_name) else {
+			let suggestion = self.store.similar_name_suggestion(tpl_name);
 			anyhow::bail!("{}", suggestion);
 		};
 
@@ -239,7 +254,7 @@ impl Scafalra {
 				cwd.join(arg_dir)
 			}
 		} else {
-			cwd.join(args.name)
+			cwd.join(tpl_name)
 		};
 
 		debug!("dest: {:?}", dest);
@@ -280,6 +295,29 @@ impl Scafalra {
 		{
 			glob_walk_and_copy(gw, dest);
 		}
+	}
+
+	fn fuzzy_select(&self) -> Result<Option<&str>> {
+		use dialoguer::{theme::ColorfulTheme, FuzzySelect};
+
+		let all_templates = self.store.all_templates();
+
+		let idx = FuzzySelect::with_theme(&ColorfulTheme::default())
+			.with_prompt(
+				"Typing to search, use ↑↓ to select, \
+				press `Enter` to confirm, press `Esc` to exit",
+			)
+			.items(&all_templates)
+			.highlight_matches(true)
+			.interact_opt()?;
+
+		if let Some(idx) = idx {
+			let template = all_templates[idx];
+
+			return Ok(Some(&template.name));
+		}
+
+		Ok(None)
 	}
 
 	pub fn rename(&mut self, args: RenameArgs) -> Result<()> {
@@ -617,11 +655,12 @@ mod tests {
 		let tmp_dir_path = tmp_dir.path();
 
 		scafalra.create(CreateArgs {
-			name: "bar".to_string(),
+			name: Some("bar".to_string()),
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
 			directory: Some(tmp_dir_path.join("bar")),
 			with: None,
+			interactive: false,
 		})?;
 
 		assert!(tmp_dir_path.join_slash("bar/baz.txt").exists());
@@ -638,9 +677,10 @@ mod tests {
 		} = ScafalraMock::new();
 
 		let ret = scafalra.create(CreateArgs {
-			name: "bar".to_string(),
+			name: Some("bar".to_string()),
 			directory: None,
 			with: None,
+			interactive: false,
 		});
 
 		assert!(ret.is_err());
@@ -705,9 +745,10 @@ mod tests {
 		let dest = tmp_dir.path().join("dest");
 
 		scafalra.create(CreateArgs {
-			name: "b".to_string(),
+			name: Some("b".to_string()),
 			directory: Some(dest.clone()),
 			with: Some("common.txt,copy-dir,copy-all-in-dir/**".to_string()),
+			interactive: false,
 		})?;
 
 		assert!(is_all_exists(&[
