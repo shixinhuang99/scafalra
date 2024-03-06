@@ -3,6 +3,7 @@ mod cli;
 mod colorize;
 mod config;
 mod debug;
+mod interactive;
 mod json;
 mod path_ext;
 mod repository;

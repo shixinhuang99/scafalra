@@ -12,6 +12,7 @@ use crate::{
 	cli::{AddArgs, CreateArgs, ListArgs, RemoveArgs, RenameArgs, TokenArgs},
 	config::Config,
 	debug,
+	interactive::{fuzzy_select, multi_select},
 	path_ext::*,
 	repository::Repository,
 	repository_config::RepositoryConfig,
@@ -224,12 +225,12 @@ impl Scafalra {
 		debug!("args: {:#?}", args);
 
 		let tpl_name = match (&args.name, args.interactive) {
-			(Some(arg_name), false) => Some(arg_name.as_ref()),
-			(_, true) => self.fuzzy_select()?,
+			(Some(arg_name), false) => Some(arg_name),
+			(_, true) => fuzzy_select(self.store.all_templates_name())?,
 			_ => {
 				anyhow::bail!(
-					"Please provide a template name or use the interactive mode \
-					via the `-i` argument"
+					"Provide a name or opt for interactive mode \
+					with the `-i` argument"
 				)
 			}
 		};
@@ -297,29 +298,6 @@ impl Scafalra {
 		}
 	}
 
-	fn fuzzy_select(&self) -> Result<Option<&str>> {
-		use dialoguer::{theme::ColorfulTheme, FuzzySelect};
-
-		let all_templates = self.store.all_templates();
-
-		let idx = FuzzySelect::with_theme(&ColorfulTheme::default())
-			.with_prompt(
-				"Typing to search, use ↑↓ to select, \
-				press `Enter` to confirm, press `Esc` to exit",
-			)
-			.items(&all_templates)
-			.highlight_matches(true)
-			.interact_opt()?;
-
-		if let Some(idx) = idx {
-			let template = all_templates[idx];
-
-			return Ok(Some(&template.name));
-		}
-
-		Ok(None)
-	}
-
 	pub fn rename(&mut self, args: RenameArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
@@ -335,7 +313,25 @@ impl Scafalra {
 	pub fn remove(&mut self, args: RemoveArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		for name in args.names {
+		let names = match (args.names, args.interactive) {
+			(Some(names), false) => Some(names),
+			(_, true) => {
+				multi_select(self.store.all_templates_name())?
+					.map(|vs| vs.into_iter().cloned().collect())
+			}
+			_ => {
+				anyhow::bail!(
+					"Provide names or opt for interactive mode \
+					with the `-i` argument"
+				)
+			}
+		};
+
+		let Some(names) = names else {
+			return Ok(());
+		};
+
+		for name in names {
 			self.store.remove(&name)?;
 		}
 
@@ -411,6 +407,7 @@ mod test_utils {
 			}
 		}
 
+		/// create a template that name is `bar`
 		pub fn with_content(self) -> Self {
 			use crate::path_ext::*;
 
@@ -475,7 +472,7 @@ mod tests {
 
 	use super::test_utils::{ScafalraMock, ServerMock};
 	use crate::{
-		cli::{test_utils::AddArgsMock, CreateArgs},
+		cli::{test_utils::AddArgsMock, CreateArgs, RemoveArgs},
 		path_ext::*,
 		store::test_utils::StoreJsonMock,
 	};
@@ -669,6 +666,26 @@ mod tests {
 	}
 
 	#[test]
+	fn test_scafalra_create_err() -> Result<()> {
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			scafalra,
+			..
+		} = ScafalraMock::new();
+
+		let ret = scafalra.create(CreateArgs {
+			name: None,
+			directory: None,
+			with: None,
+			interactive: false,
+		});
+
+		assert!(ret.is_err());
+
+		Ok(())
+	}
+
+	#[test]
 	fn test_scafalra_create_not_found() -> Result<()> {
 		let ScafalraMock {
 			tmp_dir: _tmp_dir,
@@ -758,6 +775,24 @@ mod tests {
 			dest.join("copy-all-in-dir.txt"),
 			dest.join_slash("copy-all-in-dir-2/copy-all-in-dir-2.txt"),
 		]));
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_remove_err() -> Result<()> {
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new();
+
+		let ret = scafalra.remove(RemoveArgs {
+			names: None,
+			interactive: false,
+		});
+
+		assert!(ret.is_err());
 
 		Ok(())
 	}

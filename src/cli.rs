@@ -54,7 +54,13 @@ pub struct ListArgs {
 
 #[derive(Args, Debug)]
 pub struct RemoveArgs {
-	pub names: Vec<String>,
+	/// Template Name List
+	#[arg(short, long)]
+	pub names: Option<Vec<String>>,
+
+	/// Interactive mode
+	#[arg(short, long)]
+	pub interactive: bool,
 }
 
 #[derive(Args, Debug)]
@@ -104,7 +110,8 @@ pub struct AddArgs {
 #[derive(Args, Debug)]
 pub struct CreateArgs {
 	/// Template name
-	pub name: Option<String>, // todo: as arg
+	#[arg(short, long)]
+	pub name: Option<String>,
 
 	/// Specified directory(defaults to the current directory)
 	pub directory: Option<PathBuf>,
