@@ -12,7 +12,7 @@ use crate::{
 	cli::{AddArgs, CreateArgs, ListArgs, RemoveArgs, RenameArgs, TokenArgs},
 	config::Config,
 	debug,
-	interactive::{fuzzy_select, multi_select},
+	interactive::{fuzzy_select, input, multi_select},
 	path_ext::*,
 	repository::Repository,
 	repository_config::RepositoryConfig,
@@ -25,6 +25,7 @@ pub struct Scafalra {
 	config: Config,
 	store: Store,
 	github_api: GitHubApi,
+	pub interactive_mode: bool,
 }
 
 impl Scafalra {
@@ -56,6 +57,7 @@ impl Scafalra {
 			config,
 			store,
 			github_api,
+			interactive_mode: false,
 		})
 	}
 
@@ -224,13 +226,12 @@ impl Scafalra {
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let tpl_name = match (&args.name, args.interactive) {
+		let tpl_name = match (&args.name, self.interactive_mode) {
 			(Some(arg_name), false) => Some(arg_name),
 			(_, true) => fuzzy_select(self.store.all_templates_name())?,
 			_ => {
 				anyhow::bail!(
-					"Provide a name or opt for interactive mode \
-					with the `-i` argument"
+					"Provide a name or opt for interactive mode with the `-i` argument"
 				)
 			}
 		};
@@ -301,10 +302,37 @@ impl Scafalra {
 	pub fn rename(&mut self, args: RenameArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let renamed = self.store.rename(&args.name, &args.new_name);
+		let (name, new_name) = match (
+			args.name,
+			args.new_name,
+			self.interactive_mode,
+		) {
+			(Some(name), Some(new_name), false) => (name, new_name),
+			(_, _, true) => {
+				let name = fuzzy_select(self.store.all_templates_name())?;
+				let Some(name) = name else {
+					return Ok(());
+				};
+				let new_name = input("New name?")?;
+				(name.clone(), new_name)
+			}
+			(Some(_), None, false) => {
+				anyhow::bail!("Please provide a new name")
+			}
+			(_, _, _) => {
+				anyhow::bail!(
+					"Provide both the target and new names, or opt for interactive mode with the `-i` argument"
+				)
+			}
+		};
+
+		println!("{} {}", name, new_name);
+
+		let renamed = self.store.rename(&name, &new_name);
 
 		if renamed {
 			self.store.save()?;
+			println!("{} -> {}", name, new_name);
 		}
 
 		Ok(())
@@ -313,7 +341,7 @@ impl Scafalra {
 	pub fn remove(&mut self, args: RemoveArgs) -> Result<()> {
 		debug!("args: {:#?}", args);
 
-		let names = match (args.names, args.interactive) {
+		let names = match (args.names, self.interactive_mode) {
 			(Some(names), false) => Some(names),
 			(_, true) => {
 				multi_select(self.store.all_templates_name())?
@@ -321,8 +349,7 @@ impl Scafalra {
 			}
 			_ => {
 				anyhow::bail!(
-					"Provide names or opt for interactive mode \
-					with the `-i` argument"
+					"Provide names or opt for interactive mode with the `-i` argument"
 				)
 			}
 		};
@@ -472,7 +499,7 @@ mod tests {
 
 	use super::test_utils::{ScafalraMock, ServerMock};
 	use crate::{
-		cli::{test_utils::AddArgsMock, CreateArgs, RemoveArgs},
+		cli::{test_utils::AddArgsMock, CreateArgs, RemoveArgs, RenameArgs},
 		path_ext::*,
 		store::test_utils::StoreJsonMock,
 	};
@@ -657,7 +684,6 @@ mod tests {
 			// simulate the current working directory
 			directory: Some(tmp_dir_path.join("bar")),
 			with: None,
-			interactive: false,
 		})?;
 
 		assert!(tmp_dir_path.join_slash("bar/baz.txt").exists());
@@ -677,7 +703,6 @@ mod tests {
 			name: None,
 			directory: None,
 			with: None,
-			interactive: false,
 		});
 
 		assert!(ret.is_err());
@@ -697,7 +722,6 @@ mod tests {
 			name: Some("bar".to_string()),
 			directory: None,
 			with: None,
-			interactive: false,
 		});
 
 		assert!(ret.is_err());
@@ -765,7 +789,6 @@ mod tests {
 			name: Some("b".to_string()),
 			directory: Some(dest.clone()),
 			with: Some("common.txt,copy-dir,copy-all-in-dir/**".to_string()),
-			interactive: false,
 		})?;
 
 		assert!(is_all_exists(&[
@@ -789,7 +812,24 @@ mod tests {
 
 		let ret = scafalra.remove(RemoveArgs {
 			names: None,
-			interactive: false,
+		});
+
+		assert!(ret.is_err());
+
+		Ok(())
+	}
+
+	#[test]
+	fn test_scafalra_rename_err() -> Result<()> {
+		let ScafalraMock {
+			tmp_dir: _tmp_dir,
+			mut scafalra,
+			..
+		} = ScafalraMock::new();
+
+		let ret = scafalra.rename(RenameArgs {
+			name: None,
+			new_name: None,
 		});
 
 		assert!(ret.is_err());

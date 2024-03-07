@@ -22,6 +22,10 @@ pub struct Cli {
 	/// Display of scafalra's data storage location
 	#[arg(long)]
 	pub proj_dir: bool,
+
+	/// Interactive mode
+	#[arg(short, long, global = true)]
+	pub interactive: bool,
 }
 
 #[derive(Subcommand)]
@@ -54,19 +58,17 @@ pub struct ListArgs {
 
 #[derive(Args, Debug)]
 pub struct RemoveArgs {
-	/// Template Name List
-	#[arg(short, long)]
+	/// Template name List
 	pub names: Option<Vec<String>>,
-
-	/// Interactive mode
-	#[arg(short, long)]
-	pub interactive: bool,
 }
 
 #[derive(Args, Debug)]
 pub struct RenameArgs {
-	pub name: String,
-	pub new_name: String,
+	/// Template name
+	pub name: Option<String>,
+
+	/// New Template name
+	pub new_name: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -110,7 +112,6 @@ pub struct AddArgs {
 #[derive(Args, Debug)]
 pub struct CreateArgs {
 	/// Template name
-	#[arg(short, long)]
 	pub name: Option<String>,
 
 	/// Specified directory(defaults to the current directory)
@@ -119,10 +120,6 @@ pub struct CreateArgs {
 	/// Comma-separated list of glob
 	#[arg(long)]
 	pub with: Option<String>,
-
-	/// Interactive mode
-	#[arg(short, long)]
-	pub interactive: bool,
 }
 
 #[derive(Args, Debug)]

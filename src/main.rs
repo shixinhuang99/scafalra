@@ -47,6 +47,10 @@ fn run() -> Result<()> {
 		return Ok(());
 	}
 
+	if cli.interactive {
+		scafalra.interactive_mode = true;
+	}
+
 	if let Some(command) = cli.command {
 		match command {
 			Command::List(args) => scafalra.list(args),
