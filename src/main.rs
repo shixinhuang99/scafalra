@@ -3,6 +3,7 @@ mod cli;
 mod colorize;
 mod config;
 mod debug;
+mod interactive;
 mod json;
 mod path_ext;
 mod repository;
@@ -44,6 +45,10 @@ fn run() -> Result<()> {
 	if cli.proj_dir {
 		println!("{}", scafalra.path.to_string_lossy());
 		return Ok(());
+	}
+
+	if cli.interactive {
+		scafalra.interactive_mode = true;
 	}
 
 	if let Some(command) = cli.command {

@@ -282,6 +282,10 @@ impl Store {
 			similar,
 		}
 	}
+
+	pub fn all_templates_name(&self) -> Vec<&String> {
+		self.templates.values().map(|v| &v.name).collect()
+	}
 }
 
 pub struct Suggestion<'a> {
