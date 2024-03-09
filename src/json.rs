@@ -1,7 +1,6 @@
-use std::path::Path;
+use std::{fs, path::Path};
 
 use anyhow::Result;
-use fs_err as fs;
 use serde::{de::DeserializeOwned, Serialize};
 
 pub trait JsonContent

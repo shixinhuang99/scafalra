@@ -1,11 +1,10 @@
 use std::{
-	env, io,
+	env, fs, io,
 	path::{Path, PathBuf},
 	sync::OnceLock,
 };
 
 use anyhow::Result;
-use fs_err as fs;
 use ureq::{Agent, AgentBuilder, Proxy};
 
 use crate::{cli::AddArgs, debug, repository::Repository};

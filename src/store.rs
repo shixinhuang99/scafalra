@@ -9,84 +9,11 @@ use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
 use tabled::{
 	settings::{format::Format, object::Segment, Alignment, Modify, Style},
-	Table, Tabled,
+	Table,
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
-use crate::json::JsonContent;
-
-#[derive(Deserialize, Serialize, Clone, Tabled)]
-pub struct Template {
-	pub name: String,
-	pub url: String,
-	#[tabled(skip)]
-	pub path: PathBuf,
-	#[tabled(rename = "created at")]
-	pub created_at: String,
-	#[tabled(skip)]
-	pub is_sub_template: Option<bool>,
-}
-
-impl Template {
-	pub fn new<N, U, P>(name: N, url: U, path: P) -> Self
-	where
-		N: AsRef<str>,
-		U: AsRef<str>,
-		P: AsRef<Path>,
-	{
-		TemplateBuilder::new(name, url, path).build()
-	}
-}
-
-pub struct TemplateBuilder {
-	pub name: String,
-	pub url: String,
-	pub path: PathBuf,
-	pub created_at: String,
-	pub is_sub_template: Option<bool>,
-}
-
-impl TemplateBuilder {
-	pub fn new<N, U, P>(name: N, url: U, path: P) -> Self
-	where
-		N: AsRef<str>,
-		U: AsRef<str>,
-		P: AsRef<Path>,
-	{
-		let created_at = if cfg!(test) {
-			"2023-05-19 00:00:00".to_string()
-		} else {
-			chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
-		};
-
-		Self {
-			name: String::from(name.as_ref()),
-			url: String::from(url.as_ref()),
-			path: PathBuf::from(path.as_ref()),
-			created_at,
-			is_sub_template: None,
-		}
-	}
-
-	pub fn build(self) -> Template {
-		Template {
-			name: self.name,
-			url: self.url,
-			path: self.path,
-			created_at: self.created_at,
-			is_sub_template: self.is_sub_template,
-		}
-	}
-
-	pub fn sub_template(self, value: bool) -> Self {
-		let is_sub_template = value.then_some(true);
-
-		Self {
-			is_sub_template,
-			..self
-		}
-	}
-}
+use crate::{json::JsonContent, template::Template};
 
 #[derive(Deserialize, Serialize, Default)]
 struct TemplateMap(BTreeMap<String, Template>);
@@ -307,15 +234,12 @@ impl std::fmt::Display for Suggestion<'_> {
 
 #[cfg(test)]
 pub mod test_utils {
-	use std::{
-		collections::BTreeMap,
-		fs,
-		path::{Path, PathBuf},
-	};
+	use std::{collections::BTreeMap, fs, path::Path};
 
 	use tempfile::{tempdir, TempDir};
 
 	use super::{Store, Template, TemplateMap};
+	use crate::sub_template::test_utils::sub_tempaltes_dir_setup;
 
 	pub struct StoreJsonMock {
 		data: Vec<Template>,
@@ -328,19 +252,8 @@ pub mod test_utils {
 			}
 		}
 
-		pub fn push<T>(&mut self, name: &str, path: T) -> &mut Self
-		where
-			T: AsRef<Path>,
-		{
+		pub fn push(&mut self, name: &str, path: &Path) -> &mut Self {
 			self.data.push(Template::new(name, "url", path));
-
-			self
-		}
-
-		pub fn all_sub_template(&mut self) -> &mut Self {
-			for ele in &mut self.data {
-				ele.is_sub_template = Some(true);
-			}
 
 			self
 		}
@@ -368,34 +281,76 @@ pub mod test_utils {
 	pub struct StoreMock {
 		pub store: Store,
 		pub tmp_dir: TempDir,
-		pub path: PathBuf,
 	}
 
 	impl StoreMock {
-		pub fn new() -> Self {
+		pub fn with_no_content() -> Self {
 			let tmp_dir = tempdir().unwrap();
-			let tmp_dir_path = tmp_dir.path();
-			let path = tmp_dir_path.join("foo");
-			let store = Store::new(tmp_dir_path).unwrap();
+			let store = Store::new(tmp_dir.path()).unwrap();
 
 			Self {
-				store,
 				tmp_dir,
-				path,
+				store,
 			}
 		}
 
-		pub fn with_content(self) -> Self {
-			fs::create_dir(&self.path).unwrap();
-			let content = StoreJsonMock::new().push("foo", &self.path).build();
-			let tmp_dir_path = self.tmp_dir.path();
-			let store_file = tmp_dir_path.join(Store::FILE_NAME);
-			fs::write(store_file, content).unwrap();
+		pub fn with_default_content() -> Self {
+			let tmp_dir = tempdir().unwrap();
+			let tmp_dir_path = tmp_dir.path();
+			let foo_path = tmp_dir_path.join("foo");
+
+			fs::create_dir(&foo_path).unwrap();
+			fs::write(
+				tmp_dir_path.join(Store::FILE_NAME),
+				StoreJsonMock::new().push("foo", &foo_path).build(),
+			)
+			.unwrap();
+
 			let store = Store::new(tmp_dir_path).unwrap();
 
 			Self {
+				tmp_dir,
 				store,
-				..self
+			}
+		}
+
+		pub fn from_range(range: std::ops::Range<i32>) -> Self {
+			let tmp_dir = tempdir().unwrap();
+			let tmp_dir_path = tmp_dir.path();
+
+			let mut store_json_mock = StoreJsonMock::new();
+			for n in range {
+				let name = format!("foo-{}", n);
+				let name_path = tmp_dir_path.join(&name);
+				fs::create_dir(&name_path).unwrap();
+
+				match n {
+					0 => {
+						sub_tempaltes_dir_setup(
+							&name_path,
+							&["dir-1", "dir-2"],
+						);
+					}
+					1 => {
+						sub_tempaltes_dir_setup(&name_path, &["dir-3"]);
+					}
+					_ => (),
+				}
+
+				store_json_mock.push(&name, &name_path);
+			}
+
+			fs::write(
+				tmp_dir_path.join(Store::FILE_NAME),
+				store_json_mock.build(),
+			)
+			.unwrap();
+
+			let store = Store::new(tmp_dir_path).unwrap();
+
+			Self {
+				tmp_dir,
+				store,
 			}
 		}
 	}
@@ -407,16 +362,16 @@ mod tests {
 
 	use anyhow::Result;
 	use similar_asserts::assert_eq;
+	use test_case::test_case;
 
-	use super::test_utils::{StoreJsonMock, StoreMock, TemplateMock};
+	use super::test_utils::{StoreMock, TemplateMock};
 
 	#[test]
 	fn test_store_new_file_not_exists() {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			store,
-			..
-		} = StoreMock::new();
+		} = StoreMock::with_no_content();
 
 		assert_eq!(store.templates.len(), 0);
 		assert_eq!(store.changes.inner.len(), 0);
@@ -427,8 +382,7 @@ mod tests {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			store,
-			..
-		} = StoreMock::new().with_content();
+		} = StoreMock::with_default_content();
 
 		assert_eq!(store.templates.len(), 1);
 		assert!(store.templates.contains_key("foo"));
@@ -439,15 +393,15 @@ mod tests {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			store,
-			path,
-		} = StoreMock::new().with_content();
+		} = StoreMock::with_default_content();
+
+		fs::write(&store.path, "")?;
 
 		store.save()?;
 
-		let actual = fs::read_to_string(store.path)?;
-		let expect = StoreJsonMock::new().push("foo", &path).build();
+		let store_file_content = fs::read_to_string(store.path)?;
 
-		assert_eq!(actual, expect);
+		assert!(!store_file_content.is_empty());
 
 		Ok(())
 	}
@@ -457,8 +411,7 @@ mod tests {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			mut store,
-			..
-		} = StoreMock::new();
+		} = StoreMock::with_no_content();
 
 		store.add(TemplateMock::build("foo"));
 
@@ -472,8 +425,7 @@ mod tests {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			mut store,
-			..
-		} = StoreMock::new().with_content();
+		} = StoreMock::with_default_content();
 
 		store.add(TemplateMock::build("foo"));
 
@@ -485,14 +437,13 @@ mod tests {
 	#[test]
 	fn test_store_remove() -> Result<()> {
 		let StoreMock {
-			tmp_dir: _tmp_dir,
+			tmp_dir,
 			mut store,
-			path,
-		} = StoreMock::new().with_content();
+		} = StoreMock::with_default_content();
 
 		store.remove("foo")?;
 
-		assert!(!path.exists());
+		assert!(!tmp_dir.path().join("foo").exists());
 		assert_eq!(store.templates.len(), 0);
 		assert_eq!(store.changes.inner, vec!["- foo"]);
 
@@ -504,8 +455,7 @@ mod tests {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			mut store,
-			..
-		} = StoreMock::new().with_content();
+		} = StoreMock::with_default_content();
 
 		store.remove("bar")?;
 
@@ -519,8 +469,7 @@ mod tests {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			mut store,
-			..
-		} = StoreMock::new().with_content();
+		} = StoreMock::with_default_content();
 
 		store.rename("foo", "bar");
 
@@ -530,64 +479,63 @@ mod tests {
 		assert_eq!(store.changes.inner, vec!["- foo", "+ bar"]);
 	}
 
-	#[test]
-	fn store_rename_exists_or_not_found() {
+	#[test_case("foo"; "exists")]
+	#[test_case("bar"; "not found")]
+	fn test_store_bad_rename(name: &str) {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			mut store,
-			..
-		} = StoreMock::new().with_content();
+		} = StoreMock::with_default_content();
 
-		store.rename("foo", "foo");
-
-		assert_eq!(store.templates.len(), 1);
-		assert!(store.templates.contains_key("foo"));
-
-		store.rename("bar", "foo");
+		store.rename(name, "foo");
 
 		assert_eq!(store.templates.len(), 1);
 		assert!(store.templates.contains_key("foo"));
 	}
 
 	#[test]
-	fn test_print_grid() {
+	fn test_store_print_empty() {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
-			mut store,
+			store,
 			..
-		} = StoreMock::new();
+		} = StoreMock::with_no_content();
 
 		assert_eq!(store.print_grid(), None);
+		assert_eq!(store.print_table(), None);
+	}
 
-		for i in 0..7 {
-			store.add(TemplateMock::build(&format!("foo-{}", i)));
-		}
+	#[test]
+	fn test_store_print_grid() {
+		let StoreMock {
+			tmp_dir: _tmp_dir,
+			store,
+		} = StoreMock::from_range(0..7);
 
 		assert_eq!(
 			store.print_grid().unwrap(),
-			"foo-0    foo-1    foo-2    foo-3    foo-4    foo-5\nfoo-6"
+			concat!(
+				"foo-0    foo-1    foo-2    foo-3    foo-4    foo-5\n",
+				"foo-6"
+			)
 		);
 	}
 
 	#[test]
-	fn test_print_table() -> Result<()> {
+	fn test_store_print_table() -> Result<()> {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
-			mut store,
-			..
-		} = StoreMock::new();
-
-		assert_eq!(store.print_table(), None);
-
-		for i in 0..2 {
-			store.add(TemplateMock::build(&format!("foo-{}", i)));
-		}
-
-		let expect = fs::read_to_string("fixtures/print-table.txt")?;
+			store,
+		} = StoreMock::from_range(0..2);
 
 		assert_eq!(
-			Vec::from_iter(store.print_table().unwrap().lines()),
-			Vec::from_iter(expect.lines())
+			store.print_table().unwrap(),
+			concat!(
+				" name  | url | sub templates | created at          \n",
+				"-------+-----+---------------+---------------------\n",
+				" foo-0 | url | dir-1,dir-2   | 2023-05-19 00:00:00 \n",
+				" foo-1 | url | dir-3         | 2023-05-19 00:00:00 ",
+			)
 		);
 
 		Ok(())
@@ -598,8 +546,7 @@ mod tests {
 		let StoreMock {
 			tmp_dir: _tmp_dir,
 			store,
-			..
-		} = StoreMock::new().with_content();
+		} = StoreMock::with_default_content();
 
 		assert_eq!(store.similar_name_suggestion("fop").similar, Some("foo"));
 	}

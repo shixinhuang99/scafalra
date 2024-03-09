@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 pub trait JoinIter<I> {
 	fn join_iter<T>(&self, iter: T) -> PathBuf
@@ -12,6 +12,21 @@ impl<I: AsRef<Path>> JoinIter<I> for Path {
 		T: IntoIterator<Item = I>,
 	{
 		self.join(PathBuf::from_iter(iter))
+	}
+}
+
+pub trait JoinCanonicalize {
+	fn join_canonicalize(&mut self, path: &Path);
+}
+
+impl JoinCanonicalize for PathBuf {
+	fn join_canonicalize(&mut self, path: &Path) {
+		for comp in path
+			.components()
+			.filter(|comp| matches!(comp, Component::Normal(_)))
+		{
+			self.push(comp);
+		}
 	}
 }
 

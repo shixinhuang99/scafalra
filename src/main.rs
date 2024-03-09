@@ -7,9 +7,10 @@ mod interactive;
 mod json;
 mod path_ext;
 mod repository;
-mod repository_config;
 mod scafalra;
 mod store;
+mod sub_template;
+mod template;
 
 use std::env;
 
@@ -33,12 +34,16 @@ fn run() -> Result<()> {
 		trun_on_debug();
 	}
 
-	let scfalra_dir = ProjectDirs::from("", "", "scafalra")
-		.ok_or(anyhow::anyhow!(
-			"Failed to create scafalra project directory"
-		))?
-		.config_dir()
-		.to_path_buf();
+	let scfalra_dir = if cfg!(feature = "_try") {
+		std::path::PathBuf::from("tmp")
+	} else {
+		ProjectDirs::from("", "", "scafalra")
+			.ok_or(anyhow::anyhow!(
+				"Failed to create scafalra project directory"
+			))?
+			.config_dir()
+			.to_path_buf()
+	};
 
 	let mut scafalra = Scafalra::new(scfalra_dir, None, cli.token.as_deref())?;
 

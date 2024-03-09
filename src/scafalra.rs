@@ -1,10 +1,10 @@
 use std::{
-	env,
-	path::{Component, Path, PathBuf},
+	collections::HashMap,
+	env, fs,
+	path::{Path, PathBuf},
 };
 
 use anyhow::Result;
-use fs_err as fs;
 use remove_dir_all::remove_dir_all;
 
 use crate::{
@@ -15,8 +15,9 @@ use crate::{
 	interactive::{fuzzy_select, input, multi_select},
 	path_ext::*,
 	repository::Repository,
-	repository_config::RepositoryConfig,
-	store::{Store, Template, TemplateBuilder},
+	store::Store,
+	sub_template::SUB_TEMPLATE_DIR,
+	template::Template,
 };
 
 pub struct Scafalra {
@@ -33,18 +34,18 @@ impl Scafalra {
 	const TMP_DIR_NAME: &'static str = "t";
 
 	pub fn new(
-		scfalra_dir: PathBuf,
+		path: PathBuf,
 		endpoint: Option<&str>,
 		token: Option<&str>,
 	) -> Result<Self> {
-		let cache_dir = scfalra_dir.join(Self::CACHE_DIR_NAME);
+		let cache_dir = path.join(Self::CACHE_DIR_NAME);
 
 		if !cache_dir.exists() {
 			fs::create_dir_all(&cache_dir)?;
 		}
 
-		let config = Config::new(&scfalra_dir)?;
-		let store = Store::new(&scfalra_dir)?;
+		let config = Config::new(&path)?;
+		let store = Store::new(&path)?;
 		let mut github_api = GitHubApi::new(endpoint);
 
 		if let Some(token) = token.or_else(|| config.token()) {
@@ -52,7 +53,7 @@ impl Scafalra {
 		}
 
 		Ok(Self {
-			path: scfalra_dir,
+			path,
 			cache_dir,
 			config,
 			store,
@@ -141,12 +142,7 @@ impl Scafalra {
 		let mut template_name = args.name.unwrap_or(repo.name.clone());
 
 		if let Some(subdir) = args.subdir {
-			Path::new(&subdir)
-				.components()
-				.filter(|c| matches!(c, Component::Normal(_)))
-				.for_each(|c| {
-					template_dir.push(c);
-				});
+			template_dir.join_canonicalize(Path::new(&subdir));
 
 			debug!("template_dir: {:?}", template_dir);
 
@@ -164,28 +160,24 @@ impl Scafalra {
 				));
 			}
 			1 => {
-				for entry in template_dir.read_dir()? {
-					let entry = entry?;
-					let file_type = entry.file_type()?;
-					let file_name =
-						entry.file_name().to_string_lossy().to_string();
-
-					if file_type.is_dir() && !file_name.starts_with('.') {
-						let sub_template_dir = entry.path();
-
-						self.store.add(
-							TemplateBuilder::new(
-								&file_name,
-								repo.url(),
-								&sub_template_dir,
-							)
-							.sub_template(true)
-							.build(),
-						);
+				for entry_path in template_dir
+					.read_dir()?
+					.filter_map(|entry| entry.ok().map(|e| e.path()))
+				{
+					if entry_path.is_dir() {
+						if let Some(Some(file_name)) =
+							entry_path.file_name().map(|f| f.to_str())
+						{
+							if !file_name.starts_with('.') {
+								self.store.add(Template::new(
+									file_name,
+									repo.url(),
+									&entry_path,
+								));
+							}
+						}
 					}
 				}
-
-				self.copy_on_add(&template_dir);
 			}
 			_ => anyhow::bail!("The argument `depth` allows only 0 or 1"),
 		}
@@ -193,34 +185,6 @@ impl Scafalra {
 		self.store.save()?;
 
 		Ok(())
-	}
-
-	fn copy_on_add(&self, template_dir: &Path) {
-		use globwalk::{GlobWalker, GlobWalkerBuilder};
-
-		let template_gw_list = RepositoryConfig::load(template_dir)
-			.copy_on_add
-			.iter()
-			.filter_map(|(name, globs)| {
-				if let Some(template) = self.store.get(name) {
-					if let Ok(gw) = GlobWalkerBuilder::from_patterns(
-						template_dir.join(RepositoryConfig::DIR_NAME),
-						globs,
-					)
-					.case_insensitive(true)
-					.build()
-					{
-						return Some((template, gw));
-					}
-				};
-
-				None
-			})
-			.collect::<Vec<(&Template, GlobWalker)>>();
-
-		for (template, gw) in template_gw_list {
-			glob_walk_and_copy(gw, &template.path);
-		}
 	}
 
 	pub fn create(&self, args: CreateArgs) -> Result<()> {
@@ -253,7 +217,9 @@ impl Scafalra {
 			if arg_dir.is_absolute() {
 				arg_dir
 			} else {
-				cwd.join(arg_dir)
+				let mut ret = cwd.clone();
+				ret.join_canonicalize(&arg_dir);
+				ret
 			}
 		} else {
 			cwd.join(tpl_name)
@@ -267,36 +233,47 @@ impl Scafalra {
 			anyhow::bail!("`{}` is already exists", dest_display);
 		}
 
+		let sub_tpl_map: HashMap<&String, &PathBuf> = HashMap::from_iter(
+			template
+				.sub_templates
+				.iter()
+				.map(|sub_tpl| (&sub_tpl.name, &sub_tpl.path)),
+		);
+
+		let sub_tpl_names = match (&args.sub_templates, self.interactive_mode) {
+			(Some(arg_sub_tpl_names), false) => {
+				Some(arg_sub_tpl_names.iter().collect())
+			}
+			(_, true) => {
+				multi_select(
+					template
+						.sub_templates
+						.iter()
+						.map(|sub_tpl| &sub_tpl.name)
+						.collect(),
+				)?
+			}
+			_ => None,
+		};
+
 		dircpy::copy_dir(&template.path, &dest)?;
 
-		if let Some(with) = args.with {
-			if template.is_sub_template.is_some_and(|v| v) {
-				if let Some(parent) = template.path.parent() {
-					self.copy_on_create(parent, &dest, with);
-				};
+		let sbu_tpl_dir = dest.join(SUB_TEMPLATE_DIR);
+		if sbu_tpl_dir.exists() {
+			let _ = fs::remove_dir_all(sbu_tpl_dir);
+		}
+
+		if let Some(sub_tpl_names) = sub_tpl_names {
+			for name in sub_tpl_names {
+				if let Some(sub_tpl) = sub_tpl_map.get(name) {
+					let _ = dircpy::copy_dir(sub_tpl, dest.join(name));
+				}
 			}
 		}
 
 		println!("Created in `{}`", dest_display);
 
 		Ok(())
-	}
-
-	fn copy_on_create(&self, from: &Path, dest: &Path, with: String) {
-		let mut globs = with
-			.split(',')
-			.filter(|v| !v.is_empty())
-			.collect::<Vec<_>>();
-
-		globs.sort_unstable();
-		globs.dedup();
-
-		if let Ok(gw) = globwalk::GlobWalkerBuilder::from_patterns(from, &globs)
-			.case_insensitive(true)
-			.build()
-		{
-			glob_walk_and_copy(gw, dest);
-		}
 	}
 
 	pub fn rename(&mut self, args: RenameArgs) -> Result<()> {
@@ -325,8 +302,6 @@ impl Scafalra {
 				)
 			}
 		};
-
-		println!("{} {}", name, new_name);
 
 		let renamed = self.store.rename(&name, &new_name);
 
@@ -368,24 +343,6 @@ impl Scafalra {
 	}
 }
 
-fn glob_walk_and_copy(gw: globwalk::GlobWalker, dest: &Path) {
-	for matching in gw.filter_map(|ret| ret.ok()) {
-		let matching_path = matching.path();
-		debug!("matching_path: {:?}", matching_path);
-		let entry_type = matching.file_type();
-		let entry_name = matching.file_name();
-		let curr_dest = dest.join(entry_name);
-		debug!("dst: {:?}", curr_dest);
-		if entry_type.is_dir() {
-			let _ = dircpy::CopyBuilder::new(matching_path, curr_dest)
-				.overwrite(true)
-				.run();
-		} else if entry_type.is_file() {
-			let _ = fs::copy(matching_path, curr_dest);
-		}
-	}
-}
-
 #[cfg(test)]
 mod test_utils {
 	use std::fs;
@@ -394,7 +351,10 @@ mod test_utils {
 	use tempfile::{tempdir, TempDir};
 
 	use super::Scafalra;
-	use crate::store::{test_utils::StoreJsonMock, Store};
+	use crate::{
+		store::{test_utils::StoreJsonMock, Store},
+		sub_template::test_utils::sub_tempaltes_dir_setup,
+	};
 
 	pub struct ScafalraMock {
 		pub scafalra: Scafalra,
@@ -445,10 +405,11 @@ mod test_utils {
 				"bar",
 			]);
 			fs::create_dir_all(&bar_dir).unwrap();
+			sub_tempaltes_dir_setup(&bar_dir, &["dir-1", "dir-2"]);
 			fs::write(bar_dir.join("baz.txt"), "").unwrap();
 			fs::write(
 				store_file,
-				StoreJsonMock::new().push("bar", bar_dir).build(),
+				StoreJsonMock::new().push("bar", &bar_dir).build(),
 			)
 			.unwrap();
 			let scafalra = Scafalra::new(
@@ -491,17 +452,17 @@ mod test_utils {
 
 #[cfg(test)]
 mod tests {
-	use std::{fs, path::PathBuf};
+	use std::fs;
 
 	use anyhow::Result;
 	use similar_asserts::assert_eq;
-	use tempfile::tempdir;
 
 	use super::test_utils::{ScafalraMock, ServerMock};
 	use crate::{
 		cli::{test_utils::AddArgsMock, CreateArgs, RemoveArgs, RenameArgs},
 		path_ext::*,
 		store::test_utils::StoreJsonMock,
+		sub_template::SUB_TEMPLATE_DIR,
 	};
 
 	#[test]
@@ -518,7 +479,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_scafalra_add() -> Result<()> {
+	fn test_scafalra_add_basic() -> Result<()> {
 		let ServerMock {
 			server,
 			download_mock,
@@ -591,11 +552,10 @@ mod tests {
 		let bar_dir = scafalra.cache_dir.join_slash("foo/bar");
 		let actual = fs::read_to_string(&scafalra.store.path)?;
 		let expect = StoreJsonMock::new()
-			.push("a", bar_dir.join("a"))
-			.push("b", bar_dir.join("b"))
-			.push("c", bar_dir.join("c"))
-			.push("node_modules", bar_dir.join("node_modules"))
-			.all_sub_template()
+			.push("a", &bar_dir.join("a"))
+			.push("b", &bar_dir.join("b"))
+			.push("c", &bar_dir.join("c"))
+			.push("node_modules", &bar_dir.join("node_modules"))
 			.build();
 
 		assert!(bar_dir.exists());
@@ -657,7 +617,6 @@ mod tests {
 			.push("a1", &a1_dir)
 			.push("a2", &a2_dir)
 			.push("a3", &a3_dir)
-			.all_sub_template()
 			.build();
 
 		assert!(a1_dir.exists());
@@ -669,30 +628,32 @@ mod tests {
 	}
 
 	#[test]
-	fn test_scafalra_create() -> Result<()> {
+	fn test_scafalra_create_ok() -> Result<()> {
 		let ScafalraMock {
 			tmp_dir,
 			scafalra,
 			..
 		} = ScafalraMock::new().with_content();
 
-		let tmp_dir_path = tmp_dir.path();
+		let bar_dir = tmp_dir.path().join("bar");
 
 		scafalra.create(CreateArgs {
 			name: Some("bar".to_string()),
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
-			directory: Some(tmp_dir_path.join("bar")),
-			with: None,
+			directory: Some(bar_dir.clone()),
+			sub_templates: Some(vec!["dir-1".to_string()]),
 		})?;
 
-		assert!(tmp_dir_path.join_slash("bar/baz.txt").exists());
+		assert!(bar_dir.join("baz.txt").exists());
+		assert!(bar_dir.join("dir-1").exists());
+		assert!(!bar_dir.join(SUB_TEMPLATE_DIR).exists());
 
 		Ok(())
 	}
 
 	#[test]
-	fn test_scafalra_create_err() -> Result<()> {
+	fn test_scafalra_create_bad_args() -> Result<()> {
 		let ScafalraMock {
 			tmp_dir: _tmp_dir,
 			scafalra,
@@ -702,7 +663,7 @@ mod tests {
 		let ret = scafalra.create(CreateArgs {
 			name: None,
 			directory: None,
-			with: None,
+			sub_templates: None,
 		});
 
 		assert!(ret.is_err());
@@ -721,7 +682,7 @@ mod tests {
 		let ret = scafalra.create(CreateArgs {
 			name: Some("bar".to_string()),
 			directory: None,
-			with: None,
+			sub_templates: None,
 		});
 
 		assert!(ret.is_err());
@@ -729,81 +690,8 @@ mod tests {
 		Ok(())
 	}
 
-	fn is_all_exists(paths: &[PathBuf]) -> bool {
-		paths.iter().any(|p| !p.exists())
-	}
-
 	#[test]
-	fn test_scafalra_copy_on_add() -> Result<()> {
-		let ServerMock {
-			server, ..
-		} = ServerMock::new();
-
-		let ScafalraMock {
-			tmp_dir: _tmp_dir,
-			mut scafalra,
-			..
-		} = ScafalraMock::new().endpoint(&server.url());
-
-		scafalra.add(AddArgsMock::new().depth(1).build())?;
-
-		let template_dir = scafalra.cache_dir.join_slash("foo/bar");
-
-		let a_dir = template_dir.join("a");
-		assert!(is_all_exists(&[
-			a_dir.join("common.txt"),
-			a_dir.join_slash("copy-dir/copy-dir.txt"),
-			a_dir.join_slash("copy-dir/copy-dir-2/copy-dir-2.txt"),
-			a_dir.join("copy-all-in-dir.txt"),
-			a_dir.join_slash("copy-all-in-dir-2/copy-all-in-dir-2.txt"),
-			a_dir.join_slash("shared-a/shared-a.txt")
-		]));
-
-		let b_dir = template_dir.join("b");
-		assert!(b_dir.join_slash("shared-b/shared-b.txt").exists());
-
-		let c_dir = template_dir.join("c");
-		assert!(c_dir.join_slash("shared-c/shared-c.txt").exists());
-
-		Ok(())
-	}
-
-	#[test]
-	fn test_scafalra_copy_on_create() -> Result<()> {
-		let ServerMock {
-			server, ..
-		} = ServerMock::new();
-
-		let ScafalraMock {
-			tmp_dir: _tmp_dir,
-			mut scafalra,
-			..
-		} = ScafalraMock::new().endpoint(&server.url());
-
-		scafalra.add(AddArgsMock::new().depth(1).build())?;
-
-		let tmp_dir = tempdir()?;
-		let dest = tmp_dir.path().join("dest");
-
-		scafalra.create(CreateArgs {
-			name: Some("b".to_string()),
-			directory: Some(dest.clone()),
-			with: Some("common.txt,copy-dir,copy-all-in-dir/**".to_string()),
-		})?;
-
-		assert!(is_all_exists(&[
-			dest.join("common.txt"),
-			dest.join_slash("copy-dir/copy-dir.txt"),
-			dest.join_slash("copy-dir/copy-dir-2/copy-dir-2.txt"),
-			dest.join("copy-all-in-dir.txt"),
-			dest.join_slash("copy-all-in-dir-2/copy-all-in-dir-2.txt"),
-		]));
-
-		Ok(())
-	}
-
-	#[test]
-	fn test_scafalra_remove_err() -> Result<()> {
+	fn test_scafalra_remove_bad_args() -> Result<()> {
 		let ScafalraMock {
 			tmp_dir: _tmp_dir,
 			mut scafalra,
@@ -820,7 +708,7 @@ mod tests {
 	}
 
 	#[test]
-	fn test_scafalra_rename_err() -> Result<()> {
+	fn test_scafalra_rename_bad_args() -> Result<()> {
 		let ScafalraMock {
 			tmp_dir: _tmp_dir,
 			mut scafalra,

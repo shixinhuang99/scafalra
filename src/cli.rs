@@ -117,9 +117,8 @@ pub struct CreateArgs {
 	/// Specified directory(defaults to the current directory)
 	pub directory: Option<PathBuf>,
 
-	/// Comma-separated list of glob
-	#[arg(long)]
-	pub with: Option<String>,
+	#[arg(short, long)]
+	pub sub_templates: Option<Vec<String>>,
 }
 
 #[derive(Args, Debug)]
