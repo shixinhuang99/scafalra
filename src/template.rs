@@ -51,9 +51,12 @@ impl Template {
 }
 
 fn display_sub_templates(sub_templates: &[SubTemplate]) -> String {
-	sub_templates
+	let mut v_sub_tpls = sub_templates
 		.iter()
 		.map(|sub_tpl| sub_tpl.name.as_str())
-		.collect::<Vec<&str>>()
-		.join(",")
+		.collect::<Vec<&str>>();
+
+	v_sub_tpls.sort_unstable();
+
+	v_sub_tpls.join(",")
 }
