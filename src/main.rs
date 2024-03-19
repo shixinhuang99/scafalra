@@ -35,7 +35,7 @@ fn run() -> Result<()> {
 	}
 
 	let scfalra_dir = if cfg!(feature = "_try") {
-		std::path::PathBuf::from("tmp")
+		std::path::PathBuf::from("tmp/sca-test")
 	} else {
 		ProjectDirs::from("", "", "scafalra")
 			.ok_or(anyhow::anyhow!(

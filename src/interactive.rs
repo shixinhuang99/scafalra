@@ -1,33 +1,26 @@
 use anyhow::Result;
-use dialoguer::{theme::ColorfulTheme, FuzzySelect, Input, MultiSelect};
+use inquire::{MultiSelect, Select, Text};
 
-pub fn fuzzy_select(itmes: Vec<&String>) -> Result<Option<&String>> {
-	let idx = FuzzySelect::with_theme(&ColorfulTheme::default())
-		.with_prompt(
-			"Typing to search, use ↑↓ to pick, hit 'Enter' to confirm, or hit 'Esc' to exit",
-		)
-		.items(&itmes)
-		.highlight_matches(true)
-		.interact_opt()?;
+pub fn template_select(options: Vec<&String>) -> Result<Option<&String>> {
+	if options.is_empty() {
+		anyhow::bail!("There are no templates");
+	}
 
-	Ok(idx.map(|i| itmes[i]))
+	Ok(Select::new("Select a template:", options).prompt_skippable()?)
 }
 
-pub fn multi_select(itmes: Vec<&String>) -> Result<Option<Vec<&String>>> {
-	let vi = MultiSelect::with_theme(&ColorfulTheme::default())
-		.with_prompt(
-			"Use ↑↓ to pick, hit 'Enter' to confirm, hit 'Space' to select, or hit 'Esc' to exit",
-		)
-		.items(&itmes)
-		.interact_opt()?;
+pub fn multi_select<'a>(
+	options: Vec<&'a String>,
+	prompt: &str,
+	msg_when_empty: &str,
+) -> Result<Option<Vec<&'a String>>> {
+	if options.is_empty() {
+		anyhow::bail!("{}", msg_when_empty);
+	}
 
-	Ok(vi.map(|vi| vi.into_iter().map(|i| itmes[i]).collect()))
+	Ok(MultiSelect::new(prompt, options).prompt_skippable()?)
 }
 
-pub fn input(prompt: &str) -> Result<String> {
-	let ret = Input::<String>::with_theme(&ColorfulTheme::default())
-		.with_prompt(prompt)
-		.interact_text()?;
-
-	Ok(ret)
+pub fn input(prompt: &str) -> Result<Option<String>> {
+	Ok(Text::new(prompt).prompt_skippable()?)
 }
