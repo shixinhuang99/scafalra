@@ -114,8 +114,9 @@ pub struct CreateArgs {
 	/// Template name
 	pub name: Option<String>,
 
-	/// Specified directory(defaults to the current directory)
-	pub directory: Option<PathBuf>,
+	/// Specified destination(defaults to the current directory)
+	#[arg(short, long)]
+	pub destination: Option<PathBuf>,
 
 	#[arg(short, long)]
 	pub sub_templates: Option<Vec<String>>,

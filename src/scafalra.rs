@@ -12,7 +12,7 @@ use crate::{
 	cli::{AddArgs, CreateArgs, ListArgs, RemoveArgs, RenameArgs, TokenArgs},
 	config::Config,
 	debug,
-	interactive::{input, multi_select, template_select},
+	interactive::{input, multi_select, select},
 	path_ext::*,
 	repository::Repository,
 	store::Store,
@@ -192,7 +192,13 @@ impl Scafalra {
 
 		let tpl_name = match (&args.name, self.interactive_mode) {
 			(Some(arg_name), false) => Some(arg_name),
-			(_, true) => template_select(self.store.all_templates_name())?,
+			(_, true) => {
+				select(
+					self.store.all_templates_name(),
+					"Select a template:",
+					"There are no templates",
+				)?
+			}
 			_ => {
 				anyhow::bail!(
 					"Provide a name or opt for interactive mode with the `-i` argument"
@@ -213,12 +219,12 @@ impl Scafalra {
 
 		debug!("cwd: {:?}", cwd);
 
-		let dest = if let Some(arg_dir) = args.directory {
-			if arg_dir.is_absolute() {
-				arg_dir
+		let dest = if let Some(arg_dest) = args.destination {
+			if arg_dest.is_absolute() {
+				arg_dest
 			} else {
 				let mut ret = cwd.clone();
-				ret.join_canonicalize(&arg_dir);
+				ret.join_canonicalize(&arg_dest);
 				ret
 			}
 		} else {
@@ -288,7 +294,11 @@ impl Scafalra {
 		) {
 			(Some(name), Some(new_name), false) => (name, new_name),
 			(_, _, true) => {
-				let name = template_select(self.store.all_templates_name())?;
+				let name = select(
+					self.store.all_templates_name(),
+					"Select a template:",
+					"There are no templates",
+				)?;
 				let Some(name) = name else {
 					return Ok(());
 				};
@@ -649,7 +659,7 @@ mod tests {
 			name: Some("bar".to_string()),
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
-			directory: Some(bar_dir.clone()),
+			destination: Some(bar_dir.clone()),
 			sub_templates: Some(vec!["dir-1".to_string()]),
 		})?;
 
@@ -670,7 +680,7 @@ mod tests {
 
 		let ret = scafalra.create(CreateArgs {
 			name: None,
-			directory: None,
+			destination: None,
 			sub_templates: None,
 		});
 
@@ -689,7 +699,7 @@ mod tests {
 
 		let ret = scafalra.create(CreateArgs {
 			name: Some("bar".to_string()),
-			directory: None,
+			destination: None,
 			sub_templates: None,
 		});
 

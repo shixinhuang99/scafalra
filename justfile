@@ -14,7 +14,6 @@ lint: fmt
 check:
 	cargo fmt --all -- --check
 	taplo fmt --check
-	cargo check --all-targets --all-features
 	cargo clippy --all-targets --all-features -- -D warnings
 
 release-pr tag:
@@ -27,3 +26,6 @@ release-pr tag:
 push-tag tag:
 	git tag {{tag}}
 	git push origin {{tag}}
+
+run *args:
+	cargo run -F _try -- {{args}}
