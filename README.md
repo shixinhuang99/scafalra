@@ -6,7 +6,7 @@ scafalra is a command-line interface tool for manage templates
 
 ### Using Cargo
 
-```bash
+```sh
 cargo install scafalra
 ```
 
@@ -14,13 +14,19 @@ cargo install scafalra
 
 Download the [latest release binary](https://github.com/shixinhuang99/scafalra/releases) for your system
 
-## Prepare
+## Token
 
-scafalra requires a PAT(personal access token) to be configured, usually it doesn't require any permissions, but for private repositories it requires a bit of permissions, either `All repositories` or `Only select repositories` for fine-grained PAT, or `repo` scope for classic PAT.
+Scafalra is based on the GitHub api and doesn't force the need for authentication, but if you need higher rate limiting or want to access to private repositories, consider using PAT(personal access token)
 
-```bash
+```sh
 sca token your_token
 ```
+
+see more info:
+
+<https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28>
+
+<https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens>
 
 ## Usage
 
@@ -31,8 +37,8 @@ Usage: sca [OPTIONS] [COMMAND]
 
 Commands:
   list    List all templates
-  remove  Remove specified templates
-  rename  Rename a template
+  remove  Remove specified templates [aliases: rm]
+  rename  Rename a template [aliases: mv]
   add     Add template from GitHub repository
   create  Copy the template folder to the specified directory
   token   Configure or display your GitHub personal access token
@@ -42,6 +48,7 @@ Options:
       --debug          Use debug output
       --token <TOKEN>  Specify the GitHub personal access token
       --proj-dir       Display of scafalra's data storage location
+  -i, --interactive    Interactive mode
   -h, --help           Print help
   -V, --version        Print version
 ```
@@ -50,7 +57,7 @@ Options:
 
 ### Basic
 
-```bash
+```sh
 sca add user/repo
 
 # GitHub url
@@ -69,140 +76,54 @@ sca add user/repo --tag tag
 sca add user/repo --commit e763a43519ea4c209df2452c6e2a5b7dffdfdd3d
 ```
 
-```bash
+```sh
 sca create repo
+```
+
+### Interactive
+
+`create`, `remove`, `rename` can be used in interactive mode
+
+```
+? Select a template:
+> bar
+  baz
+[↑↓ to move, enter to select, type to filter]
+```
+
+### Sub template
+
+All folders in the `.scafalra` folder in the template root directory are considered as sub-templates, and you can select some of them to create together when using the `create` command
+
+if a template `foo` looks like the following:
+
+```
+.
+├── dir
+│   └── file.txt
+└── .scafalra
+    ├── dir-1
+    └── dir-2
+```
+
+```sh
+sca create foo -s dir-1 -s dir-2
+```
+
+The created template is as follows:
+
+```
+.
+├── dir
+│   └── file.txt
+├── dir-1
+└── dir-2
 ```
 
 ### Proxy support
 
-```bash
+```sh
 # linux/macos
 export https_proxy=your_proxy
 sca add user/repo
-```
-
-### Repository config
-
-if a repository `foo/bar` looks like the following:
-
-```
-.
-├── a
-│   ├── a1
-│   │   └── a1.txt
-│   ├── a2
-│   │   └── a2.txt
-│   └── a3
-│       └── a3.txt
-└── .scafalra
-    ├── common.txt
-    ├── copy-all-in-dir
-    │   ├── copy-all-in-dir-2
-    │   │   └── copy-all-in-dir-2.txt
-    │   └── copy-all-in-dir.txt
-    ├── copy-dir
-    │   ├── copy-dir.txt
-    │   └── cpoy-dir-2
-    │       └── copy-dir-2.txt
-    ├── scafalra.json
-    └── shared-a
-        └── shared-a.txt
-```
-
-And the configuration file looks like this:
-
-```json
-{
-  "copyOnAdd": {
-    "a": ["common.txt", "copy-dir", "copy-all-in-dir/**", "shared-a"]
-  }
-}
-```
-
-With the `sca add foo/bar --depth 1` command, the local cache will look like the following:
-
-```
-├── foo
-│   └── bar
-│       ├── a
-│       │   ├── a1
-│       │   │   └── a1.txt
-│       │   ├── a2
-│       │   │   └── a2.txt
-│       │   ├── a3
-│       │   │   └── a3.txt
-│       │   ├── common.txt
-│       │   ├── copy-all-in-dir-2
-│       │   │   └── copy-all-in-dir-2.txt
-│       │   ├── copy-all-in-dir.txt
-│       │   └── copy-dir
-│       │       ├── copy-dir.txt
-│       │       └── cpoy-dir-2
-│       │           └── copy-dir-2.txt
-│       └── .scafalra
-│           ├── common.txt
-│           ├── copy-all-in-dir
-│           │   ├── copy-all-in-dir-2
-│           │   │   └── copy-all-in-dir-2.txt
-│           │   └── copy-all-in-dir.txt
-│           ├── copy-dir
-│           │   ├── copy-dir.txt
-│           │   └── cpoy-dir-2
-│           │       └── copy-dir-2.txt
-│           ├── scafalra.json
-│           └── shared-a
-│               └── shared-a.txt
-```
-
-### The `--with` parameter of the `create` command
-
-The local cache is as follows:
-
-```
-├── foo
-│   └── bar
-│       ├── a
-│       │   ├── a1
-│       │   │   └── a1.txt
-│       │   ├── a2
-│       │   │   └── a2.txt
-│       │   └── a3
-│       │       └── a3.txt
-│       └── .scafalra
-│           ├── common.txt
-│           ├── copy-all-in-dir
-│           │   ├── copy-all-in-dir-2
-│           │   │   └── copy-all-in-dir-2.txt
-│           │   └── copy-all-in-dir.txt
-│           ├── copy-dir
-│           │   ├── copy-dir.txt
-│           │   └── cpoy-dir-2
-│           │       └── copy-dir-2.txt
-│           ├── scafalra.json
-│           └── shared-a
-│               └── shared-a.txt
-```
-
-```bash
-sca create a --with "common.txt,copy-dir,copy-all-in-dir/**"
-```
-
-The created project will look like this:
-
-```
-├── a
-│   ├── a1
-│   │   └── a1.txt
-│   ├── a2
-│   │   └── a2.txt
-│   ├── a3
-│   │   └── a3.txt
-│   ├── common.txt
-│   ├── copy-all-in-dir-2
-│   │   └── copy-all-in-dir-2.txt
-│   ├── copy-all-in-dir.txt
-│   └── copy-dir
-│       ├── copy-dir.txt
-│       └── cpoy-dir-2
-│           └── copy-dir-2.txt
 ```
