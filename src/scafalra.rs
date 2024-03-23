@@ -151,15 +151,15 @@ impl Scafalra {
 			}
 		}
 
-		match args.depth {
-			0 => {
+		match args.depth.as_str() {
+			"0" => {
 				self.store.add(Template::new(
 					template_name,
 					repo.url(),
 					template_dir,
 				));
 			}
-			1 => {
+			"1" => {
 				for entry_path in template_dir
 					.read_dir()?
 					.filter_map(|entry| entry.ok().map(|e| e.path()))
@@ -563,7 +563,7 @@ mod tests {
 			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
-		scafalra.add(AddArgsMock::new().depth(1).build())?;
+		scafalra.add(AddArgsMock::new().depth("1").build())?;
 
 		download_mock.assert();
 
@@ -622,7 +622,7 @@ mod tests {
 			..
 		} = ScafalraMock::new().endpoint(&server.url());
 
-		scafalra.add(AddArgsMock::new().subdir("/a").depth(1).build())?;
+		scafalra.add(AddArgsMock::new().subdir("/a").depth("1").build())?;
 
 		download_mock.assert();
 

@@ -5,16 +5,16 @@ alias rp := release-pr
 alias pt := push-tag
 
 fmt:
-	cargo fmt --all
+	cargo fmt
 	taplo fmt
 
 lint: fmt
-	cargo clippy --all-targets --all-features
+	cargo clippy --no-deps
 
 check:
-	cargo fmt --all -- --check
+	cargo fmt -- --check
 	taplo fmt --check
-	cargo clippy --all-targets --all-features -- -D warnings
+	cargo clippy --no-deps -- -D warnings
 
 release-pr tag:
 	git checkout -b "release-{{tag}}"

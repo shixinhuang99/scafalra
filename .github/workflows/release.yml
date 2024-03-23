@@ -67,7 +67,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           archive: $bin-$tag-$target
           include: LICENSE,README.md
-          features: self_update
 
   publish-crate:
     needs: upload-assets
