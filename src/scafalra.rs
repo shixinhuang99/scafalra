@@ -12,7 +12,7 @@ use crate::{
 	cli::{AddArgs, CreateArgs, ListArgs, RemoveArgs, RenameArgs, TokenArgs},
 	config::Config,
 	debug,
-	interactive::{fuzzy_select, input, multi_select},
+	interactive::{input, multi_select, select},
 	path_ext::*,
 	repository::Repository,
 	store::Store,
@@ -192,11 +192,17 @@ impl Scafalra {
 
 		let tpl_name = match (&args.name, self.interactive_mode) {
 			(Some(arg_name), false) => Some(arg_name),
-			(_, true) => fuzzy_select(self.store.all_templates_name())?,
+			(_, true) => {
+				select(
+					self.store.all_templates_name(),
+					"Select a template:",
+					"There are no templates",
+				)?
+			}
 			_ => {
 				anyhow::bail!(
 					"Provide a name or opt for interactive mode with the `-i` argument"
-				)
+				);
 			}
 		};
 
@@ -213,12 +219,12 @@ impl Scafalra {
 
 		debug!("cwd: {:?}", cwd);
 
-		let dest = if let Some(arg_dir) = args.directory {
-			if arg_dir.is_absolute() {
-				arg_dir
+		let dest = if let Some(arg_dest) = args.destination {
+			if arg_dest.is_absolute() {
+				arg_dest
 			} else {
 				let mut ret = cwd.clone();
-				ret.join_canonicalize(&arg_dir);
+				ret.join_canonicalize(&arg_dest);
 				ret
 			}
 		} else {
@@ -244,13 +250,15 @@ impl Scafalra {
 			(Some(arg_sub_tpl_names), false) => {
 				Some(arg_sub_tpl_names.iter().collect())
 			}
-			(_, true) => {
+			(_, true) if !template.sub_templates.is_empty() => {
 				multi_select(
 					template
 						.sub_templates
 						.iter()
 						.map(|sub_tpl| &sub_tpl.name)
 						.collect(),
+					"Select sub templates:",
+					"There are no sub templates",
 				)?
 			}
 			_ => None,
@@ -258,9 +266,9 @@ impl Scafalra {
 
 		dircpy::copy_dir(&template.path, &dest)?;
 
-		let sbu_tpl_dir = dest.join(SUB_TEMPLATE_DIR);
-		if sbu_tpl_dir.exists() {
-			let _ = fs::remove_dir_all(sbu_tpl_dir);
+		let sub_tpl_dir = dest.join(SUB_TEMPLATE_DIR);
+		if sub_tpl_dir.exists() {
+			let _ = remove_dir_all(sub_tpl_dir);
 		}
 
 		if let Some(sub_tpl_names) = sub_tpl_names {
@@ -286,20 +294,26 @@ impl Scafalra {
 		) {
 			(Some(name), Some(new_name), false) => (name, new_name),
 			(_, _, true) => {
-				let name = fuzzy_select(self.store.all_templates_name())?;
+				let name = select(
+					self.store.all_templates_name(),
+					"Select a template:",
+					"There are no templates",
+				)?;
 				let Some(name) = name else {
 					return Ok(());
 				};
-				let new_name = input("New name?")?;
+				let Some(new_name) = input("New name?")? else {
+					return Ok(());
+				};
 				(name.clone(), new_name)
 			}
 			(Some(_), None, false) => {
-				anyhow::bail!("Please provide a new name")
+				anyhow::bail!("Please provide a new name");
 			}
-			(_, _, _) => {
+			_ => {
 				anyhow::bail!(
-					"Provide both the target and new names, or opt for interactive mode with the `-i` argument"
-				)
+					"Provide both the target and new name, or opt for interactive mode with the `-i` argument"
+				);
 			}
 		};
 
@@ -319,13 +333,17 @@ impl Scafalra {
 		let names = match (args.names, self.interactive_mode) {
 			(Some(names), false) => Some(names),
 			(_, true) => {
-				multi_select(self.store.all_templates_name())?
-					.map(|vs| vs.into_iter().cloned().collect())
+				multi_select(
+					self.store.all_templates_name(),
+					"Select templates:",
+					"There are no templates",
+				)?
+				.map(|vs| vs.into_iter().cloned().collect())
 			}
 			_ => {
 				anyhow::bail!(
 					"Provide names or opt for interactive mode with the `-i` argument"
-				)
+				);
 			}
 		};
 
@@ -641,7 +659,7 @@ mod tests {
 			name: Some("bar".to_string()),
 			// Due to chroot restrictions, a directory is specified here to
 			// simulate the current working directory
-			directory: Some(bar_dir.clone()),
+			destination: Some(bar_dir.clone()),
 			sub_templates: Some(vec!["dir-1".to_string()]),
 		})?;
 
@@ -662,7 +680,7 @@ mod tests {
 
 		let ret = scafalra.create(CreateArgs {
 			name: None,
-			directory: None,
+			destination: None,
 			sub_templates: None,
 		});
 
@@ -681,7 +699,7 @@ mod tests {
 
 		let ret = scafalra.create(CreateArgs {
 			name: Some("bar".to_string()),
-			directory: None,
+			destination: None,
 			sub_templates: None,
 		});
 
