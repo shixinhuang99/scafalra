@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{
-	builder::{PossibleValuesParser, TypedValueParser as _},
-	Args, Parser, Subcommand,
-};
+use clap::{builder::PossibleValuesParser, Args, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -34,9 +31,11 @@ pub enum Command {
 	List(ListArgs),
 
 	/// Remove specified templates
+	#[command(visible_alias = "rm")]
 	Remove(RemoveArgs),
 
 	/// Rename a template
+	#[command(visible_alias = "mv")]
 	Rename(RenameArgs),
 
 	/// Add template from GitHub repository
@@ -81,11 +80,10 @@ pub struct AddArgs {
 	#[arg(
         short,
         long,
-        default_value_t = 0,
+		default_value = "0",
         value_parser = PossibleValuesParser::new(["0", "1"])
-            .map(|s| s.parse::<u8>().unwrap())
     )]
-	pub depth: u8,
+	pub depth: String,
 
 	/// Specify template name, if a subdir is provided, the last level of the
 	/// subdir will be used as the name
@@ -97,15 +95,15 @@ pub struct AddArgs {
 	pub subdir: Option<String>,
 
 	/// Specify branch
-	#[arg(long)]
+	#[arg(long, group = "ref")]
 	pub branch: Option<String>,
 
 	/// Specify tag
-	#[arg(long)]
+	#[arg(long, group = "ref")]
 	pub tag: Option<String>,
 
 	/// Specify commit
-	#[arg(long)]
+	#[arg(long, group = "ref")]
 	pub commit: Option<String>,
 }
 
@@ -140,7 +138,7 @@ pub mod test_utils {
 			Self {
 				args: AddArgs {
 					repository: "foo/bar".to_string(),
-					depth: 0,
+					depth: "0".to_string(),
 					name: None,
 					subdir: None,
 					branch: None,
@@ -154,8 +152,8 @@ pub mod test_utils {
 			self.args.clone()
 		}
 
-		pub fn depth(&mut self, depth: u8) -> &mut Self {
-			self.args.depth = depth;
+		pub fn depth(&mut self, depth: &str) -> &mut Self {
+			self.args.depth = depth.to_string();
 
 			self
 		}
