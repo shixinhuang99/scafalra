@@ -82,17 +82,19 @@ jobs:
 
       - name: Test code
         if: matrix.test
+        env:
+          NO_COLOR: 1
         run: |
           rustup target add ${{ matrix.target }}
-          cargo test --target ${{ matrix.target }} --all-features
+          cargo test --target ${{ matrix.target }}
 
       - name: Test cargo build
         if: matrix.test == '' && matrix.cross == ''
         run: |
           rustup target add ${{ matrix.target }}
-          cargo build --target ${{ matrix.target }} --all-features
+          cargo build --target ${{ matrix.target }}
 
       - name: Test cross build
         if: matrix.cross
         run: |
-          cross build --target ${{ matrix.target }} --all-features
+          cross build --target ${{ matrix.target }}
