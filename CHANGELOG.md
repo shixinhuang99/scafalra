@@ -2,9 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2024-03-23
+
+[136df21](136df21c47efeebd96f3ebaf327d9f9a17854066)...[5c7f122](5c7f122f1bfcb42cd45af3fb475c5aa12c64d476)
+
+### Bug Fixes
+
+- Could not parse repository (#58) ([7936e08](7936e08b4cdf7e285d3cf59bc3afe0765c2c6a05))
+
+### Features
+
+- More similar name suggestion (#59) ([51189fa](51189fa48f295c1bb6360525b37b32f4e86a8379))
+- Interactive mode (#61) ([04876c5](04876c52f2ec0d75b21c2388a976f8d9210c3e4f))
+- Supports sub template (#62) ([fc5a545](fc5a545ce55330fab2bbc34e88c04f8eba3a5fa6))
+
+### Refactor
+
+- Remove self update and no token required (#56) ([ec44e61](ec44e617a2b064ef9c484e54b55ef1069ff0c168))
+- Improve interactive (#63) ([8d0bb08](8d0bb08206f4bf5811f99c4b1824398730c01a4c))
+- Improve cli (#64) ([5c7f122](5c7f122f1bfcb42cd45af3fb475c5aa12c64d476))
+
+### Testing
+
+- Improve test code (#60) ([e49bf6f](e49bf6f7ed9613b5f505022729cb2aead08cfbca))
+
 ## [1.3.2] - 2024-01-21
 
-[e763a43](e763a43519ea4c209df2452c6e2a5b7dffdfdd3d)...[003f99d](003f99d23f62d5f4cf971e44fbde31967ab3f361)
+[e763a43](e763a43519ea4c209df2452c6e2a5b7dffdfdd3d)...[136df21](136df21c47efeebd96f3ebaf327d9f9a17854066)
 
 ### Bug Fixes
 
