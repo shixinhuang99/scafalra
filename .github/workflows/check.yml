@@ -28,10 +28,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
-
       - name: Install nightly
         run: cargo --version
 
@@ -69,9 +65,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: taiki-e/install-action@v2
         if: matrix.cross
