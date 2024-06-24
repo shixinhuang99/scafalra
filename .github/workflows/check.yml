@@ -1,4 +1,4 @@
-name: CI
+name: Check
 
 on:
   workflow_dispatch:
@@ -32,17 +32,15 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
-      - name: Use rust nightly
-        run: |
-          cargo --version
+      - name: Install nightly
+        run: cargo --version
 
       - uses: taiki-e/install-action@v2
         with:
           tool: just,taplo-cli
 
       - name: Run check
-        run: |
-          just check
+        run: just check
 
   tests:
     needs: check
@@ -86,15 +84,15 @@ jobs:
           NO_COLOR: 1
         run: |
           rustup target add ${{ matrix.target }}
-          cargo test --target ${{ matrix.target }}
+          cargo +stable test --target ${{ matrix.target }}
 
       - name: Test cargo build
         if: matrix.test == '' && matrix.cross == ''
         run: |
           rustup target add ${{ matrix.target }}
-          cargo build --target ${{ matrix.target }}
+          cargo +stable build --target ${{ matrix.target }}
 
       - name: Test cross build
         if: matrix.cross
         run: |
-          cross build --target ${{ matrix.target }}
+          cross +stable build --target ${{ matrix.target }}

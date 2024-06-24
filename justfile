@@ -1,20 +1,20 @@
-default:
-	just --list --unsorted
-
 alias rp := release-pr
 alias pt := push-tag
+
+default:
+	just --list --unsorted
 
 fmt:
 	cargo fmt
 	taplo fmt
 
 lint: fmt
-	cargo clippy --no-deps
+	cargo clippy --all-features
 
 check:
-	cargo fmt -- --check
+	cargo fmt --check
 	taplo fmt --check
-	cargo clippy --no-deps -- -D warnings
+	cargo clippy --all-features -- -D warnings
 
 release-pr tag:
 	git checkout -b "release-{{tag}}"
@@ -28,4 +28,4 @@ push-tag tag:
 	git push origin {{tag}}
 
 run *args:
-	cargo run -F _try -- {{args}}
+	cargo +stable run -F _dev -- {{args}}
