@@ -50,9 +50,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: taiki-e/install-action@v2
         if: matrix.build-tool == 'cross'
@@ -77,10 +75,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: ${{ runner.os }}
-
-      - name: Publish crates.io
+      - name: Publish
         run: |
           cargo +stable publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
