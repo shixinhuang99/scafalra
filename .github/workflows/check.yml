@@ -77,16 +77,17 @@ jobs:
         env:
           NO_COLOR: 1
         run: |
-          rustup target add ${{ matrix.target }}
+          rustup +stable target add ${{ matrix.target }}
           cargo +stable test --target ${{ matrix.target }}
 
       - name: Test cargo build
         if: matrix.test == '' && matrix.cross == ''
         run: |
-          rustup target add ${{ matrix.target }}
+          rustup +stable target add ${{ matrix.target }}
           cargo +stable build --target ${{ matrix.target }}
 
       - name: Test cross build
         if: matrix.cross
         run: |
+          rustup +stable target add ${{ matrix.target }}
           cross +stable build --target ${{ matrix.target }}
