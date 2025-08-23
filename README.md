@@ -7,7 +7,7 @@ scafalra is a command-line interface tool for managing templates
 ### Using Homebrew (precompiled binaries)
 
 ```sh
-brew tap shixinhuang99/scafalra
+brew tap shixinhuang99/brew
 brew install scafalra
 ```
 
