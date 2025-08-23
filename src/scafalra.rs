@@ -218,13 +218,12 @@ impl Scafalra {
 		debug!("cwd: {:?}", cwd);
 
 		let dest = if let Some(arg_dest) = args.destination {
-			if arg_dest.is_absolute() {
-				arg_dest
-			} else {
-				let mut ret = cwd.clone();
-				ret.join_canonicalize(&arg_dest);
-				ret
-			}
+			normalize_path(&cwd, arg_dest)
+		} else if self.interactive_mode {
+			let Some(input_dest) = input("Destination directory?")? else {
+				return Ok(());
+			};
+			normalize_path(&cwd, PathBuf::from(input_dest))
 		} else {
 			cwd.join(tpl_name)
 		};
@@ -456,6 +455,16 @@ mod test_utils {
 				download_mock,
 			}
 		}
+	}
+}
+
+fn normalize_path(base: &Path, path: PathBuf) -> PathBuf {
+	if path.is_absolute() {
+		path
+	} else {
+		let mut ret = base.to_path_buf();
+		ret.join_canonicalize(&path);
+		ret
 	}
 }
 

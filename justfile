@@ -23,7 +23,7 @@ fmt:
 check:
 	cargo fmt --check
 	taplo fmt --check
-	cargo clippy --all-features -- -D warnings
+	cargo clippy --no-deps --all-features -- -D warnings
 
 prepare-release tag:
 	cargo set-version {{tag}}
@@ -36,3 +36,6 @@ push-tag tag:
 
 run *args:
 	cargo run -F _dev -- {{args}}
+
+test:
+	NO_COLOR=1 cargo test
