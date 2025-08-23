@@ -1,6 +1,6 @@
 [package]
 name = "scafalra"
-version = "1.4.0"
+version = "1.4.1"
 edition = "2024"
 authors = ["shixinhuang99 <shixinhuang99@gmail.com>"]
 description = "scafalra(sca) is a command-line interface tool for managing templates"
