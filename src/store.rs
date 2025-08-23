@@ -8,8 +8,8 @@ use anyhow::Result;
 use remove_dir_all::remove_dir_all;
 use serde::{Deserialize, Serialize};
 use tabled::{
-	settings::{format::Format, object::Segment, Alignment, Modify, Style},
 	Table,
+	settings::{Alignment, Modify, Style, format::Format, object::Segment},
 };
 use term_grid::{Cell, Direction, Filling, Grid, GridOptions};
 
@@ -40,9 +40,7 @@ struct Changes {
 
 impl Changes {
 	fn new() -> Self {
-		Self {
-			inner: Vec::new(),
-		}
+		Self { inner: Vec::new() }
 	}
 
 	fn push_add(&mut self, name: &str) -> &mut Self {
@@ -123,7 +121,7 @@ impl Store {
 			return false;
 		}
 
-		let ret = match self.templates.remove(name) {
+		match self.templates.remove(name) {
 			Some(template) => {
 				self.templates.insert(new_name.to_string(), template);
 				self.changes.push_remove(name).push_add(new_name);
@@ -136,9 +134,7 @@ impl Store {
 
 				false
 			}
-		};
-
-		ret
+		}
 	}
 
 	pub fn print_grid(&self) -> Option<String> {
@@ -204,10 +200,7 @@ impl Store {
 			.max_by(|x, y| x.1.total_cmp(&y.1))
 			.map(|v| v.0.as_str());
 
-		Suggestion {
-			target,
-			similar,
-		}
+		Suggestion { target, similar }
 	}
 
 	pub fn all_templates_name(&self) -> Vec<&String> {
@@ -236,7 +229,7 @@ impl std::fmt::Display for Suggestion<'_> {
 pub mod test_utils {
 	use std::{collections::BTreeMap, fs, path::Path};
 
-	use tempfile::{tempdir, TempDir};
+	use tempfile::{TempDir, tempdir};
 
 	use super::{Store, Template, TemplateMap};
 	use crate::sub_template::test_utils::sub_tempaltes_dir_setup;
@@ -247,9 +240,7 @@ pub mod test_utils {
 
 	impl StoreJsonMock {
 		pub fn new() -> Self {
-			Self {
-				data: Vec::new(),
-			}
+			Self { data: Vec::new() }
 		}
 
 		pub fn push(&mut self, name: &str, path: &Path) -> &mut Self {
@@ -288,10 +279,7 @@ pub mod test_utils {
 			let tmp_dir = tempdir().unwrap();
 			let store = Store::new(tmp_dir.path()).unwrap();
 
-			Self {
-				tmp_dir,
-				store,
-			}
+			Self { tmp_dir, store }
 		}
 
 		pub fn with_default_content() -> Self {
@@ -308,10 +296,7 @@ pub mod test_utils {
 
 			let store = Store::new(tmp_dir_path).unwrap();
 
-			Self {
-				tmp_dir,
-				store,
-			}
+			Self { tmp_dir, store }
 		}
 
 		pub fn from_range(range: std::ops::Range<i32>) -> Self {
@@ -348,10 +333,7 @@ pub mod test_utils {
 
 			let store = Store::new(tmp_dir_path).unwrap();
 
-			Self {
-				tmp_dir,
-				store,
-			}
+			Self { tmp_dir, store }
 		}
 	}
 }
@@ -436,10 +418,8 @@ mod tests {
 
 	#[test]
 	fn test_store_remove() -> Result<()> {
-		let StoreMock {
-			tmp_dir,
-			mut store,
-		} = StoreMock::with_default_content();
+		let StoreMock { tmp_dir, mut store } =
+			StoreMock::with_default_content();
 
 		store.remove("foo")?;
 

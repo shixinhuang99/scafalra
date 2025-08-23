@@ -192,13 +192,11 @@ impl Scafalra {
 
 		let tpl_name = match (&args.name, self.interactive_mode) {
 			(Some(arg_name), false) => Some(arg_name),
-			(_, true) => {
-				select(
-					self.store.all_templates_name(),
-					"Select a template:",
-					"There are no templates",
-				)?
-			}
+			(_, true) => select(
+				self.store.all_templates_name(),
+				"Select a template:",
+				"There are no templates",
+			)?,
 			_ => {
 				anyhow::bail!(
 					"Provide a name or opt for interactive mode with the `-i` argument"
@@ -250,17 +248,15 @@ impl Scafalra {
 			(Some(arg_sub_tpl_names), false) => {
 				Some(arg_sub_tpl_names.iter().collect())
 			}
-			(_, true) if !template.sub_templates.is_empty() => {
-				multi_select(
-					template
-						.sub_templates
-						.iter()
-						.map(|sub_tpl| &sub_tpl.name)
-						.collect(),
-					"Select sub templates:",
-					"There are no sub templates",
-				)?
-			}
+			(_, true) if !template.sub_templates.is_empty() => multi_select(
+				template
+					.sub_templates
+					.iter()
+					.map(|sub_tpl| &sub_tpl.name)
+					.collect(),
+				"Select sub templates:",
+				"There are no sub templates",
+			)?,
 			_ => None,
 		};
 
@@ -332,14 +328,12 @@ impl Scafalra {
 
 		let names = match (args.names, self.interactive_mode) {
 			(Some(names), false) => Some(names),
-			(_, true) => {
-				multi_select(
-					self.store.all_templates_name(),
-					"Select templates:",
-					"There are no templates",
-				)?
-				.map(|vs| vs.into_iter().cloned().collect())
-			}
+			(_, true) => multi_select(
+				self.store.all_templates_name(),
+				"Select templates:",
+				"There are no templates",
+			)?
+			.map(|vs| vs.into_iter().cloned().collect()),
 			_ => {
 				anyhow::bail!(
 					"Provide names or opt for interactive mode with the `-i` argument"
@@ -366,11 +360,11 @@ mod test_utils {
 	use std::fs;
 
 	use mockito::{Mock, ServerGuard};
-	use tempfile::{tempdir, TempDir};
+	use tempfile::{TempDir, tempdir};
 
 	use super::Scafalra;
 	use crate::{
-		store::{test_utils::StoreJsonMock, Store},
+		store::{Store, test_utils::StoreJsonMock},
 		sub_template::test_utils::sub_tempaltes_dir_setup,
 	};
 
@@ -437,10 +431,7 @@ mod test_utils {
 			)
 			.unwrap();
 
-			Self {
-				scafalra,
-				..self
-			}
+			Self { scafalra, ..self }
 		}
 	}
 
@@ -477,7 +468,7 @@ mod tests {
 
 	use super::test_utils::{ScafalraMock, ServerMock};
 	use crate::{
-		cli::{test_utils::AddArgsMock, CreateArgs, RemoveArgs, RenameArgs},
+		cli::{CreateArgs, RemoveArgs, RenameArgs, test_utils::AddArgsMock},
 		path_ext::*,
 		store::test_utils::StoreJsonMock,
 		sub_template::SUB_TEMPLATE_DIR,
@@ -648,9 +639,7 @@ mod tests {
 	#[test]
 	fn test_scafalra_create_ok() -> Result<()> {
 		let ScafalraMock {
-			tmp_dir,
-			scafalra,
-			..
+			tmp_dir, scafalra, ..
 		} = ScafalraMock::new().with_content();
 
 		let bar_dir = tmp_dir.path().join("bar");
@@ -716,9 +705,7 @@ mod tests {
 			..
 		} = ScafalraMock::new();
 
-		let ret = scafalra.remove(RemoveArgs {
-			names: None,
-		});
+		let ret = scafalra.remove(RemoveArgs { names: None });
 
 		assert!(ret.is_err());
 

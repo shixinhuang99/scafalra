@@ -34,7 +34,7 @@ fn run() -> Result<()> {
 		trun_on_debug();
 	}
 
-	let scfalra_dir = if cfg!(feature = "_dev") {
+	let scafalra_dir = if cfg!(feature = "_dev") {
 		std::path::PathBuf::from("tmp/sca-test")
 	} else {
 		ProjectDirs::from("", "", "scafalra")
@@ -45,7 +45,7 @@ fn run() -> Result<()> {
 			.to_path_buf()
 	};
 
-	let mut scafalra = Scafalra::new(scfalra_dir, None, cli.token.as_deref())?;
+	let mut scafalra = Scafalra::new(scafalra_dir, None, cli.token.as_deref())?;
 
 	if cli.proj_dir {
 		println!("{}", scafalra.path.to_string_lossy());

@@ -1,7 +1,7 @@
 use std::{fs, path::Path};
 
 use anyhow::Result;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 pub trait JsonContent
 where
@@ -35,7 +35,7 @@ mod test_utils {
 	use std::{fs, path::PathBuf};
 
 	use serde::{Deserialize, Serialize};
-	use tempfile::{tempdir, TempDir};
+	use tempfile::{TempDir, tempdir};
 
 	use super::JsonContent;
 
@@ -58,11 +58,7 @@ mod test_utils {
 			let path = tmp_dir.path().join("foo.json");
 			let foo = Foo::load(&path).unwrap();
 
-			Self {
-				foo,
-				tmp_dir,
-				path,
-			}
+			Self { foo, tmp_dir, path }
 		}
 
 		pub fn no_content(self) -> Self {
@@ -70,10 +66,7 @@ mod test_utils {
 
 			let foo = Foo::load(&self.path).unwrap();
 
-			Self {
-				foo,
-				..self
-			}
+			Self { foo, ..self }
 		}
 
 		pub fn with_content(self) -> Self {
@@ -81,10 +74,7 @@ mod test_utils {
 
 			let foo = Foo::load(&self.path).unwrap();
 
-			Self {
-				foo,
-				..self
-			}
+			Self { foo, ..self }
 		}
 	}
 }
@@ -95,7 +85,7 @@ mod tests {
 
 	use anyhow::Result;
 
-	use super::{test_utils::JsonContentMock, JsonContent};
+	use super::{JsonContent, test_utils::JsonContentMock};
 
 	#[test]
 	fn test_json_load_file() {

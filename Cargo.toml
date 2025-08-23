@@ -1,9 +1,9 @@
 [package]
 name = "scafalra"
 version = "1.4.0"
-edition = "2021"
+edition = "2024"
 authors = ["shixinhuang99 <shixinhuang99@gmail.com>"]
-description = "scafalra(sca) is a command-line interface tool for manage templates"
+description = "scafalra(sca) is a command-line interface tool for managing templates"
 repository = "https://github.com/shixinhuang99/scafalra"
 license = "MIT"
 categories = ["command-line-utilities"]
@@ -50,3 +50,6 @@ codegen-units = 1
 
 [features]
 _dev = []
+
+[lints.clippy]
+uninlined_format_args = "allow"

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use tabled::Tabled;
 
-use crate::sub_template::{read_sub_templates, SubTemplate};
+use crate::sub_template::{SubTemplate, read_sub_templates};
 
 #[derive(Deserialize, Serialize, Clone, Tabled)]
 pub struct Template {

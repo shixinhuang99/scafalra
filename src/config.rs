@@ -24,10 +24,7 @@ impl Config {
 		let path = scafalra_dir.join(Self::FILE_NAME);
 		let content = ConfigContent::load(&path)?;
 
-		Ok(Self {
-			path,
-			content,
-		})
+		Ok(Self { path, content })
 	}
 
 	pub fn save(&self) -> Result<()> {
@@ -47,7 +44,7 @@ impl Config {
 mod test_utils {
 	use std::fs;
 
-	use tempfile::{tempdir, TempDir};
+	use tempfile::{TempDir, tempdir};
 
 	use super::Config;
 
@@ -61,10 +58,7 @@ mod test_utils {
 			let tmp_dir = tempdir().unwrap();
 			let config = Config::new(tmp_dir.path()).unwrap();
 
-			Self {
-				tmp_dir,
-				config,
-			}
+			Self { tmp_dir, config }
 		}
 
 		pub fn with_content(self) -> Self {
@@ -78,10 +72,7 @@ mod test_utils {
 
 			let config = Config::new(tmp_dir_path).unwrap();
 
-			Self {
-				config,
-				..self
-			}
+			Self { config, ..self }
 		}
 	}
 }

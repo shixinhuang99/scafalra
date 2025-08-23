@@ -1,6 +1,6 @@
 # Scafalra(sca)
 
-scafalra is a command-line interface tool for manage templates
+scafalra is a command-line interface tool for managing templates
 
 ## Installation
 
@@ -10,13 +10,13 @@ scafalra is a command-line interface tool for manage templates
 cargo install scafalra
 ```
 
-### Using binrary releases
+### Using binary releases
 
 Download the [latest release binary](https://github.com/shixinhuang99/scafalra/releases) for your system
 
 ## Token
 
-Scafalra is based on the GitHub api and doesn't force the need for authentication, but if you need higher rate limiting or want to access to private repositories, consider using PAT(personal access token)
+Scafalra is based on the GitHub API and doesn't require authentication by default, but if you need higher rate limits or want to access private repositories, consider using a PAT (personal access token)
 
 ```sh
 sca token your_token
@@ -31,7 +31,7 @@ see more info:
 ## Usage
 
 ```
-scafalra(sca) is a command-line interface tool for manage templates
+scafalra(sca) is a command-line interface tool for managing templates
 
 Usage: sca [OPTIONS] [COMMAND]
 
@@ -47,7 +47,7 @@ Commands:
 Options:
       --debug          Use debug output
       --token <TOKEN>  Specify the GitHub personal access token
-      --proj-dir       Display of scafalra's data storage location
+      --proj-dir       Display scafalra's data storage location
   -i, --interactive    Interactive mode
   -h, --help           Print help
   -V, --version        Print version

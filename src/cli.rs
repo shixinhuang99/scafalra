@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{builder::PossibleValuesParser, Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, builder::PossibleValuesParser};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -16,7 +16,7 @@ pub struct Cli {
 	#[arg(long, global = true)]
 	pub token: Option<String>,
 
-	/// Display of scafalra's data storage location
+	/// Display scafalra's data storage location
 	#[arg(long)]
 	pub proj_dir: bool,
 
@@ -76,7 +76,7 @@ pub struct AddArgs {
 	/// owner/name/.../subdir
 	pub repository: String,
 
-	/// The depth to go when recursing repository
+	/// The depth to go when recursing through repository
 	#[arg(
         short,
         long,
@@ -85,7 +85,7 @@ pub struct AddArgs {
     )]
 	pub depth: String,
 
-	/// Specify template name, if a subdir is provided, the last level of the
+	/// Specify template name; if a subdir is provided, the last level of the
 	/// subdir will be used as the name
 	#[arg(long)]
 	pub name: Option<String>,

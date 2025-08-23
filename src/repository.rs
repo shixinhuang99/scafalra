@@ -31,10 +31,7 @@ impl Repository {
 			name.truncate(name.len() - 4);
 		}
 
-		Ok(Self {
-			owner,
-			name,
-		})
+		Ok(Self { owner, name })
 	}
 
 	pub fn url(&self) -> String {
