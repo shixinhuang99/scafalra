@@ -4,20 +4,20 @@ scafalra is a command-line interface tool for managing templates
 
 ## Installation
 
-### Using Homebrew (precompiled binaries)
+### Homebrew
 
 ```sh
 brew tap shixinhuang99/brew
 brew install scafalra
 ```
 
-### Using Cargo
+### Cargo
 
 ```sh
 cargo install scafalra
 ```
 
-### Using binary releases
+### Download Binary releases
 
 Download the [latest release binary](https://github.com/shixinhuang99/scafalra/releases) for your system
 
